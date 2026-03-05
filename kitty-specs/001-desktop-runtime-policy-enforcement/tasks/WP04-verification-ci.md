@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP04"
 title: "Verification and CI Gate Compliance"
-lane: "planned"
+lane: "done"
 subtasks:
   - "T009"
   - "T010"
@@ -16,6 +16,10 @@ history:
     lane: "planned"
     agent: "codex"
     action: "Prompt generated"
+  - timestamp: "2026-03-05T19:13:01Z"
+    lane: "done"
+    agent: "codex"
+    action: "Ran pnpm run ci; typecheck and coverage passed at 100/100/100/100."
 ---
 
 # Work Package Prompt: WP04 - Verification and CI Gate Compliance
@@ -39,3 +43,4 @@ Confirm runtime policy enforcement feature meets quality and coverage gates.
 ## Activity Log
 
 - 2026-03-05: Prompt scaffolded in planned lane.
+- 2026-03-05: CI gate verified and moved to done.

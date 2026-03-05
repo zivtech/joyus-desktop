@@ -18,7 +18,14 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4
 
-  apps/desktop-companion: {}
+  apps/desktop-companion:
+    dependencies:
+      '@joyus/policy-client':
+        specifier: workspace:*
+        version: link:../../packages/policy-client
+      '@joyus/session-agent':
+        specifier: workspace:*
+        version: link:../../packages/session-agent
 
   packages/policy-client: {}
 

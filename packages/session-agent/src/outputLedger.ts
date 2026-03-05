@@ -1,6 +1,4 @@
-import type { RiskLevel } from "./runtimeRouting";
-
-export type TenantClass = "internal" | "external";
+import type { RiskLevel, TenantClass } from "./runtimeRouting";
 
 export interface OutputEventInput {
   tenantId: string;
@@ -13,8 +11,8 @@ export interface OutputEventInput {
   skillIds?: string[];
   artifactIds?: string[];
   latencyMs?: number;
-  policyDecisionJti: string;
-  policyDecisionToken: string;
+  policyDecisionJti?: string;
+  policyDecisionToken?: string;
 }
 
 export interface OutputEvent {
@@ -28,8 +26,8 @@ export interface OutputEvent {
   skill_ids: string[];
   artifact_ids: string[];
   latency_ms: number;
-  policy_decision_jti: string;
-  policy_decision_token: string;
+  policy_decision_jti?: string;
+  policy_decision_token?: string;
 }
 
 export interface DualWritePlan {
@@ -54,7 +52,7 @@ export type FetchLike = (
 ) => Promise<FetchLikeResponse>;
 
 export function buildOutputEvent(input: OutputEventInput): OutputEvent {
-  return {
+  const event: OutputEvent = {
     tenant_id: input.tenantId,
     workspace_id: input.workspaceId,
     session_id: input.sessionId,
@@ -64,10 +62,18 @@ export function buildOutputEvent(input: OutputEventInput): OutputEvent {
     runtime_target: input.runtimeTarget,
     skill_ids: input.skillIds ?? [],
     artifact_ids: input.artifactIds ?? [],
-    latency_ms: input.latencyMs ?? 0,
-    policy_decision_jti: input.policyDecisionJti,
-    policy_decision_token: input.policyDecisionToken
+    latency_ms: input.latencyMs ?? 0
   };
+
+  if (input.policyDecisionJti !== undefined) {
+    event.policy_decision_jti = input.policyDecisionJti;
+  }
+
+  if (input.policyDecisionToken !== undefined) {
+    event.policy_decision_token = input.policyDecisionToken;
+  }
+
+  return event;
 }
 
 export function planDualWrite(

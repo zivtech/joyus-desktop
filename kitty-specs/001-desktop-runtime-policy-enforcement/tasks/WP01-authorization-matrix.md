@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP01"
 title: "Authorization Matrix Hardening"
-lane: "planned"
+lane: "done"
 subtasks:
   - "T001"
   - "T002"
@@ -17,6 +17,10 @@ history:
     lane: "planned"
     agent: "codex"
     action: "Prompt generated"
+  - timestamp: "2026-03-05T19:13:01Z"
+    lane: "done"
+    agent: "codex"
+    action: "Implementation complete; deterministic authorization matrix and exhaustive tests verified."
 ---
 
 # Work Package Prompt: WP01 - Authorization Matrix Hardening
@@ -40,3 +44,4 @@ Harden companion-side authorization to guarantee deterministic behavior for poli
 ## Activity Log
 
 - 2026-03-05: Prompt scaffolded in planned lane.
+- 2026-03-05: Completed implementation and verification; moved to done.

@@ -44,9 +44,7 @@ describe("buildOutputEvent", () => {
         actionType: "tool_call",
         riskLevel: "low",
         policyResult: "allow",
-        runtimeTarget: "local",
-        policyDecisionJti: "jti-2",
-        policyDecisionToken: "payload.signature"
+        runtimeTarget: "local"
       })
     ).toEqual({
       tenant_id: "tenant-a",
@@ -58,9 +56,7 @@ describe("buildOutputEvent", () => {
       runtime_target: "local",
       skill_ids: [],
       artifact_ids: [],
-      latency_ms: 0,
-      policy_decision_jti: "jti-2",
-      policy_decision_token: "payload.signature"
+      latency_ms: 0
     });
   });
 });

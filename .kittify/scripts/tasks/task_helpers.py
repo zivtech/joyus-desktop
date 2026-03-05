@@ -80,6 +80,12 @@ def find_repo_root(start: Optional[Path] = None) -> Path:
         git_path = candidate / ".git"
 
         if git_path.is_file():
+            # Worktree-local override: if this candidate itself is a project root
+            # (contains .kittify), prefer it so task operations target the
+            # current workspace instead of the shared main repository.
+            if (candidate / ".kittify").exists():
+                return candidate
+
             # This is a worktree! The .git file contains a pointer to the main repo.
             # Format: "gitdir: /path/to/main/.git/worktrees/worktree-name"
             try:

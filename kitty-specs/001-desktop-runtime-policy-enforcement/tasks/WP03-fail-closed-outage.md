@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP03"
 title: "Fail-Closed Outage Policy"
-lane: "planned"
+lane: "done"
 subtasks:
   - "T006"
   - "T007"
@@ -17,6 +17,10 @@ history:
     lane: "planned"
     agent: "codex"
     action: "Prompt generated"
+  - timestamp: "2026-03-05T19:13:01Z"
+    lane: "done"
+    agent: "codex"
+    action: "Outage fail-closed matrix completed and verified (external medium/high + internal high)."
 ---
 
 # Work Package Prompt: WP03 - Fail-Closed Outage Policy
@@ -40,3 +44,4 @@ Define and enforce outage behavior that blocks unsafe execution.
 ## Activity Log
 
 - 2026-03-05: Prompt scaffolded in planned lane.
+- 2026-03-05: Added outage matrix coverage and moved to done.

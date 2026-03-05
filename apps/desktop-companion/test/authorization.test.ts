@@ -30,6 +30,19 @@ describe("authorizeAction", () => {
       needsApproval: false,
       reason: "policy_unavailable_fail_closed"
     });
+
+    expect(
+      authorizeAction({
+        riskLevel: "high",
+        outcome: "allow",
+        policyAvailable: false,
+        externalTenant: true
+      })
+    ).toEqual({
+      allowed: false,
+      needsApproval: false,
+      reason: "policy_unavailable_fail_closed"
+    });
   });
 
   it("fails closed for internal high when policy unavailable", () => {
