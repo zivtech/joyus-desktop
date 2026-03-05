@@ -1,0 +1,9 @@
+vcs:
+  type: git
+agents:
+  available:
+  - codex
+  selection:
+    strategy: preferred
+    preferred_implementer: codex
+    preferred_reviewer: codex
