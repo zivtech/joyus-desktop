@@ -3,3 +3,4 @@ export * from "./policyClient";
 export * from "./handoffTypes";
 export * from "./handoffStateMachine";
 export * from "./snapshotEncryption";
+export * from "./handoffVerification";
