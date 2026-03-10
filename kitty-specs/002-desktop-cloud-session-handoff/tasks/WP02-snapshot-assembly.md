@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Snapshot Assembly
-lane: "doing"
+lane: "done"
 dependencies: [WP01]
 base_branch: 002-desktop-cloud-session-handoff-WP01
 base_commit: a9a6bf7926cf3f8037515271481ea2cf3184a8fb
