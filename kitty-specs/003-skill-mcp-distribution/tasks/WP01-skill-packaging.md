@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP01"
 title: "Skill Packaging & Bundling"
-lane: "doing"
+lane: "for_review"
 dependencies: []
 subtasks:
   - "T001"
@@ -192,3 +192,4 @@ spec-kitty implement WP01
 
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-10T11:38:40Z – claude-opus – shell_pid=46587 – lane=doing – Started implementation via workflow command
+- 2026-03-10T11:50:40Z – claude-opus – shell_pid=46587 – lane=for_review – Ready for review: Audited 37 skills (34 Cowork-distributable), defined 4 bundles, built auto-adaptation script, admin guide, smoke test template
