@@ -7,11 +7,11 @@ subtasks:
   - "T004"
 title: "Handoff State Machine & Types"
 phase: "Phase 1 - Foundation"
-lane: "planned"
+lane: "doing"
 dependencies: []
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "36405"
 review_status: ""
 reviewed_by: ""
 history:
@@ -186,3 +186,4 @@ No `--base` flag needed — this is the foundational WP with no dependencies.
 ## Activity Log
 
 - 2026-03-10T15:13:40Z – system – lane=planned – Prompt created.
+- 2026-03-10T15:28:16Z – claude-opus – shell_pid=36405 – lane=doing – Started implementation via workflow command
