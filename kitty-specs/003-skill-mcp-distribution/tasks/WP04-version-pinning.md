@@ -2,8 +2,7 @@
 work_package_id: WP04
 title: Version Pinning & Admin Controls
 lane: planned
-dependencies:
-- WP01
+dependencies: []
 subtasks:
 - T019
 - T020

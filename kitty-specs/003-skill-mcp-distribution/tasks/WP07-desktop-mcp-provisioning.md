@@ -2,8 +2,7 @@
 work_package_id: WP07
 title: Desktop MCP Provisioning
 lane: planned
-dependencies:
-- WP06
+dependencies: []
 subtasks:
 - T039
 - T040

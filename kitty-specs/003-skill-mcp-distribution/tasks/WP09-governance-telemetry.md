@@ -2,9 +2,7 @@
 work_package_id: WP09
 title: Governance & Telemetry Integration
 lane: planned
-dependencies:
-- WP07
-- WP05
+dependencies: []
 subtasks:
 - T048
 - T049

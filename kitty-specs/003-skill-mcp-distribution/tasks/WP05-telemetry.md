@@ -2,9 +2,7 @@
 work_package_id: WP05
 title: Telemetry Foundation
 lane: planned
-dependencies:
-- WP01
-- WP02
+dependencies: []
 subtasks:
 - T024
 - T025

@@ -2,8 +2,7 @@
 work_package_id: WP03
 title: Git Sync for CLI Developers
 lane: planned
-dependencies:
-- WP01
+dependencies: []
 subtasks:
 - T013
 - T014

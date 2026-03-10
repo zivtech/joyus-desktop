@@ -2,9 +2,7 @@
 work_package_id: WP08
 title: Desktop Git Sync Integration
 lane: planned
-dependencies:
-- WP06
-- WP03
+dependencies: []
 subtasks:
 - T044
 - T045
