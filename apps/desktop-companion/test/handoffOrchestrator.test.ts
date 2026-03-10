@@ -1222,7 +1222,7 @@ describe("executeHandoff", () => {
   // -----------------------------------------------------------------------
 
   describe("non-HandoffError wrapping", () => {
-    it("wraps generic errors during encryption as UPLOAD_FAILED", async () => {
+    it("wraps generic errors during encryption as INVALID_SNAPSHOT", async () => {
       setupHappyMocks();
       mockEncryptSnapshot.mockImplementation(() => {
         throw new Error("unexpected crypto error");
@@ -1233,8 +1233,8 @@ describe("executeHandoff", () => {
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(HandoffError);
-        // Non-abort generic errors get wrapped as UPLOAD_FAILED
-        expect((err as HandoffError).code).toBe("UPLOAD_FAILED");
+        // Errors during the encrypting state are wrapped as INVALID_SNAPSHOT
+        expect((err as HandoffError).code).toBe("INVALID_SNAPSHOT");
       }
     });
 
@@ -1255,7 +1255,7 @@ describe("executeHandoff", () => {
       }
     });
 
-    it("wraps string error as UPLOAD_FAILED", async () => {
+    it("wraps string error during encryption as INVALID_SNAPSHOT", async () => {
       setupHappyMocks();
       mockEncryptSnapshot.mockImplementation(() => {
         throw "string error";
@@ -1266,7 +1266,8 @@ describe("executeHandoff", () => {
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(HandoffError);
-        expect((err as HandoffError).code).toBe("UPLOAD_FAILED");
+        // String errors during the encrypting state are wrapped as INVALID_SNAPSHOT
+        expect((err as HandoffError).code).toBe("INVALID_SNAPSHOT");
         expect((err as HandoffError).message).toBe("string error");
       }
     });

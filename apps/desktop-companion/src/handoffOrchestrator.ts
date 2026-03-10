@@ -253,7 +253,9 @@ export async function executeHandoff(
     checkAborted(internalSignal);
 
     // -- Token expiry check (F4) --
-    if (new Date(tokenExpiresAt) <= new Date()) {
+    // Add a 30-second buffer to guard against clock skew between the
+    // desktop client and the policy service.
+    if (new Date(tokenExpiresAt).getTime() <= Date.now() + 30_000) {
       throw new HandoffError(
         "TOKEN_EXPIRED",
         "Policy authorization expired before encryption"
@@ -317,11 +319,13 @@ export async function executeHandoff(
     );
 
     // -- Tenant mismatch check (F6) --
-    // The initiate response's handoff_id encodes the target; if the cloud
-    // assigned a different tenant, we compare the session's tenant_id
-    // against what was requested.  Since the MCP contract echoes the
-    // request fields, we verify the round-trip.
-    // (Actual mismatch would come from a multi-tenant routing error.)
+    // The InitiateHandoffResponse type does not echo tenant_id or
+    // workspace_id back to the client — the server validates tenant routing
+    // before issuing a handoff_id and rejects mismatched requests with an
+    // appropriate error code.  A client-side post-response comparison is
+    // therefore not possible without protocol changes.  If the server ever
+    // adds echoed tenant fields to the response, compare them here and
+    // throw new HandoffError("TENANT_MISMATCH", ...) on divergence.
 
     checkAborted(internalSignal);
 
@@ -437,10 +441,10 @@ export async function executeHandoff(
       result.pickup_url = receipt.pickup_url;
     }
 
-    cleanup();
     return result;
   } catch (error: unknown) {
-    cleanup();
+    // Capture state before transitioning to failed so we can use it for error code selection.
+    const stateAtFailure = sm.getState();
     safeTransitionToFailed(sm);
 
     const notification = getErrorNotification(error);
@@ -455,15 +459,20 @@ export async function executeHandoff(
       throw new HandoffError("TIMEOUT", "Handoff timed out");
     }
 
-    // Wrap upload errors that aren't already HandoffErrors
+    // Wrap generic errors using the captured state to pick an accurate code.
+    // Errors during the 'encrypting' state are snapshot/crypto failures;
+    // errors in later states are upload or network failures.
     if (!(error instanceof HandoffError)) {
+      const code = stateAtFailure === "encrypting" ? "INVALID_SNAPSHOT" : "UPLOAD_FAILED";
       throw new HandoffError(
-        "UPLOAD_FAILED",
+        code,
         error instanceof Error ? error.message : String(error)
       );
     }
 
     throw error;
+  } finally {
+    cleanup();
   }
 }
 
