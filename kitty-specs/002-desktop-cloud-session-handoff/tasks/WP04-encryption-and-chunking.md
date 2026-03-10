@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: E2E Encryption & Chunking
+lane: "doing"
+dependencies: [WP01, WP02]
+base_branch: 002-desktop-cloud-session-handoff-WP02
+base_commit: 72aba0ed3872f245eb9a250209241e4d5b8e3726
+created_at: '2026-03-10T16:04:21.610208+00:00'
 subtasks:
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-title: "E2E Encryption & Chunking"
-phase: "Phase 3 - Encryption"
-lane: "planned"
-dependencies: ["WP01", "WP02"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T014
+- T015
+- T016
+- T017
+- T018
+- T019
+phase: Phase 3 - Encryption
+assignee: ''
+agent: ''
+shell_pid: "1046"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – E2E Encryption & Chunking
