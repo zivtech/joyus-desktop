@@ -1,0 +1,32 @@
+{
+  "bundle_name": "milk-jawn-bundle",
+  "version": "1.0.0",
+  "description": "Skills for Milk Jawn organization — public health, policy, research, content strategy, and business analysis",
+  "target_orgs": ["milk-jawn"],
+  "skills": [
+    "proposal-critic",
+    "copy-critic",
+    "copy-planner",
+    "email-campaign-critic",
+    "brand-voice-guide",
+    "stakeholder-report-writer",
+    "impact-report-planner",
+    "seo-advisor",
+    "ai-readiness-assessor",
+    "plan-writer",
+    "health-equity-analyzer",
+    "policy-brief-critic",
+    "policy-brief-writer",
+    "chna-planner",
+    "lit-review-planner",
+    "manuscript-critic",
+    "research-critic",
+    "research-comms-critic",
+    "dataviz-critic",
+    "dataviz-planner",
+    "data-critic",
+    "data-planner"
+  ],
+  "skill_count": 22,
+  "notes": "Includes all public health, policy, research, and general business skills. Excludes Zivtech-specific development skills (Drupal, React, content-model-critic, dashboard-planner, search-discovery-critic, taxonomy-critic/planner). Includes data skills for health data analysis."
+}

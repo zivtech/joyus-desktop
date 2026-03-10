@@ -1,0 +1,29 @@
+{
+  "bundle_name": "developer-bundle",
+  "version": "1.0.0",
+  "description": "Skills for software developers — code review, architecture planning, accessibility, and performance",
+  "target_orgs": ["zivtech"],
+  "skills": [
+    "react-planner",
+    "drupal-planner",
+    "drupal-migration-planner",
+    "drupal-theme-critic",
+    "a11y-critic",
+    "a11y-planner",
+    "perf-critic",
+    "content-model-critic",
+    "dashboard-planner",
+    "search-discovery-critic",
+    "taxonomy-critic",
+    "taxonomy-planner",
+    "data-critic",
+    "data-planner",
+    "dataviz-critic",
+    "dataviz-planner",
+    "proposal-critic",
+    "copy-critic",
+    "seo-advisor"
+  ],
+  "skill_count": 19,
+  "notes": "Includes all development-oriented skills plus cross-functional skills (proposal-critic, copy-critic, seo-advisor) useful in developer workflows. Some skills (drupal-planner, react-planner) work best in CLI with codebase access but still provide value in Cowork with user-described context."
+}

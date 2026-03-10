@@ -1,0 +1,25 @@
+{
+  "bundle_name": "pm-bundle",
+  "version": "1.0.0",
+  "description": "Skills for project managers, account managers, and client-facing roles",
+  "target_orgs": ["zivtech"],
+  "skills": [
+    "proposal-critic",
+    "copy-critic",
+    "copy-planner",
+    "email-campaign-critic",
+    "brand-voice-guide",
+    "stakeholder-report-writer",
+    "impact-report-planner",
+    "seo-advisor",
+    "research-comms-critic",
+    "plan-writer",
+    "ai-readiness-assessor",
+    "dataviz-critic",
+    "dataviz-planner",
+    "taxonomy-critic",
+    "taxonomy-planner"
+  ],
+  "skill_count": 15,
+  "notes": "Excludes developer-specific skills (Drupal, React, a11y-planner). Includes business analysis, content strategy, and data visualization skills relevant to PM workflows."
+}
