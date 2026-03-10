@@ -45,30 +45,34 @@ const EXCLUDED_SKILLS = new Set([
 // CLI tool patterns to replace for Cowork compatibility
 // Patterns match actual skill content: "Use Read to...", "Use Grep to...", etc.
 const CLI_TOOL_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  // "Use Read to <verb>" — permissive verb capture
   {
-    pattern: /- Use Read to (load|examine|inspect|view|check|read) /gi,
+    pattern: /- Use Read to (\w+) /gi,
     replacement: '- Review the provided ',
   },
   {
-    pattern: /Use Read to (load|examine|inspect|view|check|read) /gi,
+    pattern: /Use Read to (\w+) /gi,
     replacement: 'Review the provided ',
   },
+  // "Use Grep/Glob to <verb>" — permissive verb capture
   {
-    pattern: /- Use Grep(?:\/Glob)? to (verify|find|search|check|locate|confirm) /gi,
+    pattern: /- Use Grep(?:\/Glob)? to (\w+) /gi,
     replacement: '- In the provided code, $1 ',
   },
   {
-    pattern: /Use Grep(?:\/Glob)? to (verify|find|search|check|locate|confirm) /gi,
+    pattern: /Use Grep(?:\/Glob)? to (\w+) /gi,
     replacement: 'In the provided code, $1 ',
   },
+  // "Use Bash [with git] to <verb>" — permissive verb capture
   {
-    pattern: /- Use Bash (?:with git )?to (verify|check|analyze|trace|run|examine) /gi,
+    pattern: /- Use Bash (?:with git )?to (\w+) /gi,
     replacement: '- Ask the user to $1 ',
   },
   {
-    pattern: /Use Bash (?:with git )?to (verify|check|analyze|trace|run|examine) /gi,
+    pattern: /Use Bash (?:with git )?to (\w+) /gi,
     replacement: 'Ask the user to $1 ',
   },
+  // Contextual "Read" references that imply file system access
   {
     pattern: /- Read broadly around referenced code/gi,
     replacement: '- Review the broader context around referenced code',
@@ -80,9 +84,11 @@ const CLI_TOOL_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
 ];
 
 function parseYamlFrontmatter(content: string): { meta: Record<string, string>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  // Normalize CRLF to LF before parsing
+  const normalized = content.replace(/\r\n/g, '\n');
+  const match = normalized.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) {
-    return { meta: {}, body: content };
+    return { meta: {}, body: normalized };
   }
 
   const meta: Record<string, string> = {};
@@ -204,8 +210,9 @@ function buildPlugins(sourceDir: string, outputDir: string): BuildResult {
       if (changeCount > 0) {
         result.adapted++;
       }
-    } catch (err) {
-      result.errors.push(`${skill.name}: ${err}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      result.errors.push(`${skill.name}: ${msg}`);
     }
   }
 
@@ -221,8 +228,8 @@ const args = process.argv.slice(2);
 const sourceIdx = args.indexOf('--source');
 const outputIdx = args.indexOf('--output');
 
-const sourceDir = sourceIdx >= 0 ? args[sourceIdx + 1] : '';
-const outputDir = outputIdx >= 0 ? args[outputIdx + 1] : 'plugins';
+const sourceDir = sourceIdx >= 0 && sourceIdx + 1 < args.length ? args[sourceIdx + 1] : '';
+const outputDir = outputIdx >= 0 && outputIdx + 1 < args.length ? args[outputIdx + 1] : 'plugins';
 
 if (!sourceDir) {
   console.error('Usage: npx tsx scripts/build-cowork-plugins.ts --source <path-to-zivtech-meta-skills> [--output plugins/]');

@@ -46,5 +46,6 @@
     "test-critic"
   ],
   "excluded_reason": "Infrastructure/meta skills for CLI skill development workflow only",
-  "notes": "All 34 Cowork-distributable skills. Excludes 3 infrastructure skills not suitable for Cowork. Sorted alphabetically."
+  "cli_recommended": ["drupal-planner", "react-planner", "data-planner"],
+  "notes": "All 34 Cowork-distributable skills. Excludes 3 infrastructure skills not suitable for Cowork. Sorted alphabetically. Skills in cli_recommended provide best results with direct codebase access."
 }

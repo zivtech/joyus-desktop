@@ -25,5 +25,6 @@
     "seo-advisor"
   ],
   "skill_count": 19,
-  "notes": "Includes all development-oriented skills plus cross-functional skills (proposal-critic, copy-critic, seo-advisor) useful in developer workflows. Some skills (drupal-planner, react-planner) work best in CLI with codebase access but still provide value in Cowork with user-described context."
+  "cli_recommended": ["drupal-planner", "react-planner", "data-planner"],
+  "notes": "Includes all development-oriented skills plus cross-functional skills (proposal-critic, copy-critic, seo-advisor) useful in developer workflows. Skills in cli_recommended work best in CLI with codebase access but still provide value in Cowork with user-described context."
 }

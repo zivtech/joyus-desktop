@@ -39,6 +39,16 @@ Skills are organized into role-based bundles. Each bundle is a plugin set assign
 
 ## How to Assign Bundles
 
+### Step 0: Generate Cowork Plugin Files
+
+Before uploading, generate the adapted plugin files:
+
+```bash
+npx tsx scripts/build-cowork-plugins.ts --source /path/to/zivtech-meta-skills --output plugins/
+```
+
+This reads skill files from the source repo, adapts CLI tool references for Cowork's web environment, and writes Cowork-ready plugin files to `plugins/`. The script also generates `plugins/_manifest.json` listing all processed skills.
+
 ### Step 1: Access Cowork Admin Panel
 
 1. Log in to [claude.ai](https://claude.ai) with an admin account

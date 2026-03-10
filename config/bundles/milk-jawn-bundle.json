@@ -28,5 +28,6 @@
     "data-planner"
   ],
   "skill_count": 22,
-  "notes": "Includes all public health, policy, research, and general business skills. Excludes Zivtech-specific development skills (Drupal, React, content-model-critic, dashboard-planner, search-discovery-critic, taxonomy-critic/planner). Includes data skills for health data analysis."
+  "cli_recommended": ["data-planner"],
+  "notes": "Includes all public health, policy, research, and general business skills. Excludes Zivtech-specific development skills (Drupal, React, content-model-critic, dashboard-planner, search-discovery-critic, taxonomy-critic/planner). Includes data skills for health data analysis. data-planner works best with CLI codebase access."
 }

@@ -11,13 +11,13 @@
 | Total skills in repo | 37 |
 | README-listed skills | 29 |
 | Expansion skills (post-README) | 8 |
-| Compatible as-is | 17 |
-| Needs minor adaptation (auto-adapted by build script) | 17 |
-| Needs major adaptation | 0 |
+| Compatible as-is | 15 |
+| Needs minor adaptation (auto-adapted by build script) | 16 |
+| Needs major adaptation (auto-adapted, CLI-recommended) | 3 |
 | Not suitable for Cowork | 3 |
 | **Cowork-distributable** | **34** |
 
-**Note**: The build script (`scripts/build-cowork-plugins.ts`) automatically adapts CLI tool references (e.g., "Use Read to..." → "Review the provided...") in 17 skills. The remaining 17 have no CLI tool references and work as-is. No skills require major rewrites — all are prompt-only markdown and their investigation protocols work on user-provided content in Cowork. The 3 "needs major adaptation" skills originally identified (drupal-planner, react-planner, data-planner) work acceptably after automated adaptation — users describe their project instead of Claude reading files.
+**Note**: The build script (`scripts/build-cowork-plugins.ts`) automatically adapts CLI tool references (e.g., "Use Read to..." → "Review the provided..."). All 19 skills needing adaptation (minor + major) are handled automatically. The 3 "major adaptation" skills (drupal-planner, react-planner, data-planner) work after adaptation but with reduced output quality — users describe their project structure instead of Claude reading files directly. These are marked "CLI-recommended" in their respective bundles.
 
 ## Cowork Plugin Format Requirements
 
