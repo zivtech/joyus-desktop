@@ -134,7 +134,11 @@ export async function discoverUploadOffset(uploadUrl: string): Promise<number> {
     throw new HandoffError("UPLOAD_FAILED", "Upload-Offset header missing from HEAD response");
   }
 
-  return parseInt(offsetHeader, 10);
+  const offset = parseInt(offsetHeader, 10);
+  if (isNaN(offset)) {
+    throw new HandoffError("UPLOAD_FAILED", `Upload-Offset header is not a valid number: ${offsetHeader}`);
+  }
+  return offset;
 }
 
 /**
@@ -151,17 +155,8 @@ export async function resumeUpload(
 
   return new Promise<void>((resolve, reject) => {
     const upload = new Upload(blob, {
-      endpoint: config.uploadUrl,
-      uploadUrl,
-      uploadSize: blob.length,
-      chunkSize: config.chunkSize,
-      retryDelays: buildRetryDelays(config.maxRetries, config.baseRetryDelay, config.maxRetryDelay),
-      headers: {
-        "Upload-Offset": String(offset),
-      },
-      metadata: {
-        resumedFrom: String(offset),
-      },
+      uploadUrl,  // tells tus-js-client to resume (skip creation); library issues its own HEAD
+      retryDelays: [],  // no more retries on resume
       onError(err: Error) {
         config.onError?.(err);
         reject(new HandoffError("UPLOAD_FAILED", `Resume upload failed: ${err.message}`));
@@ -317,7 +312,7 @@ export async function uploadArtifacts(
   }
 
   const abortController = new AbortController();
-  const totalBytes = artifacts.reduce((sum, a) => sum + a.ciphertext.length, 0);
+  const totalBytes = artifacts.reduce((sum, a) => sum + a.ciphertext.length + a.iv.length + a.authTag.length, 0);
   const perArtifactUploaded: number[] = new Array(artifacts.length).fill(0);
 
   // Link the external signal to our internal abort controller
@@ -357,6 +352,7 @@ export async function uploadArtifacts(
 
   const promises = artifacts.map((artifact, index) => {
     return new Promise<void>((resolve, reject) => {
+      // Wire format: [iv (12 bytes)][authTag (16 bytes)][ciphertext (N bytes)]
       const artifactData = Buffer.concat([artifact.iv, artifact.authTag, artifact.ciphertext]);
       const retryDelays = buildRetryDelays(
         config.maxRetries,

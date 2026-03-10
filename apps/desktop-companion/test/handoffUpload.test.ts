@@ -570,10 +570,10 @@ describe("resumeUpload", () => {
     await resumeUpload("https://tus.example.com/uploads/resource-123", blob, config);
 
     expect(capturedOptions).not.toBeNull();
-    // Offset is passed via headers since uploadOffset is not in UploadOptions
-    const headers = capturedOptions!.headers as Record<string, string>;
-    expect(headers["Upload-Offset"]).toBe("500");
+    // tus-js-client handles offset discovery internally via HEAD when uploadUrl is set
     expect(capturedOptions!.uploadUrl).toBe("https://tus.example.com/uploads/resource-123");
+    // No stale Upload-Offset header — library manages offset internally
+    expect(capturedOptions!.headers?.["Upload-Offset"]).toBeUndefined();
 
     TusUpload.prototype.start = originalStart;
   });
