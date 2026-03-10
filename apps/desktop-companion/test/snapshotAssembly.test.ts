@@ -202,6 +202,11 @@ describe("validateSnapshot", () => {
     expect(() => validateSnapshot(snapshot)).not.toThrow();
   });
 
+  it("passes when policy_cache is empty", () => {
+    const snapshot = buildValidSnapshot({ policy_cache: [] });
+    expect(() => validateSnapshot(snapshot)).not.toThrow();
+  });
+
   it("throws INVALID_SNAPSHOT when runtime_config control_plane_url is empty", () => {
     const snapshot = buildValidSnapshot({
       runtime_config: {
