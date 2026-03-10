@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@joyus/policy-client": "workspace:*",
-    "@joyus/session-agent": "workspace:*"
+    "@joyus/session-agent": "workspace:*",
+    "tus-js-client": "^4.3.1"
   }
 }
