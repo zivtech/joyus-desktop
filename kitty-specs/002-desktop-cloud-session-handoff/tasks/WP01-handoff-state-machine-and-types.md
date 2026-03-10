@@ -7,7 +7,7 @@ subtasks:
   - "T004"
 title: "Handoff State Machine & Types"
 phase: "Phase 1 - Foundation"
-lane: "doing"
+lane: "for_review"
 dependencies: []
 assignee: ""
 agent: "claude-opus"
