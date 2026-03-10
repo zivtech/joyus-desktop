@@ -22,3 +22,4 @@ coverage/
 .kittify/.dashboard
 # Excluded via sparse-checkout
 kitty-specs/
+.omc/
