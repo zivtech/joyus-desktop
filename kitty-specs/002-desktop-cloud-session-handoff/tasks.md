@@ -68,7 +68,7 @@
 ### Implementation Notes
 - Snapshot builder collects: session identity (session_id, tenant_id, workspace_id), conversation_history, pending_actions, runtime_config, policy_cache, artifacts.
 - Manifest calculates chunk_count from total_size_bytes / chunk_size_bytes (5 MiB default, 256 KiB aligned).
-- Integrity signature: HMAC-SHA256 over the JSON-serialized manifest.
+- Integrity signature: HMAC-SHA256 over the JSON-serialized snapshot (excluding the `integrity_signature` field itself).
 
 ### Parallel Opportunities
 - WP02 and WP03 can run in parallel (different modules, no shared new code).

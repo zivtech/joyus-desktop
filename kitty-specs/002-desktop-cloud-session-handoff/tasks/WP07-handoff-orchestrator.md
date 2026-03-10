@@ -132,9 +132,9 @@ WP07 depends on all prior WPs. Use WP05 as base (latest in the dependency chain 
   4. Verify state machine is in expected state before each transition (defensive check).
 - **Edge case**: If `transition('failed')` itself throws (shouldn't happen from non-final states), catch and log but still propagate the original error.
 
-### Subtask T033 – Implement error handling and user notification
+### Subtask T033 – Implement error handling, edge cases, and user notification
 
-- **Purpose**: Map every failure mode to an actionable user-facing message.
+- **Purpose**: Map every failure mode to an actionable user-facing message. Handle spec-defined edge cases.
 - **File**: `apps/desktop-companion/src/handoffOrchestrator.ts`
 - **Steps**:
   1. Define error-to-notification mapping:
@@ -148,13 +148,21 @@ WP07 depends on all prior WPs. Use WP05 as base (latest in the dependency chain 
        HANDOFF_REJECTED: 'Cloud could not accept the session. Please try again.',
        TIMEOUT: 'Handoff timed out. Please try again with a smaller session.',
        CONCURRENT_HANDOFF: 'A handoff is already in progress for this session.',
+       TOKEN_EXPIRED: 'Policy authorization expired during handoff. Please try again.',
+       SNAPSHOT_TOO_LARGE: 'Session is too large to hand off. Try reducing conversation history.',
+       TENANT_MISMATCH: 'Session tenant does not match cloud target environment.',
+       ACTION_IN_PROGRESS: 'Cannot hand off while a privileged action is running. Wait for it to complete.',
      };
      ```
-  2. Wrap the entire orchestration in try/catch:
+  2. **Edge case: Mid-execution handoff** (spec edge case 1): Before starting, check if a privileged action is mid-execution. If so, throw `HandoffError` with code `'ACTION_IN_PROGRESS'`. The user must wait for the action to complete before retrying.
+  3. **Edge case: Token expiry** (spec edge case 3): After authorization succeeds and before encryption completes, re-validate the `policy_token` expiry. If expired, throw `HandoffError` with code `'TOKEN_EXPIRED'`.
+  4. **Edge case: Snapshot size limit** (spec edge case 4): After manifest generation, check `total_size_bytes` against a configurable maximum (default: 100 MiB). If exceeded, throw `HandoffError` with code `'SNAPSHOT_TOO_LARGE'`.
+  5. **Edge case: Tenant/workspace mismatch** (spec edge case 6): After `initiate_handoff` returns, verify the cloud target tenant/workspace matches the session's. If mismatched, throw `HandoffError` with code `'TENANT_MISMATCH'`.
+  6. Wrap the entire orchestration in try/catch:
      - On `HandoffError`: Look up notification by code, emit progress with `failed` state and message.
      - On unknown error: Emit generic failure notification, log full error for debugging.
-  3. Always transition state machine to `failed` on error.
-  4. Re-throw the error after handling (caller may need it).
+  7. Always transition state machine to `failed` on error.
+  8. Re-throw the error after handling (caller may need it).
 
 ### Subtask T034 – Implement timeout management
 
@@ -222,9 +230,17 @@ WP07 depends on all prior WPs. Use WP05 as base (latest in the dependency chain 
   9. **Abort signal**:
      - Pass pre-aborted signal → throws immediately.
      - Abort during upload → throws with abort error.
-  10. **Error notification mapping**:
-      - Each error code maps to correct user-facing message.
-  11. Run `pnpm coverage` — 100% required.
+  10. **Edge case: mid-execution handoff**:
+      - Privileged action in progress → throws `ACTION_IN_PROGRESS`.
+  11. **Edge case: token expiry**:
+      - Policy token expires between authorize and encrypt → throws `TOKEN_EXPIRED`.
+  12. **Edge case: snapshot too large**:
+      - Snapshot exceeds max size → throws `SNAPSHOT_TOO_LARGE`.
+  13. **Edge case: tenant mismatch**:
+      - Cloud target tenant differs from session tenant → throws `TENANT_MISMATCH`.
+  14. **Error notification mapping**:
+      - Each error code (including new edge case codes) maps to correct user-facing message.
+  15. Run `pnpm coverage` — 100% required.
 - **Notes**: This is the most complex test suite in the feature. Use `vi.useFakeTimers()` for timeout tests.
 
 ## Test Strategy
