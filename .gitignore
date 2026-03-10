@@ -20,3 +20,4 @@ coverage/
 .amazonq/
 .github/copilot/
 .kittify/.dashboard
+.omc/
