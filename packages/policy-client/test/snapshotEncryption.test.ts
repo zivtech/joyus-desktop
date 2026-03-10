@@ -151,7 +151,7 @@ describe("encryptChunk / decryptChunk", () => {
         encrypted.ciphertext.subarray(1),
       ]),
     };
-    expect(() => decryptChunk(cek, tampered)).toThrow();
+    expect(() => decryptChunk(cek, tampered)).toThrow(/unable to authenticate data/i);
   });
 
   it("throws on tampered authTag", () => {
@@ -163,7 +163,7 @@ describe("encryptChunk / decryptChunk", () => {
         encrypted.authTag.subarray(1),
       ]),
     };
-    expect(() => decryptChunk(cek, tampered)).toThrow();
+    expect(() => decryptChunk(cek, tampered)).toThrow(/unable to authenticate data/i);
   });
 
   it("throws on modified IV", () => {
@@ -175,7 +175,7 @@ describe("encryptChunk / decryptChunk", () => {
         encrypted.iv.subarray(1),
       ]),
     };
-    expect(() => decryptChunk(cek, tampered)).toThrow();
+    expect(() => decryptChunk(cek, tampered)).toThrow(/unable to authenticate data/i);
   });
 
   it("throws when chunk AAD is reordered (swapped index)", () => {
@@ -187,13 +187,13 @@ describe("encryptChunk / decryptChunk", () => {
       ...enc0,
       aad: enc1.aad,
     };
-    expect(() => decryptChunk(cek, swapped)).toThrow();
+    expect(() => decryptChunk(cek, swapped)).toThrow(/unable to authenticate data/i);
   });
 
   it("throws with wrong CEK", () => {
     const encrypted = encryptChunk(cek, plaintext, 0, 1, sessionId);
     const wrongCek = Buffer.alloc(32, 0xcd);
-    expect(() => decryptChunk(wrongCek, encrypted)).toThrow();
+    expect(() => decryptChunk(wrongCek, encrypted)).toThrow(/unable to authenticate data/i);
   });
 });
 

@@ -8,11 +8,16 @@ import {
   randomBytes,
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
-import { HandoffError, DEFAULT_CHUNK_SIZE } from "./handoffTypes";
+import { DEFAULT_CHUNK_SIZE } from "./handoffTypes";
 
 // X25519 SPKI DER prefix (12 bytes) for wrapping raw 32-byte public keys
 const X25519_SPKI_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
 
+// HKDF parameters: Task prompt T014 specifies empty salt with "handoff-cek" info.
+// research.md R1 specifies salt=sessionId with info="joyus-snapshot-v1".
+// Decision: Follow task prompt. Per-session domain separation is provided by the
+// ephemeral key pair (unique per handoff), so empty salt is acceptable.
+// Cloud decryptor (WP08) uses the same derivation — both sides must agree.
 const HKDF_INFO = Buffer.from("handoff-cek");
 const HKDF_SALT = Buffer.alloc(0);
 const AES_GCM_IV_BYTES = 12;
@@ -37,6 +42,10 @@ export interface EncryptedArtifact {
 /**
  * Generate an ephemeral X25519 key pair for ECIES key agreement.
  * Returns the raw 32-byte public key and the private KeyObject.
+ *
+ * Note: Uses node:crypto KeyObject (extractable) rather than WebCrypto CryptoKey
+ * (non-extractable) for synchronous API simplicity. The private key is ephemeral
+ * and short-lived (discarded after key agreement), mitigating extractability risk.
  */
 export function generateEphemeralKeyPair(): {
   publicKey: Buffer;
@@ -96,6 +105,10 @@ export function performKeyAgreement(cloudPublicKey: Buffer): {
 /**
  * Build the AAD (Additional Authenticated Data) for a given chunk.
  * Format: "${sessionId}:${chunkIndex}:${totalChunks}" encoded as UTF-8.
+ *
+ * Note: research.md R2 specifies a binary AAD format (uint32-BE for indices).
+ * Task prompt T016 specifies this string format. Both desktop (WP04) and cloud
+ * (WP08) use this same function, ensuring agreement on the canonical format.
  */
 export function buildChunkAAD(
   sessionId: string,

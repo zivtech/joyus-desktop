@@ -1,0 +1,149 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773158987469,
+  "projectRoot": "/Users/AlexUA/claude/joyus-desktop/.worktrees/002-desktop-cloud-session-handoff-WP04",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "vitest",
+        "version": "3.2.4",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "pnpm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pnpm test",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {
+      "test": "vitest run",
+      "coverage": "vitest run --coverage",
+      "typecheck": "tsc --noEmit",
+      "ci": "pnpm typecheck && pnpm coverage"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": true,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "spec"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773158987448,
+      "keyFiles": []
+    },
+    "coverage": {
+      "path": "coverage",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773158987452,
+      "keyFiles": [
+        "lcov.info"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1773158987452,
+      "keyFiles": [
+        "architecture.md",
+        "threat-model.md"
+      ]
+    },
+    "kitty-specs": {
+      "path": "kitty-specs",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773158987452,
+      "keyFiles": []
+    },
+    "packages": {
+      "path": "packages",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773158987452,
+      "keyFiles": []
+    },
+    "spec": {
+      "path": "spec",
+      "purpose": "Test specifications",
+      "fileCount": 1,
+      "lastAccessed": 1773158987453,
+      "keyFiles": [
+        "constitution.md"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "packages/policy-client/src/snapshotEncryption.ts",
+      "accessCount": 6,
+      "lastAccessed": 1773176415949,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1773176347440,
+      "type": "directory"
+    },
+    {
+      "path": "packages/policy-client/test/snapshotEncryption.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1773176332925,
+      "type": "file"
+    },
+    {
+      "path": "packages/policy-client/src/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1773176334152,
+      "type": "file"
+    },
+    {
+      "path": "packages/policy-client/src/handoffTypes.ts",
+      "accessCount": 1,
+      "lastAccessed": 1773176340194,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
