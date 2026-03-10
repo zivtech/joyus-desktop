@@ -9,7 +9,7 @@ subtasks:
   - "T025"
 title: "Resumable Upload Client (tus)"
 phase: "Phase 4 - Transport"
-lane: "planned"
+lane: "done"
 dependencies: ["WP01", "WP04"]
 assignee: ""
 agent: ""

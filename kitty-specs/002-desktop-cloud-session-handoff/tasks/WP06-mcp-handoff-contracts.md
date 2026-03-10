@@ -8,7 +8,7 @@ subtasks:
   - "T030"
 title: "MCP Handoff Contracts"
 phase: "Phase 4 - Transport"
-lane: "planned"
+lane: "done"
 dependencies: ["WP01"]
 assignee: ""
 agent: ""

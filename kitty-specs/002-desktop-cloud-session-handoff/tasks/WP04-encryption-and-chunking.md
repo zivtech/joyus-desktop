@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: E2E Encryption & Chunking
-lane: "doing"
+lane: "done"
 dependencies: [WP01, WP02]
 base_branch: 002-desktop-cloud-session-handoff-WP02
 base_commit: 72aba0ed3872f245eb9a250209241e4d5b8e3726

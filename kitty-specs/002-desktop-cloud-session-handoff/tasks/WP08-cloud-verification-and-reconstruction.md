@@ -7,7 +7,7 @@ subtasks:
   - "T040"
 title: "Cloud Snapshot Verification & Session Reconstruction"
 phase: "Phase 6 - Verification"
-lane: "planned"
+lane: "done"
 dependencies: ["WP01", "WP04"]
 assignee: ""
 agent: ""

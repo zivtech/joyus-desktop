@@ -9,7 +9,7 @@ subtasks:
   - "T036"
 title: "Handoff Orchestrator"
 phase: "Phase 5 - Integration"
-lane: "planned"
+lane: "done"
 dependencies: ["WP01", "WP02", "WP03", "WP04", "WP05", "WP06"]
 assignee: ""
 agent: ""

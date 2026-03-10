@@ -1,0 +1,10 @@
+{
+  "feature_number": "002",
+  "slug": "002-desktop-cloud-session-handoff",
+  "friendly_name": "Desktop-to-Cloud Session Handoff",
+  "mission": "software-dev",
+  "source_description": "",
+  "created_at": "2026-03-09T00:00:00Z",
+  "vcs": "git",
+  "vcs_locked_at": "2026-03-10T16:00:15.443607+00:00"
+}
