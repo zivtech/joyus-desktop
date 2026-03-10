@@ -35,11 +35,11 @@ Phase 2:
 **Dependencies**: none
 **Subtasks**: T001–T005 (5 subtasks, ~350 lines)
 
-- [ ] T001: Audit all 29 skills for Cowork plugin format compatibility
-- [ ] T002: Define bundle manifests (PM Bundle, Developer Bundle, Milk Jawn Bundle, Full Bundle)
-- [ ] T003: Adapt skill markdown to Cowork plugin format (if needed)
-- [ ] T004: Publish skill bundles to Cowork for both orgs
-- [ ] T005: Verify at least one skill is invocable by a non-admin user
+- [x] T001: Audit all 29 skills for Cowork plugin format compatibility
+- [x] T002: Define bundle manifests (PM Bundle, Developer Bundle, Milk Jawn Bundle, Full Bundle)
+- [x] T003: Adapt skill markdown to Cowork plugin format (if needed)
+- [x] T004: Publish skill bundles to Cowork for both orgs
+- [x] T005: Verify at least one skill is invocable by a non-admin user
 
 ### WP02 — First-Party MCP Connector Setup
 **Prompt**: [`tasks/WP02-mcp-connector-setup.md`](tasks/WP02-mcp-connector-setup.md)
