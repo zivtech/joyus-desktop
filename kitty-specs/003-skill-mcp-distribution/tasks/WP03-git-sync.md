@@ -2,7 +2,8 @@
 work_package_id: WP03
 title: Git Sync for CLI Developers
 lane: planned
-dependencies: []
+dependencies:
+- WP01
 subtasks:
 - T013
 - T014
@@ -10,6 +11,7 @@ subtasks:
 - T016
 - T017
 - T018
+- T065
 phase: Phase 1 - Cowork Distribution
 assignee: ''
 agent: ''
@@ -197,6 +199,33 @@ CLI developers need the full-power skills from `zivtech-meta-skills` in their `~
 
 **Validation**: 2 developers confirmed working sync. All checklist items pass. Setup guide updated with feedback.
 
+### T065: Unit and integration tests for sync module (Constitution 2.5)
+
+**Purpose**: Achieve 100% coverage on the sync module per constitution mandate (2.5 Full Coverage Gates).
+
+**Steps**:
+1. Create test file: `packages/skill-sync/src/__tests__/sync.test.ts`
+2. Unit tests for core sync logic:
+   - First-run clone path (no cache exists)
+   - Subsequent run with same version (no-op fast path)
+   - Version change triggers update
+   - Metadata file written correctly after sync
+3. Unit tests for error handling:
+   - Network failure → graceful offline (no throw, cached version preserved)
+   - Malformed metadata file → recreated
+   - Invalid tag → clear error message
+4. Unit tests for conflict handling:
+   - Local modifications detected → backed up and overwritten
+   - Backup directory pruning (keep max 5)
+5. Integration test: full sync cycle (clone → update → offline → recover)
+6. Verify: 100% lines/functions/branches/statements coverage.
+
+**Files**: `packages/skill-sync/src/__tests__/sync.test.ts`, `packages/skill-sync/src/__tests__/metadata.test.ts`
+
+**Validation**: `npm test -- --coverage` shows 100% across all metrics. All edge cases covered.
+
+---
+
 ## Implementation Notes
 
 - **Keep it simple**: The sync script should be a small, focused module. Avoid heavy dependencies. Shell script or a single Node file is ideal.
@@ -213,6 +242,7 @@ CLI developers need the full-power skills from `zivtech-meta-skills` in their `~
 - [ ] Local conflicts: overwritten with warning and backup (T016)
 - [ ] Developer setup guide complete and tested (T017)
 - [ ] Verified by 2 developer testers (T018)
+- [ ] 100% test coverage on sync module (T065) — constitution 2.5 mandatory
 
 ## Risks & Edge Cases
 

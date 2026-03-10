@@ -2,13 +2,16 @@
 work_package_id: WP09
 title: Governance & Telemetry Integration
 lane: planned
-dependencies: []
+dependencies:
+- WP07
+- WP05
 subtasks:
 - T048
 - T049
 - T050
 - T051
 - T052
+- T069
 phase: Phase 2 - Desktop Companion
 assignee: ''
 agent: ''
@@ -192,6 +195,33 @@ Feature 001 implemented runtime policy enforcement with an authorization matrix 
 
 **Validation**: Admin report includes desktop MCP events. Counts match actuals. Channel shows "desktop". Opt-out prevents event generation.
 
+### T069: Tests for governance and telemetry integration (Constitution 2.5)
+
+**Purpose**: Achieve 100% coverage on governance and telemetry integration code per constitution mandate.
+
+**Steps**:
+1. Create test files:
+   - `packages/mcp-registry/src/__tests__/governance-integration.test.ts`
+   - `packages/mcp-registry/src/__tests__/telemetry-integration.test.ts`
+2. Governance tests:
+   - Policy check returns allow → tool executes
+   - Policy check returns deny → tool blocked, error returned
+   - Policy check returns audit → tool executes, audit event logged
+   - Governance check throws → fail-closed in enforce mode, proceed in audit mode
+   - Mode switching (off/audit/enforce)
+3. Telemetry tests:
+   - Event emitted with correct schema (channel: "desktop")
+   - Endpoint unreachable → event buffered locally
+   - Opt-out flag → no events emitted
+   - Batch event submission
+4. Verify: 100% coverage on governance and telemetry integration modules.
+
+**Files**: `packages/mcp-registry/src/__tests__/governance-integration.test.ts`, `packages/mcp-registry/src/__tests__/telemetry-integration.test.ts`
+
+**Validation**: 100% coverage on both modules. All policy outcomes and telemetry paths tested.
+
+---
+
 ## Implementation Notes
 
 - **Feature 001 reuse**: The authorization matrix and policy framework are already built. Don't duplicate — import or call into the existing enforcement module.
@@ -207,6 +237,7 @@ Feature 001 implemented runtime policy enforcement with an authorization matrix 
 - [ ] Governance mode (off/audit/enforce) remotely configurable (T050)
 - [ ] Tool blocking verified in enforce mode (T051)
 - [ ] Local MCP events appear in admin usage report (T052)
+- [ ] 100% test coverage on governance/telemetry integration (T069) — constitution 2.5 mandatory
 
 ## Risks & Edge Cases
 

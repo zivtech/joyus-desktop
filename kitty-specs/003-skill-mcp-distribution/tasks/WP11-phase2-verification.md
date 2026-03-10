@@ -2,7 +2,11 @@
 work_package_id: WP11
 title: Phase 2 Verification & Documentation
 lane: planned
-dependencies: []
+dependencies:
+- WP07
+- WP08
+- WP09
+- WP10
 subtasks: [T061, T062, T063, T064]
 phase: Phase 2 - Desktop Companion
 assignee: ''

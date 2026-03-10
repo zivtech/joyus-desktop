@@ -1,7 +1,7 @@
 # Work Packages: Skill & MCP Server Distribution
 
 **Total**: 11 work packages (6 Phase 1, 5 Phase 2)
-**Subtasks**: 64 (T001–T064)
+**Subtasks**: 69 (T001–T069, includes T065–T069 test coverage per constitution 2.5)
 
 ## Dependency Graph
 
@@ -57,7 +57,7 @@ Phase 2:
 ### WP03 — Git Sync for CLI Developers
 **Prompt**: [`tasks/WP03-git-sync.md`](tasks/WP03-git-sync.md)
 **Dependencies**: WP01
-**Subtasks**: T013–T018 (6 subtasks, ~400 lines)
+**Subtasks**: T013–T018, T065 (7 subtasks, ~460 lines)
 
 - [ ] T013: Build sync script that clones/pulls zivtech-meta-skills at pinned tag
 - [ ] T014: Integrate as Claude Code session hook (startup trigger, <10s)
@@ -65,6 +65,7 @@ Phase 2:
 - [ ] T016: Handle local modification conflicts (overwrite + warn)
 - [ ] T017: Document one-time developer setup
 - [ ] T018: Verify with 2 developer testers
+- [ ] T065: Unit and integration tests for sync module (100% coverage — constitution 2.5)
 
 ### WP04 — Version Pinning & Admin Controls
 **Prompt**: [`tasks/WP04-version-pinning.md`](tasks/WP04-version-pinning.md)
@@ -111,7 +112,7 @@ Phase 2:
 ### WP06 — Fix zivtech-mcp-tools Critical Issues
 **Prompt**: [`tasks/WP06-mcp-tools-fixes.md`](tasks/WP06-mcp-tools-fixes.md)
 **Dependencies**: none (can start anytime)
-**Subtasks**: T031–T038 (8 subtasks, ~500 lines)
+**Subtasks**: T031–T038, T066 (9 subtasks, ~540 lines)
 
 - [ ] T031: Fix async/await bug in all MCP server executors (CRITICAL-1)
 - [ ] T032: Add per-package tsconfig.json files (CRITICAL-2)
@@ -121,38 +122,42 @@ Phase 2:
 - [ ] T036: Wire telemetry config values through collector (MAJOR-2, MAJOR-3)
 - [ ] T037: Align documentation defaults with code defaults (MINOR-3)
 - [ ] T038: Verify npm run build and npm run typecheck pass at root
+- [ ] T066: Verify or add test coverage for all fixed code (100% coverage — constitution 2.5)
 
 ### WP07 — Desktop MCP Provisioning
 **Prompt**: [`tasks/WP07-desktop-mcp-provisioning.md`](tasks/WP07-desktop-mcp-provisioning.md)
 **Dependencies**: WP06
-**Subtasks**: T039–T043 (5 subtasks, ~400 lines)
+**Subtasks**: T039–T043, T067 (6 subtasks, ~460 lines)
 
 - [ ] T039: Add MCP registry module to joyus-desktop
 - [ ] T040: Auto-register local MCPs in Claude Code .mcp.json
 - [ ] T041: Integrate with packages/updater for version checks
 - [ ] T042: Ensure clean start/stop (no orphaned Node processes)
 - [ ] T043: Verify local MCP tools respond to calls in Claude Code
+- [ ] T067: Unit and integration tests for MCP registry module (100% coverage — constitution 2.5)
 
 ### WP08 — Desktop Git Sync Integration
 **Prompt**: [`tasks/WP08-desktop-git-sync.md`](tasks/WP08-desktop-git-sync.md)
 **Dependencies**: WP06, WP03
-**Subtasks**: T044–T047 (4 subtasks, ~300 lines)
+**Subtasks**: T044–T047, T068 (5 subtasks, ~340 lines)
 
 - [ ] T044: Embed git sync into desktop companion lifecycle
 - [ ] T045: Desktop manages clone directory transparently
 - [ ] T046: Respect same version pin as Cowork distribution
 - [ ] T047: Verify skills update when pin changes without user action
+- [ ] T068: Tests for desktop sync integration (100% coverage — constitution 2.5)
 
 ### WP09 — Governance & Telemetry Integration
 **Prompt**: [`tasks/WP09-governance-telemetry.md`](tasks/WP09-governance-telemetry.md)
 **Dependencies**: WP07, WP05
-**Subtasks**: T048–T052 (5 subtasks, ~380 lines)
+**Subtasks**: T048–T052, T069 (6 subtasks, ~430 lines)
 
 - [ ] T048: Connect local MCP governance to feature 001 policy enforcement
 - [ ] T049: Route local telemetry through @zivtech-mcp/shared pipeline
 - [ ] T050: Make governance mode (off/audit/enforce) remotely configurable
 - [ ] T051: Verify tool blocking works in enforce mode
 - [ ] T052: Verify telemetry events from local MCPs appear in admin report
+- [ ] T069: Tests for governance and telemetry integration (100% coverage — constitution 2.5)
 
 ### WP11 — Phase 2 Verification & Documentation
 **Prompt**: [`tasks/WP11-phase2-verification.md`](tasks/WP11-phase2-verification.md)

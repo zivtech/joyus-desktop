@@ -2,7 +2,9 @@
 work_package_id: WP05
 title: Telemetry Foundation
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP02
 subtasks:
 - T024
 - T025
@@ -123,21 +125,20 @@ Without telemetry, there's no way to know if distribution is working. Admins nee
 
 ---
 
-### T027: Stand up aggregation endpoint or reuse joyus-ai infrastructure
+### T027: Build telemetry ingestion endpoint on joyus-ai
 
-**Purpose**: Central receiver where telemetry events are stored and queryable.
+**Purpose**: Central receiver where telemetry events are stored and queryable. Per plan AD-001, this goes on joyus-ai to consolidate infrastructure.
 
 **Steps**:
-1. Evaluate infrastructure options:
-   - **joyus-ai**: Does it have an endpoint that can accept telemetry? Check existing API surface.
-   - **Supabase**: Create a `telemetry_events` table + Edge Function for ingestion
-   - **Lightweight serverless**: Cloudflare Worker / Vercel Edge Function → append to database
-   - **Google Sheets API**: For simplest possible v1 (append rows via API)
-2. Choose based on:
-   - Existing infrastructure (prefer reuse over new)
-   - Query capability (admin needs to filter by org, user, date range)
-   - Cost (should be negligible at current scale — <100 users)
-3. Implement the chosen endpoint:
+1. Add telemetry endpoint to joyus-ai:
+   - `POST /api/telemetry/events` — accepts single event or batch array
+   - Authentication: API key in header (`X-Telemetry-Key`)
+   - Response: 202 Accepted (async processing)
+2. Add `telemetry_events` table to joyus-ai database:
+   - Columns matching the schema from T024 (event_id, timestamp, user_id, org_id, channel, event_type, name, version, outcome, duration_ms, metadata JSONB)
+   - Index on (org_id, timestamp) for admin queries
+   - Index on (user_id, timestamp) for per-user queries
+3. Implement the endpoint:
    - `POST /api/telemetry/events` — accepts single event or batch
    - Authentication: API key or service token
    - Rate limit: 100 events/minute per client

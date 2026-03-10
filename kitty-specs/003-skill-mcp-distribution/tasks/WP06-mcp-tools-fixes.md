@@ -12,6 +12,7 @@ subtasks:
   - "T036"
   - "T037"
   - "T038"
+  - "T066"
 phase: "Phase 2 - Desktop Companion"
 assignee: ""
 agent: ""
@@ -275,6 +276,26 @@ Prior audit of `zivtech-mcp-tools` identified critical bugs blocking distributio
 
 **Validation**: `npm run build` exits 0. `npm run typecheck` exits 0. All functional MCP servers start without errors. No type errors, no missing module errors.
 
+### T066: Verify or add test coverage for all fixed code (Constitution 2.5)
+
+**Purpose**: Ensure fixes are covered by tests per constitution mandate (2.5 Full Coverage Gates — 100% coverage mandatory).
+
+**Steps**:
+1. Check existing test infrastructure: `npm test` at repo root.
+2. For each fix (T031-T037), verify test coverage exists:
+   - T031 (async/await): Test that each MCP handler returns resolved values (not pending promises)
+   - T034 (governance try/catch): Test that governance failure returns error response, not process crash
+   - T036 (telemetry wiring): Test that config values flow to collector, disabled flag stops emission
+3. Add missing tests for any fix without coverage.
+4. Run coverage report: `npm test -- --coverage`
+5. Target: 100% on all modified files. If existing uncovered code makes 100% infeasible for entire repo, achieve 100% on files touched by T031-T037.
+
+**Files**: `packages/*/src/__tests__/`, coverage config
+
+**Validation**: Coverage report shows 100% on modified files. All fixes have corresponding test assertions.
+
+---
+
 ## Implementation Notes
 
 - **This WP works on `zivtech-mcp-tools` repo**, NOT joyus-desktop. The implementer needs access to that repo.
@@ -293,6 +314,7 @@ Prior audit of `zivtech-mcp-tools` identified critical bugs blocking distributio
 - [ ] Telemetry config properly wired to collector (T036)
 - [ ] Documentation matches code defaults (T037)
 - [ ] `npm run build` and `npm run typecheck` pass at root (T038)
+- [ ] 100% test coverage on modified files (T066) — constitution 2.5 mandatory
 
 ## Risks & Edge Cases
 

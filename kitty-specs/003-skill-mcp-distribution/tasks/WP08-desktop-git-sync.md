@@ -2,12 +2,15 @@
 work_package_id: WP08
 title: Desktop Git Sync Integration
 lane: planned
-dependencies: []
+dependencies:
+- WP06
+- WP03
 subtasks:
 - T044
 - T045
 - T046
 - T047
+- T068
 phase: Phase 2 - Desktop Companion
 assignee: ''
 agent: ''
@@ -139,6 +142,27 @@ WP03 built a standalone sync mechanism for CLI developers. This WP integrates th
 
 **Validation**: Skills updated from v1.0.0 to v1.1.0 without any user action. Companion handled the update transparently. Claude Code reflects the new version.
 
+### T068: Tests for desktop sync integration (Constitution 2.5)
+
+**Purpose**: Achieve 100% coverage on sync integration code per constitution mandate.
+
+**Steps**:
+1. Create test file: `packages/mcp-registry/src/__tests__/skill-sync-integration.test.ts`
+2. Unit tests:
+   - Startup sync triggers on `app.ready`
+   - Periodic re-sync scheduled at configured interval
+   - Offline handling: uses cached, no errors surfaced
+   - Managed directory creation and cleanup
+   - Atomic file copy (temp dir → rename)
+   - Pin reading and version comparison
+3. Verify: 100% coverage on skill-sync-integration module.
+
+**Files**: `packages/mcp-registry/src/__tests__/skill-sync-integration.test.ts`
+
+**Validation**: 100% coverage on desktop sync integration code. Offline and error paths covered.
+
+---
+
 ## Implementation Notes
 
 - **Reuse WP03 logic**: Extract WP03's sync script into a shared module that both the CLI hook and desktop companion import. Don't reimplement.
@@ -153,6 +177,7 @@ WP03 built a standalone sync mechanism for CLI developers. This WP integrates th
 - [ ] Clone directory managed transparently in app data location (T045)
 - [ ] Version pin from distribution-config.json respected (T046)
 - [ ] Pin changes propagate without user action (T047, verified)
+- [ ] 100% test coverage on sync integration code (T068) — constitution 2.5 mandatory
 
 ## Risks & Edge Cases
 

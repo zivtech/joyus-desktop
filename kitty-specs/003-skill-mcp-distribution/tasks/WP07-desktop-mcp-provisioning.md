@@ -2,13 +2,15 @@
 work_package_id: WP07
 title: Desktop MCP Provisioning
 lane: planned
-dependencies: []
+dependencies:
+- WP06
 subtasks:
 - T039
 - T040
 - T041
 - T042
 - T043
+- T067
 phase: Phase 2 - Desktop Companion
 assignee: ''
 agent: ''
@@ -217,6 +219,36 @@ The joyus-desktop companion is an Electron app. Local MCP servers from `zivtech-
 
 **Validation**: All provisioned MCP tools respond correctly. Start/stop lifecycle works cleanly. Results documented with evidence.
 
+### T067: Unit and integration tests for MCP registry module (Constitution 2.5)
+
+**Purpose**: Achieve 100% coverage on the MCP registry module per constitution mandate.
+
+**Steps**:
+1. Create test files in `packages/mcp-registry/src/__tests__/`.
+2. Unit tests for registry lifecycle:
+   - Register server → appears in list
+   - Start server → process spawned, status is "running"
+   - Stop server → process killed, status is "stopped"
+   - Start all / stop all batch operations
+3. Unit tests for Claude Code integration:
+   - `.mcp.json` merge preserves user entries
+   - Managed entries use `_managed_by` marker
+   - Malformed `.mcp.json` handled gracefully (backup + recreate)
+   - Missing `.mcp.json` created
+4. Unit tests for process manager:
+   - PID tracking on spawn
+   - Graceful shutdown (SIGTERM → wait → SIGKILL)
+   - Orphan cleanup from PID file
+   - Watchdog restart on crash (max 3 retries)
+5. Integration test: full lifecycle (register → start → tool call → stop → verify cleanup).
+6. Verify: 100% lines/functions/branches/statements coverage.
+
+**Files**: `packages/mcp-registry/src/__tests__/registry.test.ts`, `packages/mcp-registry/src/__tests__/process-manager.test.ts`, `packages/mcp-registry/src/__tests__/claude-code-integration.test.ts`
+
+**Validation**: `npm test -- --coverage` shows 100% on mcp-registry package. All lifecycle paths covered.
+
+---
+
 ## Implementation Notes
 
 - **Electron integration**: The MCP registry runs in the Electron main process. Use `child_process.spawn()` for MCP servers. Hook into Electron's `app.on('before-quit')` for graceful shutdown.
@@ -232,6 +264,7 @@ The joyus-desktop companion is an Electron app. Local MCP servers from `zivtech-
 - [ ] Updater checks for and applies MCP server updates (T041)
 - [ ] No orphaned processes on crash or quit (T042)
 - [ ] MCP tools verified working in Claude Code E2E (T043)
+- [ ] 100% test coverage on mcp-registry module (T067) — constitution 2.5 mandatory
 
 ## Risks & Edge Cases
 

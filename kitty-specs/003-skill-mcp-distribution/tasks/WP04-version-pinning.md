@@ -2,7 +2,8 @@
 work_package_id: WP04
 title: Version Pinning & Admin Controls
 lane: planned
-dependencies: []
+dependencies:
+- WP01
 subtasks:
 - T019
 - T020
@@ -66,12 +67,15 @@ Without version pinning, skill updates could roll out unpredictably — breaking
 
 ---
 
-### T020: Create admin config that specifies pinned version per bundle
+### T020: Build distribution config API on joyus-ai
 
-**Purpose**: Central configuration that both Cowork and CLI sync read to determine which version to distribute.
+**Purpose**: Central API endpoint that all clients (Cowork, CLI sync, desktop companion) read to determine which version to distribute. Per plan AD-002.
 
 **Steps**:
-1. Create `distribution-config.json` in the `zivtech-meta-skills` repo root (or a well-known config location):
+1. Add two endpoints to joyus-ai:
+   - `GET /api/distribution/config` — returns current version pins per bundle (public, API key auth)
+   - `PUT /api/distribution/config` — admin updates pins (admin auth required)
+2. Response shape:
    ```json
    {
      "schema_version": "1",

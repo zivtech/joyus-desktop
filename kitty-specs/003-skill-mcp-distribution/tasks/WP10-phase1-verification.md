@@ -2,7 +2,12 @@
 work_package_id: WP10
 title: Phase 1 Verification & Rollout
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP02
+- WP03
+- WP04
+- WP05
 subtasks:
 - T053
 - T054
