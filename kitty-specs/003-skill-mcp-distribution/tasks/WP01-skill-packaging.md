@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP01"
 title: "Skill Packaging & Bundling"
-lane: "planned"
+lane: "doing"
 dependencies: []
 subtasks:
   - "T001"
@@ -11,8 +11,8 @@ subtasks:
   - "T005"
 phase: "Phase 1 - Cowork Distribution"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "46587"
 review_status: ""
 reviewed_by: ""
 history:
@@ -191,3 +191,4 @@ spec-kitty implement WP01
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-10T11:38:40Z – claude-opus – shell_pid=46587 – lane=doing – Started implementation via workflow command
