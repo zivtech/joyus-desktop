@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Policy-Gated Handoff Authorization
+lane: "doing"
+dependencies: [WP01]
+base_branch: 002-desktop-cloud-session-handoff-WP01
+base_commit: a9a6bf7926cf3f8037515271481ea2cf3184a8fb
+created_at: '2026-03-10T16:00:17.280244+00:00'
 subtasks:
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-title: "Policy-Gated Handoff Authorization"
-phase: "Phase 2 - Core Capabilities"
-lane: "planned"
-dependencies: ["WP01"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T010
+- T011
+- T012
+- T013
+phase: Phase 2 - Core Capabilities
+assignee: ''
+agent: ''
+shell_pid: "84864"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Policy-Gated Handoff Authorization
