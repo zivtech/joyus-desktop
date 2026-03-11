@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP02"
 title: "First-Party MCP Connector Setup"
-lane: "planned"
+lane: "doing"
 dependencies: []
 subtasks:
   - "T006"
@@ -13,8 +13,8 @@ subtasks:
   - "T012"
 phase: "Phase 1 - Cowork Distribution"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "codex"
+shell_pid: "62606"
 review_status: ""
 reviewed_by: ""
 history:
@@ -202,3 +202,4 @@ spec-kitty implement WP02
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-11T00:29:33Z – codex – shell_pid=62606 – lane=doing – Started WP02 implementation in repository
