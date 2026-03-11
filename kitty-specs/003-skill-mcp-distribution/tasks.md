@@ -60,7 +60,7 @@ Phase 2:
 **Subtasks**: T013–T018, T065 (7 subtasks, ~460 lines)
 
 - [x] T013: Build sync script that clones/pulls zivtech-meta-skills at pinned tag
-- [ ] T014: Integrate as Claude Code session hook (startup trigger, <10s)
+- [x] T014: Integrate as Claude Code session hook (startup trigger, <10s)
 - [x] T015: Handle offline gracefully (last good state, no error surfaced)
 - [x] T016: Handle local modification conflicts (overwrite + warn)
 - [x] T017: Document one-time developer setup
