@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Version Pinning & Admin Controls
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T019
@@ -11,8 +11,8 @@ subtasks:
 - T023
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "codex"
+shell_pid: "39444"
 review_status: ''
 reviewed_by: ''
 history:
@@ -197,3 +197,4 @@ spec-kitty implement WP04 --base WP01
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-11T00:59:50Z – codex – shell_pid=39444 – lane=doing – Started WP04 implementation
