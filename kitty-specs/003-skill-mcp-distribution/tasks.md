@@ -114,15 +114,15 @@ Phase 2:
 **Dependencies**: none (can start anytime)
 **Subtasks**: T031–T038, T066 (9 subtasks, ~540 lines)
 
-- [ ] T031: Fix async/await bug in all MCP server executors (CRITICAL-1)
-- [ ] T032: Add per-package tsconfig.json files (CRITICAL-2)
-- [ ] T033: Fix workspace protocol to match package manager (MAJOR-1)
-- [ ] T034: Move governance enforcement inside try/catch (MAJOR-6)
-- [ ] T035: Fix or exclude shell packages from build (MAJOR-5)
-- [ ] T036: Wire telemetry config values through collector (MAJOR-2, MAJOR-3)
-- [ ] T037: Align documentation defaults with code defaults (MINOR-3)
-- [ ] T038: Verify npm run build and npm run typecheck pass at root
-- [ ] T066: Verify or add test coverage for all fixed code (100% coverage — constitution 2.5)
+- [x] T031: Fix async/await bug in all MCP server executors (CRITICAL-1)
+- [x] T032: Add per-package tsconfig.json files (CRITICAL-2)
+- [x] T033: Fix workspace protocol to match package manager (MAJOR-1)
+- [x] T034: Move governance enforcement inside try/catch (MAJOR-6)
+- [x] T035: Fix or exclude shell packages from build (MAJOR-5)
+- [x] T036: Wire telemetry config values through collector (MAJOR-2, MAJOR-3)
+- [x] T037: Align documentation defaults with code defaults (MINOR-3)
+- [x] T038: Verify npm run build and npm run typecheck pass at root
+- [x] T066: Verify or add test coverage for all fixed code (100% coverage — constitution 2.5)
 
 ### WP07 — Desktop MCP Provisioning
 **Prompt**: [`tasks/WP07-desktop-mcp-provisioning.md`](tasks/WP07-desktop-mcp-provisioning.md)
