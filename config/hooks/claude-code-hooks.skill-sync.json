@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "session_start": {
+      "command": "pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync --quiet",
+      "timeout_ms": 10000,
+      "async": true
+    }
+  }
+}
