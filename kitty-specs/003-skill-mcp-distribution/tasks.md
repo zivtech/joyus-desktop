@@ -164,7 +164,7 @@ Phase 2:
 **Dependencies**: WP07, WP08, WP09, WP10
 **Subtasks**: T061–T064 (4 subtasks, ~300 lines)
 
-- [ ] T061: E2E — Desktop companion install provisions local MCPs
-- [ ] T062: SC-006 — Desktop companion provisions local MCPs for 2 testers
-- [ ] T063: Collect user feedback from initial rollout group
-- [ ] T064: Document known limitations and next steps
+- [x] T061: E2E — Desktop companion install provisions local MCPs
+- [x] T062: SC-006 — Desktop companion provisions local MCPs for 2 testers
+- [x] T063: Collect user feedback from initial rollout group
+- [x] T064: Document known limitations and next steps
