@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Phase 1 Verification & Rollout
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T053
@@ -14,8 +14,8 @@ subtasks:
 - T060
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "375"
 review_status: ''
 reviewed_by: ''
 history:
@@ -247,3 +247,4 @@ spec-kitty implement WP10 --base WP05
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-12T02:12:16Z – claude-opus – shell_pid=375 – lane=doing – Started implementation via workflow command
