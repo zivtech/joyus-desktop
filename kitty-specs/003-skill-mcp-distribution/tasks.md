@@ -83,13 +83,13 @@ Phase 2:
 **Dependencies**: WP01, WP02
 **Subtasks**: T024–T030 (7 subtasks, ~480 lines)
 
-- [ ] T024: Define telemetry event schema
-- [ ] T025: Identify Cowork-side collection mechanism
-- [ ] T026: Identify CLI-side collection mechanism
-- [ ] T027: Stand up aggregation endpoint or reuse joyus-ai infrastructure
-- [ ] T028: Build admin usage report (script or dashboard)
-- [ ] T029: Implement per-user telemetry opt-out mechanism (FR-008)
-- [ ] T030: Verify events appear for both Cowork and CLI usage
+- [x] T024: Define telemetry event schema
+- [x] T025: Identify Cowork-side collection mechanism
+- [x] T026: Identify CLI-side collection mechanism
+- [x] T027: Stand up aggregation endpoint or reuse joyus-ai infrastructure
+- [x] T028: Build admin usage report (script or dashboard)
+- [x] T029: Implement per-user telemetry opt-out mechanism (FR-008)
+- [x] T030: Verify events appear for both Cowork and CLI usage
 
 ### WP10 — Phase 1 Verification & Rollout
 **Prompt**: [`tasks/WP10-phase1-verification.md`](tasks/WP10-phase1-verification.md)
