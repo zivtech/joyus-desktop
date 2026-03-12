@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Telemetry Foundation
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T024
@@ -13,8 +13,8 @@ subtasks:
 - T030
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "84237"
 review_status: ''
 reviewed_by: ''
 history:
@@ -261,3 +261,4 @@ spec-kitty implement WP05 --base WP01
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-12T01:12:07Z – claude-opus – shell_pid=84237 – lane=doing – Started implementation via workflow command
