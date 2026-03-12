@@ -21,5 +21,7 @@ coverage/
 .github/copilot/
 .kittify/.dashboard
 # Excluded via sparse-checkout
-kitty-specs/
 .omc/
+# Block WP status files (managed in main repo, prevents merge conflicts)
+# Research artifacts in kitty-specs/**/research/ are allowed
+kitty-specs/**/tasks/*.md
