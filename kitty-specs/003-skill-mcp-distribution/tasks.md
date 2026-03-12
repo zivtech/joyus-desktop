@@ -46,13 +46,13 @@ Phase 2:
 **Dependencies**: none
 **Subtasks**: T006–T012 (7 subtasks, ~450 lines)
 
-- [ ] T006: Configure Atlassian connector for Zivtech org
-- [ ] T007: Configure Slack connector for Zivtech org
-- [ ] T008: Configure Google Workspace connector for Zivtech org
-- [ ] T009: Configure connectors for Milk Jawn org
-- [ ] T010: Configure additional connectors (Figma, Notion, Playwright)
-- [ ] T011: Document OAuth consent flow for end users
-- [ ] T012: Verify each connector responds to tool calls from a non-admin user
+- [x] T006: Configure Atlassian connector for Zivtech org
+- [x] T007: Configure Slack connector for Zivtech org
+- [x] T008: Configure Google Workspace connector for Zivtech org
+- [x] T009: Configure connectors for Milk Jawn org
+- [x] T010: Configure additional connectors (Figma, Notion, Playwright)
+- [x] T011: Document OAuth consent flow for end users
+- [x] T012: Verify each connector responds to tool calls from a non-admin user
 
 ### WP03 — Git Sync for CLI Developers
 **Prompt**: [`tasks/WP03-git-sync.md`](tasks/WP03-git-sync.md)
