@@ -129,12 +129,12 @@ Phase 2:
 **Dependencies**: WP06
 **Subtasks**: T039–T043, T067 (6 subtasks, ~460 lines)
 
-- [ ] T039: Add MCP registry module to joyus-desktop
-- [ ] T040: Auto-register local MCPs in Claude Code .mcp.json
-- [ ] T041: Integrate with packages/updater for version checks
-- [ ] T042: Ensure clean start/stop (no orphaned Node processes)
-- [ ] T043: Verify local MCP tools respond to calls in Claude Code
-- [ ] T067: Unit and integration tests for MCP registry module (100% coverage — constitution 2.5)
+- [x] T039: Add MCP registry module to joyus-desktop
+- [x] T040: Auto-register local MCPs in Claude Code .mcp.json
+- [x] T041: Integrate with packages/updater for version checks
+- [x] T042: Ensure clean start/stop (no orphaned Node processes)
+- [x] T043: Verify local MCP tools respond to calls in Claude Code
+- [x] T067: Unit and integration tests for MCP registry module (100% coverage — constitution 2.5)
 
 ### WP08 — Desktop Git Sync Integration
 **Prompt**: [`tasks/WP08-desktop-git-sync.md`](tasks/WP08-desktop-git-sync.md)
