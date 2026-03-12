@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Governance & Telemetry Integration
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T048
@@ -12,8 +12,8 @@ subtasks:
 - T069
 phase: Phase 2 - Desktop Companion
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "99816"
 review_status: ''
 reviewed_by: ''
 history:
@@ -255,3 +255,4 @@ spec-kitty implement WP09 --base WP07
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-12T02:12:08Z – claude-opus – shell_pid=99816 – lane=doing – Started implementation via workflow command
