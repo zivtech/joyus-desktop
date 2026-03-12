@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP06"
 title: "Fix zivtech-mcp-tools Critical Issues"
-lane: "doing"
+lane: "for_review"
 dependencies: []
 subtasks:
   - "T031"
@@ -334,3 +334,4 @@ spec-kitty implement WP06
 
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T02:11:37Z – claude-opus – shell_pid=97697 – lane=doing – Started implementation via workflow command
+- 2026-03-12T11:17:34Z – claude-opus – shell_pid=97697 – lane=for_review – mcp-tools-compat package: 30 tests, 100% coverage
