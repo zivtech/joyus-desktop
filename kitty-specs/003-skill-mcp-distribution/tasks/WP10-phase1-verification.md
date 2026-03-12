@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Phase 1 Verification & Rollout
-lane: "for_review"
+lane: "doing"
 dependencies: []
 subtasks:
 - T053
@@ -15,7 +15,7 @@ subtasks:
 phase: Phase 1 - Cowork Distribution
 assignee: ''
 agent: "claude-opus"
-shell_pid: "375"
+shell_pid: "84232"
 review_status: ''
 reviewed_by: ''
 history:
@@ -249,3 +249,4 @@ spec-kitty implement WP10 --base WP05
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T02:12:16Z – claude-opus – shell_pid=375 – lane=doing – Started implementation via workflow command
 - 2026-03-12T11:18:49Z – claude-opus – shell_pid=375 – lane=for_review – Phase 1 verification templates: 9 docs for SC-001 through SC-005
+- 2026-03-12T11:36:58Z – claude-opus – shell_pid=84232 – lane=doing – Started review via workflow command
