@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP01"
 title: "Skill Packaging & Bundling"
-lane: "for_review"
+lane: "doing"
 dependencies: []
 subtasks:
   - "T001"
@@ -12,7 +12,7 @@ subtasks:
 phase: "Phase 1 - Cowork Distribution"
 assignee: ""
 agent: "claude-opus-reviewer"
-shell_pid: "68639"
+shell_pid: "31830"
 review_status: "approved"
 reviewed_by: "Alex Urevick-Ackelsberg"
 history:
@@ -196,3 +196,4 @@ spec-kitty implement WP01
 - 2026-03-10T11:53:26Z – claude-opus-reviewer – shell_pid=68639 – lane=doing – Started review via workflow command
 - 2026-03-10T12:31:44Z – claude-opus-reviewer – shell_pid=68639 – lane=done – Review passed: All 5 subtasks verified. Fixed 1 HIGH (audit consistency), 4 MEDIUM (build script robustness). 37 skills audited, 34 distributable, 4 bundles defined, build script tested.
 - 2026-03-10T15:34:15Z – claude-opus-reviewer – shell_pid=68639 – lane=for_review – Ready for review: handoffTypes.ts + handoffStateMachine.ts with 82 tests, 100% coverage
+- 2026-03-12T01:40:31Z – claude-opus-reviewer – shell_pid=31830 – lane=doing – Started review via workflow command
