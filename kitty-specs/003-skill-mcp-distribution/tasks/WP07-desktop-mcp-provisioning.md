@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Desktop MCP Provisioning
-lane: "for_review"
+lane: "doing"
 dependencies: []
 subtasks:
 - T039
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 2 - Desktop Companion
 assignee: ''
 agent: "claude-opus"
-shell_pid: "98553"
+shell_pid: "82804"
 review_status: ''
 reviewed_by: ''
 history:
@@ -286,3 +286,4 @@ spec-kitty implement WP07 --base WP06
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T02:11:53Z – claude-opus – shell_pid=98553 – lane=doing – Started implementation via workflow command
 - 2026-03-12T11:18:00Z – claude-opus – shell_pid=98553 – lane=for_review – mcp-registry package: 78 tests, all passing
+- 2026-03-12T11:36:14Z – claude-opus – shell_pid=82804 – lane=doing – Started review via workflow command
