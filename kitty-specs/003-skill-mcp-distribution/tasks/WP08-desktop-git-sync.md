@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Desktop Git Sync Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 subtasks:
 - T044
@@ -12,7 +12,7 @@ subtasks:
 phase: Phase 2 - Desktop Companion
 assignee: ''
 agent: "claude-opus"
-shell_pid: "98985"
+shell_pid: "83295"
 review_status: ''
 reviewed_by: ''
 history:
@@ -197,3 +197,4 @@ spec-kitty implement WP08 --base WP06
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T02:12:01Z – claude-opus – shell_pid=98985 – lane=doing – Started implementation via workflow command
 - 2026-03-12T11:18:15Z – claude-opus – shell_pid=98985 – lane=for_review – desktop-sync package: 40 tests, all passing
+- 2026-03-12T11:36:34Z – claude-opus – shell_pid=83295 – lane=doing – Started review via workflow command
