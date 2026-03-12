@@ -152,12 +152,12 @@ Phase 2:
 **Dependencies**: WP07, WP05
 **Subtasks**: T048–T052, T069 (6 subtasks, ~430 lines)
 
-- [ ] T048: Connect local MCP governance to feature 001 policy enforcement
-- [ ] T049: Route local telemetry through @zivtech-mcp/shared pipeline
-- [ ] T050: Make governance mode (off/audit/enforce) remotely configurable
-- [ ] T051: Verify tool blocking works in enforce mode
-- [ ] T052: Verify telemetry events from local MCPs appear in admin report
-- [ ] T069: Tests for governance and telemetry integration (100% coverage — constitution 2.5)
+- [x] T048: Connect local MCP governance to feature 001 policy enforcement
+- [x] T049: Route local telemetry through @zivtech-mcp/shared pipeline
+- [x] T050: Make governance mode (off/audit/enforce) remotely configurable
+- [x] T051: Verify tool blocking works in enforce mode
+- [x] T052: Verify telemetry events from local MCPs appear in admin report
+- [x] T069: Tests for governance and telemetry integration (100% coverage — constitution 2.5)
 
 ### WP11 — Phase 2 Verification & Documentation
 **Prompt**: [`tasks/WP11-phase2-verification.md`](tasks/WP11-phase2-verification.md)
