@@ -34,6 +34,8 @@ importers:
 
   packages/session-agent: {}
 
+  packages/telemetry: {}
+
   packages/updater: {}
 
 packages:
