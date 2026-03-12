@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Version Pinning & Admin Controls
-lane: "for_review"
+lane: "done"
 dependencies: []
 subtasks:
 - T019
@@ -13,8 +13,8 @@ phase: Phase 1 - Cowork Distribution
 assignee: ''
 agent: "codex"
 shell_pid: "39444"
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Alex Urevick-Ackelsberg"
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
@@ -200,3 +200,4 @@ spec-kitty implement WP04 --base WP01
 - 2026-03-11T00:59:50Z – codex – shell_pid=39444 – lane=doing – Started WP04 implementation
 - 2026-03-11T01:48:58Z – codex – shell_pid=39444 – lane=doing – Implemented automated CLI pin propagation verification and added Cowork manual pin checklist; waiting on live Cowork execution for T021/T023 final sign-off
 - 2026-03-12T01:59:58Z – codex – shell_pid=39444 – lane=for_review – Ready: distribution-config.json, versioning convention, admin pin guide, API contract, pin verification.
+- 2026-03-12T02:06:14Z – codex – shell_pid=39444 – lane=done – Review passed: Fixed hardcoded paths and evidence dir resolution. Config, docs, and verification script all present. Verification script works from repo root after merge.
