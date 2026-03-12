@@ -30,6 +30,6 @@ Expected behavior: atomic update, audit logging of `updated_by` and timestamp.
 
 Until joyus-ai endpoint is ready, `skill-sync` reads local config file:
 
-- [distribution-config.json](/Users/AlexUA/claude/joyus-desktop/config/distribution-config.json)
+- [distribution-config.json](../../config/distribution-config.json)
 
 or an explicit URL via `--distribution-config-url`.

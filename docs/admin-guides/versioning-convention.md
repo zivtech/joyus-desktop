@@ -21,7 +21,7 @@ git tag vX.Y.Z
 git push origin main --tags
 ```
 
-4. Update pin in [distribution-config.json](/Users/AlexUA/claude/joyus-desktop/config/distribution-config.json) (or via control-plane endpoint when available).
+4. Update pin in [distribution-config.json](../../config/distribution-config.json) (or via control-plane endpoint when available).
 
 ## Initial Baseline
 

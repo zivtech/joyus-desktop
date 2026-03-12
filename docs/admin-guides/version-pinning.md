@@ -4,7 +4,7 @@
 
 Pinned versions are defined in:
 
-- [distribution-config.json](/Users/AlexUA/claude/joyus-desktop/config/distribution-config.json)
+- [distribution-config.json](../../config/distribution-config.json)
 
 Schema:
 
@@ -14,7 +14,7 @@ Schema:
 
 ## Admin Update Flow
 
-1. Edit [distribution-config.json](/Users/AlexUA/claude/joyus-desktop/config/distribution-config.json).
+1. Edit [distribution-config.json](../../config/distribution-config.json).
 2. Change one or more bundle versions (or `default_version`).
 3. Commit and deploy configuration.
 4. Restart sessions to pick up the change.

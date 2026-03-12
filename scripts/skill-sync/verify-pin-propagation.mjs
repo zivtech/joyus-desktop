@@ -2,7 +2,8 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 function run(command, args, env) {
   const start = Date.now();
@@ -85,7 +86,8 @@ const repo = createRepo(root);
 const configPath = join(root, "distribution-config.json");
 const destDir = join(root, "dest-skills");
 const cacheDir = join(root, "cache");
-const evidenceDir = "docs/verification/evidence";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const evidenceDir = join(__dirname, "../../docs/verification/evidence");
 const stamp = new Date().toISOString().replace(/[.:]/g, "-");
 const evidencePath = join(evidenceDir, `wp04-cli-pin-propagation-${stamp}.md`);
 
