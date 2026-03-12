@@ -141,11 +141,11 @@ Phase 2:
 **Dependencies**: WP06, WP03
 **Subtasks**: T044–T047, T068 (5 subtasks, ~340 lines)
 
-- [ ] T044: Embed git sync into desktop companion lifecycle
-- [ ] T045: Desktop manages clone directory transparently
-- [ ] T046: Respect same version pin as Cowork distribution
-- [ ] T047: Verify skills update when pin changes without user action
-- [ ] T068: Tests for desktop sync integration (100% coverage — constitution 2.5)
+- [x] T044: Embed git sync into desktop companion lifecycle
+- [x] T045: Desktop manages clone directory transparently
+- [x] T046: Respect same version pin as Cowork distribution
+- [x] T047: Verify skills update when pin changes without user action
+- [x] T068: Tests for desktop sync integration (100% coverage — constitution 2.5)
 
 ### WP09 — Governance & Telemetry Integration
 **Prompt**: [`tasks/WP09-governance-telemetry.md`](tasks/WP09-governance-telemetry.md)
