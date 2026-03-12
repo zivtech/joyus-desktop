@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Git Sync for CLI Developers
-lane: "doing"
+lane: "for_review"
 dependencies: []
 subtasks:
 - T013
@@ -262,3 +262,4 @@ spec-kitty implement WP03 --base WP01
 
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-11T00:33:18Z – codex – shell_pid=17250 – lane=doing – Started WP03 implementation
+- 2026-03-12T01:59:47Z – codex – shell_pid=17250 – lane=for_review – Ready: skill-sync package (5 modules, 46 tests), hook integration, developer setup guide, tester checklist.
