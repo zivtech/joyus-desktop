@@ -96,14 +96,14 @@ Phase 2:
 **Dependencies**: WP01, WP02, WP03, WP04, WP05
 **Subtasks**: T053–T060 (8 subtasks, ~500 lines)
 
-- [ ] T053: E2E — New Cowork user onboards, receives skills, uses cloud MCPs
-- [ ] T054: E2E — Developer onboards CLI, git sync works, skills available
-- [ ] T055: Verify Cowork skills and cloud MCPs function without desktop companion (FR-014)
-- [ ] T056: SC-001 — All target users invoke a skill in Cowork within 24h
-- [ ] T057: SC-002 — Atlassian, Slack, Google MCPs functional within 48h
-- [ ] T058: SC-003 — CLI developer sync works without manual git (2 testers)
-- [ ] T059: SC-004 — Admin views aggregated telemetry within 1 week
-- [ ] T060: SC-005 — Version pin change propagates within one session restart
+- [x] T053: E2E — New Cowork user onboards, receives skills, uses cloud MCPs
+- [x] T054: E2E — Developer onboards CLI, git sync works, skills available
+- [x] T055: Verify Cowork skills and cloud MCPs function without desktop companion (FR-014)
+- [x] T056: SC-001 — All target users invoke a skill in Cowork within 24h
+- [x] T057: SC-002 — Atlassian, Slack, Google MCPs functional within 48h
+- [x] T058: SC-003 — CLI developer sync works without manual git (2 testers)
+- [x] T059: SC-004 — Admin views aggregated telemetry within 1 week
+- [x] T060: SC-005 — Version pin change propagates within one session restart
 
 ---
 
