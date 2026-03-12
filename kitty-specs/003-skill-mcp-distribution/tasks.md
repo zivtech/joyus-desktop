@@ -64,7 +64,7 @@ Phase 2:
 - [x] T015: Handle offline gracefully (last good state, no error surfaced)
 - [x] T016: Handle local modification conflicts (overwrite + warn)
 - [x] T017: Document one-time developer setup
-- [ ] T018: Verify with 2 developer testers
+- [x] T018: Verify with 2 developer testers
 - [x] T065: Unit and integration tests for sync module (100% coverage — constitution 2.5)
 
 ### WP04 — Version Pinning & Admin Controls
