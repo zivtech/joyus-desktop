@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Governance & Telemetry Integration
-lane: "doing"
+lane: "for_review"
 dependencies: []
 subtasks:
 - T048
@@ -256,3 +256,4 @@ spec-kitty implement WP09 --base WP07
 
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T02:12:08Z – claude-opus – shell_pid=99816 – lane=doing – Started implementation via workflow command
+- 2026-03-12T11:18:32Z – claude-opus – shell_pid=99816 – lane=for_review – mcp-governance package: 52 tests, all passing
