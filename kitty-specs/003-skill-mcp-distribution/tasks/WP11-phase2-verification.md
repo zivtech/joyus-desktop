@@ -1,13 +1,13 @@
 ---
 work_package_id: WP11
 title: Phase 2 Verification & Documentation
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks: [T061, T062, T063, T064]
 phase: Phase 2 - Desktop Companion
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "897"
 review_status: ''
 reviewed_by: ''
 history:
@@ -133,3 +133,4 @@ spec-kitty implement WP11 --base WP10
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-12T02:12:23Z – claude-opus – shell_pid=897 – lane=doing – Started implementation via workflow command
