@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Telemetry Foundation
-lane: "doing"
+lane: "for_review"
 dependencies: []
 subtasks:
 - T024
@@ -262,3 +262,4 @@ spec-kitty implement WP05 --base WP01
 
 - 2026-03-10: Prompt generated in planned lane.
 - 2026-03-12T01:12:07Z – claude-opus – shell_pid=84237 – lane=doing – Started implementation via workflow command
+- 2026-03-12T01:26:51Z – claude-opus – shell_pid=84237 – lane=for_review – Ready for review: @joyus/telemetry package with schema, collectors (Cowork+CLI), HTTP client, usage reporting, opt-out, and verification docs. 90 tests, 100% coverage on telemetry package.
