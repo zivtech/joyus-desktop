@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Desktop MCP Provisioning
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T039
@@ -12,8 +12,8 @@ subtasks:
 - T067
 phase: Phase 2 - Desktop Companion
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "98553"
 review_status: ''
 reviewed_by: ''
 history:
@@ -284,3 +284,4 @@ spec-kitty implement WP07 --base WP06
 ## Activity Log
 
 - 2026-03-10: Prompt generated in planned lane.
+- 2026-03-12T02:11:53Z – claude-opus – shell_pid=98553 – lane=doing – Started implementation via workflow command
