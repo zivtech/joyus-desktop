@@ -74,9 +74,9 @@ Phase 2:
 
 - [x] T019: Establish semver tagging convention for zivtech-meta-skills
 - [x] T020: Create admin config for pinned version per bundle
-- [ ] T021: Ensure Cowork plugin updates respect pin
+- [x] T021: Ensure Cowork plugin updates respect pin
 - [x] T022: Ensure git sync respects the same pin
-- [ ] T023: Verify version pin change propagates within one session restart
+- [x] T023: Verify version pin change propagates within one session restart
 
 ### WP05 — Telemetry Foundation
 **Prompt**: [`tasks/WP05-telemetry.md`](tasks/WP05-telemetry.md)
