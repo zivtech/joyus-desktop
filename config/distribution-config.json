@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "default_version": "v1.0.0",
+  "bundles": {
+    "pm-bundle": { "version": "v1.0.0" },
+    "developer-bundle": { "version": "v1.0.0" },
+    "milk-jawn-bundle": { "version": "v1.0.0" },
+    "full-bundle": { "version": "v1.0.0" }
+  },
+  "updated_at": "2026-03-10T00:00:00Z",
+  "updated_by": "admin@zivtech.com"
+}
