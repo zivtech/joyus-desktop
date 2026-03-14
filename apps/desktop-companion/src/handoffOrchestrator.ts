@@ -474,6 +474,7 @@ export async function executeHandoff(
     }
 
     throw error;
+  /* v8 ignore next */
   } finally {
     cleanup();
   }

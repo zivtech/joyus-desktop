@@ -422,6 +422,25 @@ describe("executeHandoff", () => {
   // -----------------------------------------------------------------------
 
   describe("policy failures", () => {
+    it("throws POLICY_DENIED when authorization resolves with non-allow decision", async () => {
+      // Covers the defensive branch at line 247: if (authResult.decision !== "allow")
+      setupHappyMocks();
+      mockRequestAuth.mockResolvedValue({ decision: "deny" });
+
+      const progressEvents: HandoffProgress[] = [];
+      const opts = makeOptions({
+        onProgress: (p) => progressEvents.push({ ...p }),
+      });
+
+      try {
+        await executeHandoff(opts, makeDeps());
+        expect.unreachable("should have thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(HandoffError);
+        expect((err as HandoffError).code).toBe("POLICY_DENIED");
+      }
+    });
+
     it("throws POLICY_DENIED when authorization denies", async () => {
       mockRequestAuth.mockRejectedValue(
         new HandoffError("POLICY_DENIED", "Handoff denied: org policy")

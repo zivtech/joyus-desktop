@@ -1,15 +1,7 @@
 import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
-import {
-  createServices,
-  registerHealthCheck,
-  registerServerMethods,
-  registerServerNotifications,
-  registerChromeDetect,
-} from "./services";
+import { createServices, registerHealthCheck } from "./services";
 import type { ServiceDeps } from "./services";
-import type { ChromeDetectDeps } from "./chrome-detect";
-import { createDefaultChromeDeps } from "./chrome-detect";
 
 export interface SidecarDeps {
   stdin: NodeJS.ReadableStream;
@@ -17,9 +9,16 @@ export interface SidecarDeps {
   stderr: { write: (data: string) => void };
   exit: (code: number) => void;
   onSignal: (signal: string, handler: () => void) => void;
+  onUncaughtException: (handler: (err: unknown) => void) => void;
+  onUnhandledRejection: (handler: (reason: unknown) => void) => void;
   nowFn: () => number;
   serviceDeps: ServiceDeps;
-  chromeDeps?: ChromeDetectDeps;
+  isOptedOut: () => boolean;
+  emitTelemetry: (params: {
+    toolName: string;
+    source: string;
+    message: string;
+  }) => Promise<void>;
 }
 
 export interface SidecarHandle {
@@ -39,9 +38,27 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerHealthCheck(ipc, startTime, deps.nowFn);
-  registerServerMethods(ipc, services.registry);
-  registerServerNotifications(ipc, services.processManager, services.registry);
-  registerChromeDetect(ipc, deps.chromeDeps ?? createDefaultChromeDeps());
+
+  function handleFatalError(source: string, err: unknown): void {
+    const message = err instanceof Error ? err.message : String(err);
+    deps.stderr.write(`Fatal error [${source}]: ${message}\n`);
+
+    ipc.sendNotification("state.error", { source, message, fatal: true });
+
+    if (!deps.isOptedOut()) {
+      void deps.emitTelemetry({ toolName: "app_error", source, message });
+    }
+
+    deps.exit(1);
+  }
+
+  deps.onUncaughtException((err: unknown) => {
+    handleFatalError("uncaughtException", err);
+  });
+
+  deps.onUnhandledRejection((reason: unknown) => {
+    handleFatalError("unhandledRejection", reason);
+  });
 
   const rl = createInterface({ input: deps.stdin });
 

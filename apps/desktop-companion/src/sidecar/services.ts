@@ -1,12 +1,11 @@
 import type { ProcessManager } from "@joyus/mcp-registry";
 import type { Registry } from "@joyus/mcp-registry";
-import type { McpServerInfo } from "@joyus/mcp-registry";
 import type { ConfigPoller } from "@joyus/mcp-governance";
-import type { PeriodicSync } from "@joyus/desktop-sync";
+import type { PeriodicSync, SyncResult, SyncStatus } from "@joyus/desktop-sync";
+import type { GovernanceDecision, GovernanceMode } from "@joyus/mcp-governance";
 import type { IpcHandler } from "./ipc-handler";
-import { JSON_RPC_ERRORS } from "./ipc-handler";
-import type { ChromeDetectDeps } from "./chrome-detect";
-import { detectChrome } from "./chrome-detect";
+import type { SkillScannerDeps } from "./skill-scanner";
+import { scanSkills } from "./skill-scanner";
 
 export interface ServiceContainer {
   processManager: ProcessManager;
@@ -62,100 +61,145 @@ export function registerHealthCheck(
   });
 }
 
-function extractParams(params: unknown): Record<string, unknown> {
-  if (params !== null && typeof params === "object" && !Array.isArray(params)) {
-    return params as Record<string, unknown>;
-  }
-  return {};
+export interface SyncState {
+  status: SyncStatus;
+  version: string | null;
+  timestamp: string | null;
 }
 
-function invalidParams(message: string): never {
-  const err = new Error(message) as Error & { code: number };
-  err.code = JSON_RPC_ERRORS.INVALID_PARAMS;
-  throw err;
+export interface GovernanceDecisionEntry {
+  toolName: string;
+  serverName: string;
+  decision: GovernanceDecision;
+  mode: GovernanceMode;
 }
 
-export function registerServerMethods(
+export interface SyncTriggerDeps {
+  triggerSync: () => Promise<SyncResult>;
+  scannerDeps: SkillScannerDeps;
+}
+
+export interface SyncIpcDeps {
+  syncConfig: { destDir: string; bundleName: string };
+  triggerSync: () => Promise<SyncResult>;
+  scannerDeps: SkillScannerDeps;
+}
+
+export function registerSyncMethods(
   ipc: IpcHandler,
-  registry: Registry,
+  container: ServiceContainer,
+  syncIpcDeps: SyncIpcDeps,
+  syncState: SyncState,
 ): void {
-  ipc.registerMethod("servers.list", async () => {
-    return registry.listServers();
+  ipc.registerMethod("sync.trigger", async () => {
+    syncState.status = "syncing";
+    try {
+      const result = await syncIpcDeps.triggerSync();
+      syncState.status = "synced";
+      syncState.version = result.version;
+      syncState.timestamp = result.syncedAt;
+
+      ipc.sendNotification("state.syncCompleted", {
+        version: result.version,
+        fromCache: result.fromCache,
+        durationMs: result.durationMs,
+      });
+
+      return result;
+    } catch (err: unknown) {
+      syncState.status = "error";
+      const message = err instanceof Error ? err.message : String(err);
+      ipc.sendNotification("state.error", {
+        source: "sync.trigger",
+        message,
+        fatal: false,
+      });
+      throw err;
+    }
   });
 
-  ipc.registerMethod("servers.start", async (params) => {
-    const p = extractParams(params);
-    const name = p["name"];
-    if (typeof name !== "string" || name.length === 0) {
-      invalidParams("Missing required param: name");
-    }
-    return registry.startServer(name);
+  ipc.registerMethod("sync.status", async () => {
+    return {
+      status: syncState.status,
+      version: syncState.version,
+      timestamp: syncState.timestamp,
+    };
   });
 
-  ipc.registerMethod("servers.stop", async (params) => {
-    const p = extractParams(params);
-    const name = p["name"];
-    if (typeof name !== "string" || name.length === 0) {
-      invalidParams("Missing required param: name");
-    }
-    await registry.stopServer(name);
-    return { stopped: true };
+  ipc.registerMethod("skills.list", async () => {
+    return scanSkills(
+      syncIpcDeps.syncConfig.destDir,
+      syncIpcDeps.syncConfig.bundleName,
+      syncIpcDeps.scannerDeps,
+    );
   });
 
-  ipc.registerMethod("servers.restart", async (params) => {
-    const p = extractParams(params);
-    const name = p["name"];
-    if (typeof name !== "string" || name.length === 0) {
-      invalidParams("Missing required param: name");
-    }
-    return registry.restartServer(name);
-  });
+  // Expose container for periodic sync status fallback
+  void container;
 }
 
-export function registerServerNotifications(
+export function registerGovernanceMethods(
   ipc: IpcHandler,
-  processManager: ProcessManager,
-  registry: Registry,
+  container: ServiceContainer,
+  decisionLog: GovernanceDecisionEntry[],
 ): void {
-  processManager.startWatchdog(
-    5_000,
-    5,
-    (name: string) => {
-      // Watchdog called onRestart after the process was removed from the map.
-      // At this point the server was restarted (or hit max restarts).
-      // We need to determine the status from the registry if possible.
-      let info: McpServerInfo | undefined;
-      try {
-        info = registry.listServers().find((s) => s.name === name);
-      } catch {
-        // ignore
+  ipc.registerMethod("governance.getMode", async () => {
+    const config = container.configPoller.getConfig();
+    return { mode: config.mode };
+  });
+
+  ipc.registerMethod("governance.getDecisions", async (params: unknown) => {
+    let limit: number | undefined;
+    if (
+      params !== null &&
+      params !== undefined &&
+      typeof params === "object"
+    ) {
+      const p = params as Record<string, unknown>;
+      if (typeof p["limit"] === "number") {
+        limit = p["limit"];
       }
-
-      if (info !== undefined) {
-        ipc.sendNotification("state.serverChanged", {
-          name,
-          status: info.status,
-          ...(info.lastError !== undefined && { lastError: info.lastError }),
-          restartCount: info.restartCount,
-        });
-      } else {
-        // Server hit max restarts — not in registry anymore or errored
-        ipc.sendNotification("state.serverChanged", {
-          name,
-          status: "error",
-          lastError: "Max restarts exceeded",
-          restartCount: 5,
-        });
-      }
-    },
-  );
+    }
+    const entries = limit !== undefined ? decisionLog.slice(-limit) : decisionLog.slice();
+    return entries;
+  });
 }
 
-export function registerChromeDetect(
+export function emitGovernanceDecision(
   ipc: IpcHandler,
-  chromeDeps: ChromeDetectDeps,
+  decisionLog: GovernanceDecisionEntry[],
+  entry: GovernanceDecisionEntry,
 ): void {
-  ipc.registerMethod("chrome.detect", async () => {
-    return detectChrome(chromeDeps);
+  decisionLog.push(entry);
+  ipc.sendNotification("state.governanceDecision", entry);
+}
+
+export interface TelemetryErrorDeps {
+  emitTelemetry: (params: {
+    toolName: string;
+    source: string;
+    message: string;
+  }) => Promise<void>;
+  isOptedOut: () => boolean;
+}
+
+export function registerErrorReporting(
+  ipc: IpcHandler,
+  telemetryDeps: TelemetryErrorDeps,
+): void {
+  // Non-fatal error notification helper exposed via returned function
+  // (used by callers that need to report non-fatal errors)
+  ipc.registerMethod("state.reportError", async (params: unknown) => {
+    const p = (params ?? {}) as Record<string, unknown>;
+    const source = typeof p["source"] === "string" ? p["source"] : "unknown";
+    const message = typeof p["message"] === "string" ? p["message"] : "unknown error";
+
+    ipc.sendNotification("state.error", { source, message, fatal: false });
+
+    if (!telemetryDeps.isOptedOut()) {
+      await telemetryDeps.emitTelemetry({ toolName: "app_error", source, message });
+    }
+
+    return { ok: true };
   });
 }
