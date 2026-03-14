@@ -244,10 +244,11 @@ export async function executeHandoff(
     });
 
     // authResult is always { decision: "allow" } here because deny/escalate/unavailable throw
-    // requestHandoffAuthorization throws for deny/escalate/unavailable, so authResult is always "allow"
-    const allowResult = authResult as Extract<HandoffAuthResult, { decision: "allow" }>;
-    const policyToken = allowResult.policy_token;
-    const tokenExpiresAt = allowResult.token_expires_at;
+    if (authResult.decision !== "allow") {
+      throw new HandoffError("POLICY_DENIED", `Handoff not allowed: ${(authResult as HandoffAuthResult).decision}`);
+    }
+    const policyToken = authResult.policy_token;
+    const tokenExpiresAt = authResult.token_expires_at;
 
     // =====================================================================
     // Step 2: Assemble, validate, encrypt
@@ -473,7 +474,6 @@ export async function executeHandoff(
     }
 
     throw error;
-  /* v8 ignore next */
   } finally {
     cleanup();
   }

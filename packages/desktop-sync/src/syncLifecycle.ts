@@ -18,7 +18,11 @@ async function performSync(config: SyncConfig, deps: DesktopSyncDeps): Promise<S
   try {
     const raw = await deps.readFile(metadataPath, "utf-8");
     const existing: unknown = JSON.parse(raw);
-    if (typeof existing === "object" && existing !== null && "version" in existing) {
+    if (
+      typeof existing === "object" &&
+      existing !== null &&
+      "version" in existing
+    ) {
       const existingVersion = (existing as Record<string, unknown>)["version"];
       if (typeof existingVersion === "string" && !hasVersionChanged(existingVersion, targetVersion)) {
         fromCache = true;

@@ -24,7 +24,11 @@ export async function readVersionPin(
   >;
   const bundle = bundles[bundleName];
 
-  if (typeof bundle !== "object" || bundle === null || !("version" in bundle)) {
+  if (
+    typeof bundle !== "object" ||
+    bundle === null ||
+    !("version" in bundle)
+  ) {
     throw new Error(`Bundle "${bundleName}" not found or missing version`);
   }
 
