@@ -1,4 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["apps/**/*.ts", "packages/**/*.ts"]
+  "include": ["apps/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["**/node_modules", "**/dist", "**/dist-ui", "**/vite.config.ts", "**/src-tauri", "**/*.tsx"]
 }
