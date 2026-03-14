@@ -2,6 +2,7 @@
 
 use joyus_desktop_companion::commands;
 use joyus_desktop_companion::sidecar::{self, SidecarState};
+use joyus_desktop_companion::tray;
 use tauri::Manager;
 
 fn main() {
@@ -33,6 +34,12 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SidecarState::new())
         .setup(|app| {
+            // Set up system tray
+            if let Err(e) = tray::setup_tray(app.handle()) {
+                log::error!("Failed to setup tray: {}", e);
+            }
+            tray::listen_for_status_changes(app.handle());
+
             // Spawn the Node.js sidecar on startup
             if let Err(e) = sidecar::spawn_sidecar(app.handle()) {
                 log::error!("Failed to spawn sidecar: {}", e);
