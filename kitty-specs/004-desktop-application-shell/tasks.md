@@ -88,11 +88,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP03
 **Subtasks**: T021–T025 (5 subtasks, ~400 lines)
 
-- [ ] T021: Implement sync.trigger, sync.status, skills.list in sidecar
-- [ ] T022: Implement governance.getMode, governance.getDecisions in sidecar
-- [ ] T023: Implement state.syncCompleted and state.governanceDecision notifications
-- [ ] T024: Implement state.error notifications for crash reporting via telemetry
-- [ ] T025: Tests for sync/skills/governance IPC methods (100% coverage)
+- [x] T021: Implement sync.trigger, sync.status, skills.list in sidecar
+- [x] T022: Implement governance.getMode, governance.getDecisions in sidecar
+- [x] T023: Implement state.syncCompleted and state.governanceDecision notifications
+- [x] T024: Implement state.error notifications for crash reporting via telemetry
+- [x] T025: Tests for sync/skills/governance IPC methods (100% coverage)
 
 ### WP06 — Usage Data Collection & Storage
 **Prompt**: [`tasks/WP06-usage-data-collection.md`](tasks/WP06-usage-data-collection.md)
