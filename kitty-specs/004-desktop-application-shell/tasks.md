@@ -78,10 +78,10 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP03
 **Subtasks**: T017–T020 (4 subtasks, ~350 lines)
 
-- [ ] T017: Implement servers.list, servers.start, servers.stop, servers.restart in sidecar
-- [ ] T018: Implement state.serverChanged notifications from mcp-registry events
-- [ ] T019: Implement health.check and chrome.detect methods
-- [ ] T020: Tests for server management IPC methods (100% coverage)
+- [x] T017: Implement servers.list, servers.start, servers.stop, servers.restart in sidecar
+- [x] T018: Implement state.serverChanged notifications from mcp-registry events
+- [x] T019: Implement health.check and chrome.detect methods
+- [x] T020: Tests for server management IPC methods (100% coverage)
 
 ### WP05 — Sync, Skills & Governance IPC
 **Prompt**: [`tasks/WP05-sync-skills-governance-ipc.md`](tasks/WP05-sync-skills-governance-ipc.md)
