@@ -134,10 +134,10 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP04, WP05
 **Subtasks**: T035–T038 (4 subtasks, ~450 lines)
 
-- [ ] T035: Create dashboard layout (sidebar navigation, main content area, status bar)
-- [ ] T036: Create React hooks for Tauri IPC (useTauriEvent, useServerStatus, useSyncStatus, useGovernance)
-- [ ] T037: Build Dashboard overview page (server health cards, skill count, sync status, quick stats)
-- [ ] T038: Create shared UI components (StatusBadge, ServerCard, SkillList)
+- [x] T035: Create dashboard layout (sidebar navigation, main content area, status bar)
+- [x] T036: Create React hooks for Tauri IPC (useTauriEvent, useServerStatus, useSyncStatus, useGovernance)
+- [x] T037: Build Dashboard overview page (server health cards, skill count, sync status, quick stats)
+- [x] T038: Create shared UI components (StatusBadge, ServerCard, SkillList)
 
 ---
 
