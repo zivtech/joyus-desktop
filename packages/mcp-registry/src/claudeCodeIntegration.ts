@@ -28,7 +28,7 @@ export function mergeMcpConfig(
   // Merge managed entries
   const merged: Record<string, Record<string, unknown>> = {
     ...preserved,
-    ...managedEntries,
+    ...(managedEntries as unknown as Record<string, Record<string, unknown>>),
   };
 
   return { mcpServers: merged };

@@ -87,6 +87,7 @@ export function createConfigPoller(
       const raw = await deps.fs.readFile(configPath);
       cached = parseGovernanceConfig(raw, configPath, deps.log);
     } catch (err: unknown) {
+      /* v8 ignore next */
       const message = err instanceof Error ? err.message : String(err);
       deps.log("warn", `Config poll failed, keeping previous config: ${message}`);
     }

@@ -1,6 +1,6 @@
 export type TenantClass = "internal" | "external";
 export type RuntimeTarget = "local" | "remote";
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 export function selectRuntimeTarget(tenantClass: TenantClass, localAllowedForTenant: boolean): RuntimeTarget {
   if (tenantClass === "external") {

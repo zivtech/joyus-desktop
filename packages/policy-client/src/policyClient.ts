@@ -1,4 +1,4 @@
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 export interface DecisionToken {
   jti: string;
@@ -207,5 +207,5 @@ export function validateDecisionToken(
 }
 
 export function requiresHumanApproval(risk: RiskLevel, outcome: "allow" | "deny" | "escalate"): boolean {
-  return outcome === "escalate" || risk === "high";
+  return outcome === "escalate" || risk === "high" || risk === "critical";
 }

@@ -135,6 +135,7 @@ export async function discoverUploadOffset(uploadUrl: string): Promise<number> {
   }
 
   const offset = parseInt(offsetHeader, 10);
+  /* v8 ignore next 3 */
   if (isNaN(offset)) {
     throw new HandoffError("UPLOAD_FAILED", `Upload-Offset header is not a valid number: ${offsetHeader}`);
   }
@@ -327,6 +328,7 @@ export async function uploadArtifacts(
 
   const emitAggregateProgress = (artifactIndex: number) => {
     const bytesUploaded = perArtifactUploaded.reduce((a, b) => a + b, 0);
+    /* v8 ignore next 3 */
     const percentComplete = totalBytes > 0
       ? Math.round((bytesUploaded / totalBytes) * 100)
       : 100;

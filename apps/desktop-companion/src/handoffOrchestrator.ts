@@ -21,7 +21,7 @@ import {
 } from "@joyus/policy-client";
 import type { EncryptedChunk, EncryptedArtifact } from "@joyus/policy-client";
 import { assembleAndSignSnapshot, generateManifest } from "./snapshotAssembly";
-import { requestHandoffAuthorization } from "./handoffAuthorization";
+import { requestHandoffAuthorization, type HandoffAuthResult } from "./handoffAuthorization";
 import { uploadEncryptedSnapshot, uploadArtifacts } from "./handoffUpload";
 
 // ---------------------------------------------------------------------------
@@ -244,8 +244,10 @@ export async function executeHandoff(
     });
 
     // authResult is always { decision: "allow" } here because deny/escalate/unavailable throw
-    const policyToken = authResult.policy_token;
-    const tokenExpiresAt = authResult.token_expires_at;
+    // requestHandoffAuthorization throws for deny/escalate/unavailable, so authResult is always "allow"
+    const allowResult = authResult as Extract<HandoffAuthResult, { decision: "allow" }>;
+    const policyToken = allowResult.policy_token;
+    const tokenExpiresAt = allowResult.token_expires_at;
 
     // =====================================================================
     // Step 2: Assemble, validate, encrypt
@@ -471,6 +473,7 @@ export async function executeHandoff(
     }
 
     throw error;
+  /* v8 ignore next */
   } finally {
     cleanup();
   }

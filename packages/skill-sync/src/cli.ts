@@ -182,9 +182,9 @@ export async function runCli(
   try {
     const resolvedTargetVersion = explicitTargetVersion ?? (
       await resolvePinnedVersion({
-        bundleName,
-        configPath: distributionConfig,
-        configUrl: distributionConfigUrl
+        ...(bundleName !== undefined && { bundleName }),
+        ...(distributionConfig !== undefined && { configPath: distributionConfig }),
+        ...(distributionConfigUrl !== undefined && { configUrl: distributionConfigUrl }),
       })
     ).version;
 

@@ -24,16 +24,16 @@ export async function readVersionPin(
   >;
   const bundle = bundles[bundleName];
 
-  if (
-    typeof bundle !== "object" ||
-    bundle === null ||
-    !("version" in bundle) ||
-    typeof (bundle as Record<string, unknown>)["version"] !== "string"
-  ) {
+  if (typeof bundle !== "object" || bundle === null || !("version" in bundle)) {
     throw new Error(`Bundle "${bundleName}" not found or missing version`);
   }
 
-  return (bundle as Record<string, string>)["version"];
+  const version = (bundle as Record<string, unknown>)["version"];
+  if (typeof version !== "string") {
+    throw new Error(`Bundle "${bundleName}" not found or missing version`);
+  }
+
+  return version;
 }
 
 export function hasVersionChanged(currentVersion: string, newVersion: string): boolean {

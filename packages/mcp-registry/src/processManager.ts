@@ -65,7 +65,7 @@ export function createProcessManager(deps: ProcessManagerDeps): ProcessManager {
     }
 
     const child = deps.spawn(config.command, config.args, {
-      env: config.env,
+      ...(config.env !== undefined && { env: config.env }),
       stdio: "pipe",
       detached: true,
     });
