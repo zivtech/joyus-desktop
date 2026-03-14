@@ -32,11 +32,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: none
 **Subtasks**: T001–T005 (5 subtasks, ~350 lines)
 
-- [ ] T001: Initialize Tauri v2 project in apps/desktop-companion (Cargo.toml, tauri.conf.json, build.rs, main.rs)
-- [ ] T002: Configure Vite + React frontend (vite.config.ts, index.html, main.tsx, App.tsx skeleton)
-- [ ] T003: Set up SQLite via tauri-plugin-sql (database schema, migrations, plugin config)
-- [ ] T004: Update workspace configuration (package.json new deps, tsconfig adjustments for React)
-- [ ] T005: Configure single-instance enforcement (tauri-plugin-single-instance)
+- [x] T001: Initialize Tauri v2 project in apps/desktop-companion (Cargo.toml, tauri.conf.json, build.rs, main.rs)
+- [x] T002: Configure Vite + React frontend (vite.config.ts, index.html, main.tsx, App.tsx skeleton)
+- [x] T003: Set up SQLite via tauri-plugin-sql (database schema, migrations, plugin config)
+- [x] T004: Update workspace configuration (package.json new deps, tsconfig adjustments for React)
+- [x] T005: Configure single-instance enforcement (tauri-plugin-single-instance)
 
 ---
 
