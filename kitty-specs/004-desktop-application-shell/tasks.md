@@ -99,11 +99,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP03
 **Subtasks**: T026–T030 (5 subtasks, ~400 lines)
 
-- [ ] T026: Implement usage-collector.ts (event aggregation, writes to SQLite via Tauri command)
-- [ ] T027: Implement usage.query and usage.summary IPC methods
-- [ ] T028: Implement 30-day data pruning (on startup + every 24 hours)
-- [ ] T029: Implement onboarding.start IPC method (auth, MCP config, sync)
-- [ ] T030: Tests for usage collector, pruning, and onboarding IPC (100% coverage)
+- [x] T026: Implement usage-collector.ts (event aggregation, writes to SQLite via Tauri command)
+- [x] T027: Implement usage.query and usage.summary IPC methods
+- [x] T028: Implement 30-day data pruning (on startup + every 24 hours)
+- [x] T029: Implement onboarding.start IPC method (auth, MCP config, sync)
+- [x] T030: Tests for usage collector, pruning, and onboarding IPC (100% coverage)
 
 ### WP07 — System Tray & Platform Integration
 **Prompt**: [`tasks/WP07-system-tray-platform.md`](tasks/WP07-system-tray-platform.md)
