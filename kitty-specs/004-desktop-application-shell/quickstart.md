@@ -81,11 +81,45 @@ pnpm run ci
 - `src/sidecar/main.ts` — Sidecar entry point (bootstraps all services)
 - `src/ui/main.tsx` — React entry point
 
+## Update Signing Keys
+
+The auto-updater requires an Ed25519 keypair. The public key is embedded in `tauri.conf.json`; the private key lives only in CI secrets.
+
+### Generate a keypair
+
+```bash
+cargo tauri signer generate -w ~/.tauri/joyus-desktop.key
+```
+
+This prints the public key to stdout and writes the private key to `~/.tauri/joyus-desktop.key`.
+
+### Wire up the keys
+
+1. Copy the printed public key into `tauri.conf.json` under `plugins.updater.pubkey`.
+2. Add the private key as a CI secret named `TAURI_SIGNING_PRIVATE_KEY`.
+3. Set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in CI if you chose a passphrase (leave empty otherwise).
+
+### Key rotation procedure
+
+Key rotation requires a two-phase release to avoid bricking existing installs:
+
+1. Generate a new keypair.
+2. Release a **transition version** that trusts both the old and the new public key (add both keys in `tauri.conf.json` as an array).
+3. Once all users have updated past the transition version, remove the old key and release a follow-up version.
+4. Revoke / delete the old private key from CI secrets.
+
+### Never do this
+
+- Do not commit the private key file to the repository.
+- Do not share the private key outside CI secrets.
+- Do not reuse the same key across different Tauri applications.
+
 ## Environment Variables
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `TAURI_SIGNING_PRIVATE_KEY` | Update signing key (CI only) | — |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for signing key (CI only, empty if none) | — |
 | `APPLE_CERTIFICATE` | macOS code signing cert (CI only) | — |
 | `APPLE_CERTIFICATE_PASSWORD` | macOS cert password (CI only) | — |
 | `APPLE_ID` | Apple notarization account (CI only) | — |
