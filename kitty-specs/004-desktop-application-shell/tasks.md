@@ -120,10 +120,10 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP03
 **Subtasks**: T049–T052 (4 subtasks, ~300 lines)
 
-- [ ] T049: Configure tauri-plugin-updater (endpoint URL, public key, check interval)
-- [ ] T050: Implement update check, download, signature verification, and restart flow
-- [ ] T051: Add update notification in dashboard UI (banner or modal with restart option)
-- [ ] T052: Generate Tauri signing keypair and document key management
+- [x] T049: Configure tauri-plugin-updater (endpoint URL, public key, check interval)
+- [x] T050: Implement update check, download, signature verification, and restart flow
+- [x] T051: Add update notification in dashboard UI (banner or modal with restart option)
+- [x] T052: Generate Tauri signing keypair and document key management
 
 ---
 
