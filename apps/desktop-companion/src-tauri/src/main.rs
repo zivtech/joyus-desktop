@@ -2,6 +2,7 @@
 
 use joyus_desktop_companion::commands;
 use joyus_desktop_companion::sidecar::{self, SidecarState};
+use joyus_desktop_companion::updater;
 use tauri::Manager;
 
 fn main() {
@@ -37,6 +38,8 @@ fn main() {
             if let Err(e) = sidecar::spawn_sidecar(app.handle()) {
                 log::error!("Failed to spawn sidecar: {}", e);
             }
+            // Start background update checker (30s delay, then every 4 hours)
+            updater::start_update_checker(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -62,6 +65,8 @@ fn main() {
             commands::get_config,
             commands::set_config,
             commands::toggle_autostart,
+            updater::check_for_update,
+            updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
