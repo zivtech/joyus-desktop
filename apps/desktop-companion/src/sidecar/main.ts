@@ -1,7 +1,15 @@
 import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
-import { createServices, registerHealthCheck } from "./services";
+import {
+  createServices,
+  registerHealthCheck,
+  registerServerMethods,
+  registerServerNotifications,
+  registerChromeDetect,
+} from "./services";
 import type { ServiceDeps } from "./services";
+import type { ChromeDetectDeps } from "./chrome-detect";
+import { createDefaultChromeDeps } from "./chrome-detect";
 
 export interface SidecarDeps {
   stdin: NodeJS.ReadableStream;
@@ -11,6 +19,7 @@ export interface SidecarDeps {
   onSignal: (signal: string, handler: () => void) => void;
   nowFn: () => number;
   serviceDeps: ServiceDeps;
+  chromeDeps?: ChromeDetectDeps;
 }
 
 export interface SidecarHandle {
@@ -30,6 +39,9 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerHealthCheck(ipc, startTime, deps.nowFn);
+  registerServerMethods(ipc, services.registry);
+  registerServerNotifications(ipc, services.processManager, services.registry);
+  registerChromeDetect(ipc, deps.chromeDeps ?? createDefaultChromeDeps());
 
   const rl = createInterface({ input: deps.stdin });
 
