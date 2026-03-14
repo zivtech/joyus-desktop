@@ -11,5 +11,13 @@
     "targets": "all",
     "externalBin": ["binaries/node"],
     "resources": ["binaries/sidecar-main.mjs"]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://releases.joyus.dev/desktop-companion/update/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "<TAURI_UPDATE_PUBLIC_KEY>"
+    }
   }
 }
