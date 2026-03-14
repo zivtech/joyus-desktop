@@ -42,3 +42,14 @@ Layer 1: WP04 (integration + verification)
 - [x] Run full typecheck and coverage gates.
 - [x] Confirm 100% coverage across desktop runtime modules.
 - [x] Record completion in task history and move WPs to done.
+
+---
+
+## Known Edge Case Gaps (Post-Completion)
+
+*Identified during cross-artifact analysis (2026-03-10). These spec edge cases (spec.md §Edge Cases) should be verified in existing test suites or added as regression tests.*
+
+1. **Empty/malformed policy decision token**: Verify authorization rejects with machine-readable reason.
+2. **Token mismatch (tenant/workspace/action hash)**: Verify authorization rejects tokens that don't match the current context.
+3. **Late-arriving policy response after timeout**: Verify deterministic behavior when policy response arrives after action timeout.
+4. **Routing disagreement (cached vs fresh tenant metadata)**: Verify behavior when cached tenant class disagrees with freshly fetched metadata.
