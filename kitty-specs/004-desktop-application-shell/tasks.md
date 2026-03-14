@@ -47,12 +47,12 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP01
 **Subtasks**: T006–T011 (6 subtasks, ~450 lines)
 
-- [ ] T006: Create sidecar entry point (src/sidecar/main.ts) with stdio JSON-RPC listener
-- [ ] T007: Implement JSON-RPC 2.0 protocol handler (request parsing, method dispatch, error responses)
-- [ ] T008: Wire up existing services in sidecar (mcp-registry, desktop-sync, mcp-governance)
-- [ ] T009: Bundle sidecar with esbuild into single JS file
-- [ ] T010: Script to download platform-specific Node.js binaries for sidecar
-- [ ] T011: Configure Tauri externalBin for Node.js + bundled sidecar
+- [x] T006: Create sidecar entry point (src/sidecar/main.ts) with stdio JSON-RPC listener
+- [x] T007: Implement JSON-RPC 2.0 protocol handler (request parsing, method dispatch, error responses)
+- [x] T008: Wire up existing services in sidecar (mcp-registry, desktop-sync, mcp-governance)
+- [x] T009: Bundle sidecar with esbuild into single JS file
+- [x] T010: Script to download platform-specific Node.js binaries for sidecar
+- [x] T011: Configure Tauri externalBin for Node.js + bundled sidecar
 
 ---
 
