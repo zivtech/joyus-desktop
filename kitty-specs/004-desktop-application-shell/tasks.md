@@ -63,11 +63,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP02
 **Subtasks**: T012–T016 (5 subtasks, ~400 lines)
 
-- [ ] T012: Implement sidecar spawn and process monitoring in Rust
-- [ ] T013: Implement graceful shutdown (SIGTERM with 5s timeout → SIGKILL fallback)
-- [ ] T014: Implement Tauri event bridge (sidecar JSON-RPC notifications → Tauri events → frontend)
-- [ ] T015: Implement Tauri commands that proxy requests to sidecar via JSON-RPC
-- [ ] T016: Orphaned process cleanup on startup via PID file
+- [x] T012: Implement sidecar spawn and process monitoring in Rust
+- [x] T013: Implement graceful shutdown (SIGTERM with 5s timeout → SIGKILL fallback)
+- [x] T014: Implement Tauri event bridge (sidecar JSON-RPC notifications → Tauri events → frontend)
+- [x] T015: Implement Tauri commands that proxy requests to sidecar via JSON-RPC
+- [x] T016: Orphaned process cleanup on startup via PID file
 
 ---
 
