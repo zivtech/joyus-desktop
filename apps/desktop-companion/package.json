@@ -6,9 +6,19 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "build:sidecar": "node scripts/bundle-sidecar.mjs",
+    "download:node": "node scripts/download-node.mjs"
+  },
   "dependencies": {
+    "@joyus/desktop-sync": "workspace:*",
+    "@joyus/mcp-governance": "workspace:*",
+    "@joyus/mcp-registry": "workspace:*",
     "@joyus/policy-client": "workspace:*",
     "@joyus/session-agent": "workspace:*",
     "tus-js-client": "^4.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.4"
   }
 }

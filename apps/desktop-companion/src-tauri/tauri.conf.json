@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Joyus Desktop",
+  "version": "0.1.0",
+  "identifier": "com.joyus.desktop",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": ["binaries/node"],
+    "resources": ["binaries/sidecar-main.mjs"]
+  }
+}
