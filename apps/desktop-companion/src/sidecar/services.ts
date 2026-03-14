@@ -1,11 +1,13 @@
 import type { ProcessManager } from "@joyus/mcp-registry";
 import type { Registry } from "@joyus/mcp-registry";
 import type { ConfigPoller } from "@joyus/mcp-governance";
-import type { PeriodicSync, SyncResult, SyncStatus } from "@joyus/desktop-sync";
-import type { GovernanceDecision, GovernanceMode } from "@joyus/mcp-governance";
+import type { PeriodicSync } from "@joyus/desktop-sync";
 import type { IpcHandler } from "./ipc-handler";
-import type { SkillScannerDeps } from "./skill-scanner";
-import { scanSkills } from "./skill-scanner";
+import {
+  createUsageCollector,
+  registerUsageMethods,
+  type UsageCollector,
+} from "./usage-collector";
 
 export interface ServiceContainer {
   processManager: ProcessManager;
@@ -35,6 +37,19 @@ export interface ServiceDeps {
   createPeriodicSync: () => PeriodicSync;
 }
 
+export interface OnboardingParams {
+  authToken: string;
+  tenantId: string;
+  workspaceId: string;
+}
+
+export interface OnboardingResult {
+  success: boolean;
+  serversStarted: number;
+  skillsSynced: boolean;
+  errors: string[];
+}
+
 export function createServices(
   deps: ServiceDeps,
 ): ServiceContainer {
@@ -61,145 +76,90 @@ export function registerHealthCheck(
   });
 }
 
-export interface SyncState {
-  status: SyncStatus;
-  version: string | null;
-  timestamp: string | null;
-}
-
-export interface GovernanceDecisionEntry {
-  toolName: string;
-  serverName: string;
-  decision: GovernanceDecision;
-  mode: GovernanceMode;
-}
-
-export interface SyncTriggerDeps {
-  triggerSync: () => Promise<SyncResult>;
-  scannerDeps: SkillScannerDeps;
-}
-
-export interface SyncIpcDeps {
-  syncConfig: { destDir: string; bundleName: string };
-  triggerSync: () => Promise<SyncResult>;
-  scannerDeps: SkillScannerDeps;
-}
-
-export function registerSyncMethods(
+export function registerOnboarding(
   ipc: IpcHandler,
   container: ServiceContainer,
-  syncIpcDeps: SyncIpcDeps,
-  syncState: SyncState,
+  usageCollector: UsageCollector,
 ): void {
-  ipc.registerMethod("sync.trigger", async () => {
-    syncState.status = "syncing";
+  ipc.registerMethod("onboarding.start", async (params: unknown) => {
+    const p = params as OnboardingParams;
+    const errors: string[] = [];
+    let serversStarted = 0;
+    let skillsSynced = false;
+
+    // Step 1: store auth credentials by recording a usage event
     try {
-      const result = await syncIpcDeps.triggerSync();
-      syncState.status = "synced";
-      syncState.version = result.version;
-      syncState.timestamp = result.syncedAt;
-
-      ipc.sendNotification("state.syncCompleted", {
-        version: result.version,
-        fromCache: result.fromCache,
-        durationMs: result.durationMs,
+      usageCollector.recordEvent({
+        eventType: "server_event",
+        source: "onboarding",
+        action: "auth_configured",
+        outcome: "success",
+        durationMs: 0,
+        metadata: { tenantId: p.tenantId, workspaceId: p.workspaceId },
       });
-
-      return result;
-    } catch (err: unknown) {
-      syncState.status = "error";
-      const message = err instanceof Error ? err.message : String(err);
-      ipc.sendNotification("state.error", {
-        source: "sync.trigger",
-        message,
-        fatal: false,
+      ipc.sendNotification("config.set", {
+        key: "auth",
+        value: JSON.stringify({
+          authToken: p.authToken,
+          tenantId: p.tenantId,
+          workspaceId: p.workspaceId,
+        }),
       });
-      throw err;
+    } catch (err) {
+      errors.push(
+        `auth: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-  });
 
-  ipc.registerMethod("sync.status", async () => {
-    return {
-      status: syncState.status,
-      version: syncState.version,
-      timestamp: syncState.timestamp,
+    // Step 2: start all MCP servers
+    try {
+      const infos = container.registry.startAll();
+      serversStarted = infos.filter((i: { status: string }) => i.status === "running").length;
+    } catch (err) {
+      errors.push(
+        `servers: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    // Step 3: trigger skill sync
+    try {
+      container.periodicSync.start();
+      skillsSynced = true;
+    } catch (err) {
+      errors.push(
+        `sync: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    // Step 4: persist onboarding_complete flag
+    ipc.sendNotification("config.set", {
+      key: "onboarding_complete",
+      value: "true",
+    });
+
+    const result: OnboardingResult = {
+      success: errors.length === 0,
+      serversStarted,
+      skillsSynced,
+      errors,
     };
-  });
 
-  ipc.registerMethod("skills.list", async () => {
-    return scanSkills(
-      syncIpcDeps.syncConfig.destDir,
-      syncIpcDeps.syncConfig.bundleName,
-      syncIpcDeps.scannerDeps,
-    );
+    return result;
   });
-
-  // Expose container for periodic sync status fallback
-  void container;
 }
 
-export function registerGovernanceMethods(
+export function registerAllMethods(
   ipc: IpcHandler,
   container: ServiceContainer,
-  decisionLog: GovernanceDecisionEntry[],
+  startTime: number,
+  nowFn: () => number,
 ): void {
-  ipc.registerMethod("governance.getMode", async () => {
-    const config = container.configPoller.getConfig();
-    return { mode: config.mode };
+  const usageCollector = createUsageCollector(ipc, {
+    nowFn: () => new Date().toISOString(),
+    pruneAfterDays: 30,
   });
 
-  ipc.registerMethod("governance.getDecisions", async (params: unknown) => {
-    let limit: number | undefined;
-    if (
-      params !== null &&
-      params !== undefined &&
-      typeof params === "object"
-    ) {
-      const p = params as Record<string, unknown>;
-      if (typeof p["limit"] === "number") {
-        limit = p["limit"];
-      }
-    }
-    const entries = limit !== undefined ? decisionLog.slice(-limit) : decisionLog.slice();
-    return entries;
-  });
-}
-
-export function emitGovernanceDecision(
-  ipc: IpcHandler,
-  decisionLog: GovernanceDecisionEntry[],
-  entry: GovernanceDecisionEntry,
-): void {
-  decisionLog.push(entry);
-  ipc.sendNotification("state.governanceDecision", entry);
-}
-
-export interface TelemetryErrorDeps {
-  emitTelemetry: (params: {
-    toolName: string;
-    source: string;
-    message: string;
-  }) => Promise<void>;
-  isOptedOut: () => boolean;
-}
-
-export function registerErrorReporting(
-  ipc: IpcHandler,
-  telemetryDeps: TelemetryErrorDeps,
-): void {
-  // Non-fatal error notification helper exposed via returned function
-  // (used by callers that need to report non-fatal errors)
-  ipc.registerMethod("state.reportError", async (params: unknown) => {
-    const p = (params ?? {}) as Record<string, unknown>;
-    const source = typeof p["source"] === "string" ? p["source"] : "unknown";
-    const message = typeof p["message"] === "string" ? p["message"] : "unknown error";
-
-    ipc.sendNotification("state.error", { source, message, fatal: false });
-
-    if (!telemetryDeps.isOptedOut()) {
-      await telemetryDeps.emitTelemetry({ toolName: "app_error", source, message });
-    }
-
-    return { ok: true };
-  });
+  registerHealthCheck(ipc, startTime, nowFn);
+  registerUsageMethods(ipc, usageCollector);
+  registerOnboarding(ipc, container, usageCollector);
 }

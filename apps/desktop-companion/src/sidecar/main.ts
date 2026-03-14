@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
-import { createServices, registerHealthCheck } from "./services";
+import { createServices, registerAllMethods } from "./services";
 import type { ServiceDeps } from "./services";
 
 export interface SidecarDeps {
@@ -37,7 +37,7 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const ipc = createIpcHandler(writeFn);
   const services = createServices(deps.serviceDeps);
 
-  registerHealthCheck(ipc, startTime, deps.nowFn);
+  registerAllMethods(ipc, services, startTime, deps.nowFn);
 
   function handleFatalError(source: string, err: unknown): void {
     const message = err instanceof Error ? err.message : String(err);
