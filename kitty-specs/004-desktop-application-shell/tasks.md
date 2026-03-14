@@ -110,10 +110,10 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP03
 **Subtasks**: T031–T034 (4 subtasks, ~300 lines)
 
-- [ ] T031: Implement system tray icon with context menu (open dashboard, sync now, quit)
-- [ ] T032: Configure auto-start on login (tauri-plugin-autostart, macOS + Windows)
-- [ ] T033: Implement tray icon dynamic status updates (normal/warning/error states)
-- [ ] T034: Implement app-level crash reporting via existing telemetry pipeline
+- [x] T031: Implement system tray icon with context menu (open dashboard, sync now, quit)
+- [x] T032: Configure auto-start on login (tauri-plugin-autostart, macOS + Windows)
+- [x] T033: Implement tray icon dynamic status updates (normal/warning/error states)
+- [x] T034: Implement app-level crash reporting via existing telemetry pipeline
 
 ### WP12 — Auto-Update
 **Prompt**: [`tasks/WP12-auto-update.md`](tasks/WP12-auto-update.md)
