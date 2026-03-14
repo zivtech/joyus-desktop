@@ -420,4 +420,10 @@ describe("createDefaultChromeDeps", () => {
     const deps = createDefaultChromeDeps();
     expect(deps.fileExists("/this/path/does/not/exist/at/all")).toBe(false);
   });
+
+  it("execCommand returns string output for a valid command", () => {
+    const deps = createDefaultChromeDeps();
+    const result = deps.execCommand("echo hello");
+    expect(typeof result).toBe("string");
+  });
 });

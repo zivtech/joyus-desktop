@@ -8,6 +8,8 @@ import {
   registerUsageMethods,
   type UsageCollector,
 } from "./usage-collector";
+import { detectChrome, type ChromeDetectDeps } from "./chrome-detect";
+import { scanSkills, type SkillScannerDeps } from "./skill-scanner";
 
 export interface ServiceContainer {
   processManager: ProcessManager;
@@ -162,4 +164,215 @@ export function registerAllMethods(
   registerHealthCheck(ipc, startTime, nowFn);
   registerUsageMethods(ipc, usageCollector);
   registerOnboarding(ipc, container, usageCollector);
+}
+
+// ---------------------------------------------------------------------------
+// Server management IPC methods
+// ---------------------------------------------------------------------------
+
+function requireName(params: unknown): string {
+  if (params !== null && typeof params === "object" && "name" in params) {
+    const name = (params as { name: unknown }).name;
+    if (typeof name === "string" && name !== "") {
+      return name;
+    }
+  }
+  throw new Error("Missing required param: name");
+}
+
+export function registerServerMethods(ipc: IpcHandler, registry: Registry): void {
+  ipc.registerMethod("servers.list", async () => {
+    return registry.listServers();
+  });
+
+  ipc.registerMethod("servers.start", async (params: unknown) => {
+    const name = requireName(params);
+    return registry.startServer(name);
+  });
+
+  ipc.registerMethod("servers.stop", async (params: unknown) => {
+    const name = requireName(params);
+    await registry.stopServer(name);
+    return { stopped: true };
+  });
+
+  ipc.registerMethod("servers.restart", async (params: unknown) => {
+    const name = requireName(params);
+    return registry.restartServer(name);
+  });
+}
+
+export function registerServerNotifications(
+  ipc: IpcHandler,
+  pm: ProcessManager,
+  registry: Registry,
+): void {
+  pm.startWatchdog(5_000, 5, (name: string) => {
+    try {
+      const servers = registry.listServers();
+      const info = servers.find((s) => s.name === name);
+      if (info !== undefined) {
+        ipc.sendNotification("state.serverChanged", {
+          name: info.name,
+          status: info.status,
+          ...(info.lastError !== undefined && { lastError: info.lastError }),
+          restartCount: info.restartCount,
+        });
+      } else {
+        ipc.sendNotification("state.serverChanged", {
+          name,
+          status: "error",
+          lastError: "Max restarts exceeded",
+          restartCount: 5,
+        });
+      }
+    } catch {
+      ipc.sendNotification("state.serverChanged", {
+        name,
+        status: "error",
+        lastError: "Max restarts exceeded",
+        restartCount: 5,
+      });
+    }
+  });
+}
+
+export function registerChromeDetect(ipc: IpcHandler, deps: ChromeDetectDeps): void {
+  ipc.registerMethod("chrome.detect", async () => {
+    return detectChrome(deps);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sync IPC methods
+// ---------------------------------------------------------------------------
+
+export interface SyncState {
+  status: "idle" | "syncing" | "synced" | "error";
+  version: string | null;
+  timestamp: string | null;
+}
+
+export interface SyncIpcDeps {
+  syncConfig: { destDir: string; bundleName: string };
+  triggerSync: () => Promise<{ version: string; syncedAt: string; fromCache: boolean; durationMs: number }>;
+  scannerDeps: SkillScannerDeps;
+}
+
+export function registerSyncMethods(
+  ipc: IpcHandler,
+  _container: ServiceContainer,
+  syncIpcDeps: SyncIpcDeps,
+  syncState: SyncState,
+): void {
+  ipc.registerMethod("sync.trigger", async () => {
+    try {
+      const result = await syncIpcDeps.triggerSync();
+      syncState.status = "synced";
+      syncState.version = result.version;
+      syncState.timestamp = result.syncedAt;
+      ipc.sendNotification("state.syncCompleted", {
+        version: result.version,
+        fromCache: result.fromCache,
+        durationMs: result.durationMs,
+      });
+      return result;
+    } catch (err: unknown) {
+      syncState.status = "error";
+      const message = err instanceof Error ? err.message : String(err);
+      ipc.sendNotification("state.error", { source: "sync", message, fatal: false });
+      throw err;
+    }
+  });
+
+  ipc.registerMethod("sync.status", async () => {
+    return {
+      status: syncState.status,
+      version: syncState.version,
+      timestamp: syncState.timestamp,
+    };
+  });
+
+  ipc.registerMethod("skills.list", async () => {
+    return scanSkills(
+      syncIpcDeps.syncConfig.destDir,
+      syncIpcDeps.syncConfig.bundleName,
+      syncIpcDeps.scannerDeps,
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Governance IPC methods
+// ---------------------------------------------------------------------------
+
+export interface GovernanceDecisionEntry {
+  toolName: string;
+  serverName: string;
+  decision: "allow" | "deny" | "audit";
+  mode: "off" | "audit" | "enforce";
+}
+
+export function registerGovernanceMethods(
+  ipc: IpcHandler,
+  container: ServiceContainer,
+  decisionLog: GovernanceDecisionEntry[],
+): void {
+  ipc.registerMethod("governance.getMode", async () => {
+    const config = container.configPoller.getConfig();
+    return { mode: config.mode };
+  });
+
+  ipc.registerMethod("governance.getDecisions", async (params: unknown) => {
+    let limit: number | undefined;
+    if (params !== null && typeof params === "object") {
+      const p = params as Record<string, unknown>;
+      if (typeof p["limit"] === "number") {
+        limit = p["limit"];
+      }
+    }
+    if (limit !== undefined) {
+      return decisionLog.slice(-limit);
+    }
+    return decisionLog;
+  });
+}
+
+export function emitGovernanceDecision(
+  ipc: IpcHandler,
+  decisionLog: GovernanceDecisionEntry[],
+  entry: GovernanceDecisionEntry,
+): void {
+  decisionLog.push(entry);
+  ipc.sendNotification("state.governanceDecision", entry);
+}
+
+// ---------------------------------------------------------------------------
+// Error reporting IPC methods
+// ---------------------------------------------------------------------------
+
+export interface TelemetryErrorDeps {
+  emitTelemetry: (event: { toolName: string; source: string; message: string }) => Promise<void>;
+  isOptedOut: () => boolean;
+}
+
+export function registerErrorReporting(ipc: IpcHandler, deps: TelemetryErrorDeps): void {
+  ipc.registerMethod("state.reportError", async (params: unknown) => {
+    let source = "unknown";
+    let message = "unknown error";
+
+    if (params !== null && typeof params === "object") {
+      const p = params as Record<string, unknown>;
+      if (typeof p["source"] === "string") source = p["source"];
+      if (typeof p["message"] === "string") message = p["message"];
+    }
+
+    ipc.sendNotification("state.error", { source, message, fatal: false });
+
+    if (!deps.isOptedOut()) {
+      await deps.emitTelemetry({ toolName: "app_error", source, message });
+    }
+
+    return { ok: true };
+  });
 }
