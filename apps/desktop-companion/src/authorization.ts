@@ -1,4 +1,4 @@
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 export type Outcome = "allow" | "deny" | "escalate";
 
 export interface AuthorizationInput {

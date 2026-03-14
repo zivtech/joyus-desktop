@@ -21,7 +21,7 @@ import {
 } from "@joyus/policy-client";
 import type { EncryptedChunk, EncryptedArtifact } from "@joyus/policy-client";
 import { assembleAndSignSnapshot, generateManifest } from "./snapshotAssembly";
-import { requestHandoffAuthorization } from "./handoffAuthorization";
+import { requestHandoffAuthorization, type HandoffAuthResult } from "./handoffAuthorization";
 import { uploadEncryptedSnapshot, uploadArtifacts } from "./handoffUpload";
 
 // ---------------------------------------------------------------------------
@@ -244,6 +244,9 @@ export async function executeHandoff(
     });
 
     // authResult is always { decision: "allow" } here because deny/escalate/unavailable throw
+    if (authResult.decision !== "allow") {
+      throw new HandoffError("POLICY_DENIED", `Handoff not allowed: ${(authResult as HandoffAuthResult).decision}`);
+    }
     const policyToken = authResult.policy_token;
     const tokenExpiresAt = authResult.token_expires_at;
 

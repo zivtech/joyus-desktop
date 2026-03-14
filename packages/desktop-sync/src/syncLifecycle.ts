@@ -21,11 +21,12 @@ async function performSync(config: SyncConfig, deps: DesktopSyncDeps): Promise<S
     if (
       typeof existing === "object" &&
       existing !== null &&
-      "version" in existing &&
-      typeof (existing as Record<string, unknown>)["version"] === "string" &&
-      !hasVersionChanged((existing as Record<string, string>)["version"], targetVersion)
+      "version" in existing
     ) {
-      fromCache = true;
+      const existingVersion = (existing as Record<string, unknown>)["version"];
+      if (typeof existingVersion === "string" && !hasVersionChanged(existingVersion, targetVersion)) {
+        fromCache = true;
+      }
     }
   } catch {
     // No metadata yet — first sync
