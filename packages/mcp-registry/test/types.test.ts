@@ -39,7 +39,6 @@ describe("types", () => {
       version: "1.0.0",
       enabled: true,
       restartCount: 0,
-      lastError: undefined,
     };
     expect(info.name).toBe("test");
     expect(info.pid).toBe(1234);

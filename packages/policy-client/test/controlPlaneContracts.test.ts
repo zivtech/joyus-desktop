@@ -164,7 +164,7 @@ describe("parsePolicyDecideResponse", () => {
         token: "payload.signature",
         token_expires_at: "x",
         jti: "j",
-        risk_level: "critical"
+        risk_level: "extreme"
       })
     ).toThrow("risk_level");
   });

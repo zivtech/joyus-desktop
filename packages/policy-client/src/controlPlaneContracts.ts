@@ -118,7 +118,7 @@ export function buildPolicyDecideRequest(input: {
 }
 
 function isRiskLevel(value: unknown): value is RiskLevel {
-  return value === "low" || value === "medium" || value === "high";
+  return value === "low" || value === "medium" || value === "high" || value === "critical";
 }
 
 function isPolicyOutcome(value: unknown): value is PolicyOutcome {

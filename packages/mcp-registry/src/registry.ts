@@ -30,7 +30,7 @@ export function createRegistry(manifest: ServerManifest, deps: RegistryDeps): Re
   for (const [name, entry] of Object.entries(manifest.servers)) {
     servers.set(name, {
       config: { command: entry.command, args: entry.args },
-      version: entry.version,
+      ...(entry.version !== undefined && { version: entry.version }),
       enabled: entry.enabled,
     });
   }
@@ -57,11 +57,11 @@ export function createRegistry(manifest: ServerManifest, deps: RegistryDeps): Re
       name,
       config: record.config,
       status,
-      pid: processEntry?.child.pid,
-      version: record.version,
+      ...(processEntry !== undefined && { pid: processEntry.child.pid }),
+      ...(record.version !== undefined && { version: record.version }),
       enabled: record.enabled,
       restartCount: processEntry?.restartCount ?? 0,
-      lastError: processEntry?.lastError,
+      ...(processEntry?.lastError !== undefined && { lastError: processEntry.lastError }),
     };
   }
 
@@ -70,8 +70,8 @@ export function createRegistry(manifest: ServerManifest, deps: RegistryDeps): Re
       throw new Error(`Server "${name}" is already registered`);
     }
     servers.set(name, {
-      config: { command: config.command, args: config.args, env: config.env },
-      version: config.version,
+      config: { command: config.command, args: config.args, ...(config.env !== undefined && { env: config.env }) },
+      ...(config.version !== undefined && { version: config.version }),
       enabled: true,
     });
   }
