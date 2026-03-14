@@ -69,8 +69,12 @@ function makeDeps(
     stderr: { write: stderrWrite },
     exit: vi.fn(),
     onSignal: vi.fn(),
+    onUncaughtException: vi.fn(),
+    onUnhandledRejection: vi.fn(),
     nowFn: vi.fn().mockReturnValue(1000),
     serviceDeps: makeStubServiceDeps(),
+    isOptedOut: vi.fn().mockReturnValue(false),
+    emitTelemetry: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -241,5 +245,104 @@ describe("startSidecar", () => {
     expect(stderrWrite).toHaveBeenCalledWith(
       "IPC error: string throw\n",
     );
+  });
+
+  it("registers uncaughtException and unhandledRejection handlers on startup", () => {
+    const deps = makeDeps([]);
+    startSidecar(deps);
+    expect(deps.onUncaughtException).toHaveBeenCalledWith(expect.any(Function));
+    expect(deps.onUnhandledRejection).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("handles uncaughtException: emits state.error, logs to stderr, calls exit(1)", async () => {
+    let uncaughtHandler: ((err: unknown) => void) | undefined;
+
+    const deps = makeDeps([], {
+      onUncaughtException: vi.fn((handler: (err: unknown) => void) => {
+        uncaughtHandler = handler;
+      }),
+    });
+
+    startSidecar(deps);
+
+    expect(uncaughtHandler).toBeDefined();
+    uncaughtHandler!(new Error("boom"));
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(deps.stderr.write).toHaveBeenCalledWith(
+      "Fatal error [uncaughtException]: boom\n",
+    );
+    expect(deps.stdout.write).toHaveBeenCalledWith(
+      expect.stringContaining("state.error"),
+    );
+    expect(deps.exit).toHaveBeenCalledWith(1);
+    expect(deps.emitTelemetry).toHaveBeenCalledWith({
+      toolName: "app_error",
+      source: "uncaughtException",
+      message: "boom",
+    });
+  });
+
+  it("handles unhandledRejection: emits state.error, logs to stderr, calls exit(1)", async () => {
+    let rejectionHandler: ((reason: unknown) => void) | undefined;
+
+    const deps = makeDeps([], {
+      onUnhandledRejection: vi.fn((handler: (reason: unknown) => void) => {
+        rejectionHandler = handler;
+      }),
+    });
+
+    startSidecar(deps);
+
+    expect(rejectionHandler).toBeDefined();
+    rejectionHandler!("promise rejected");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(deps.stderr.write).toHaveBeenCalledWith(
+      "Fatal error [unhandledRejection]: promise rejected\n",
+    );
+    expect(deps.exit).toHaveBeenCalledWith(1);
+  });
+
+  it("skips telemetry when opted out on fatal error", async () => {
+    let uncaughtHandler: ((err: unknown) => void) | undefined;
+
+    const deps = makeDeps([], {
+      onUncaughtException: vi.fn((handler: (err: unknown) => void) => {
+        uncaughtHandler = handler;
+      }),
+      isOptedOut: vi.fn().mockReturnValue(true),
+    });
+
+    startSidecar(deps);
+
+    uncaughtHandler!(new Error("opted out error"));
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(deps.emitTelemetry).not.toHaveBeenCalled();
+    expect(deps.exit).toHaveBeenCalledWith(1);
+  });
+
+  it("handles non-Error thrown in uncaughtException", async () => {
+    let uncaughtHandler: ((err: unknown) => void) | undefined;
+
+    const deps = makeDeps([], {
+      onUncaughtException: vi.fn((handler: (err: unknown) => void) => {
+        uncaughtHandler = handler;
+      }),
+    });
+
+    startSidecar(deps);
+    uncaughtHandler!(42);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(deps.stderr.write).toHaveBeenCalledWith(
+      "Fatal error [uncaughtException]: 42\n",
+    );
+    expect(deps.exit).toHaveBeenCalledWith(1);
   });
 });

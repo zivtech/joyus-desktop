@@ -9,8 +9,16 @@ export interface SidecarDeps {
   stderr: { write: (data: string) => void };
   exit: (code: number) => void;
   onSignal: (signal: string, handler: () => void) => void;
+  onUncaughtException: (handler: (err: unknown) => void) => void;
+  onUnhandledRejection: (handler: (reason: unknown) => void) => void;
   nowFn: () => number;
   serviceDeps: ServiceDeps;
+  isOptedOut: () => boolean;
+  emitTelemetry: (params: {
+    toolName: string;
+    source: string;
+    message: string;
+  }) => Promise<void>;
 }
 
 export interface SidecarHandle {
@@ -30,6 +38,27 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerHealthCheck(ipc, startTime, deps.nowFn);
+
+  function handleFatalError(source: string, err: unknown): void {
+    const message = err instanceof Error ? err.message : String(err);
+    deps.stderr.write(`Fatal error [${source}]: ${message}\n`);
+
+    ipc.sendNotification("state.error", { source, message, fatal: true });
+
+    if (!deps.isOptedOut()) {
+      void deps.emitTelemetry({ toolName: "app_error", source, message });
+    }
+
+    deps.exit(1);
+  }
+
+  deps.onUncaughtException((err: unknown) => {
+    handleFatalError("uncaughtException", err);
+  });
+
+  deps.onUnhandledRejection((reason: unknown) => {
+    handleFatalError("unhandledRejection", reason);
+  });
 
   const rl = createInterface({ input: deps.stdin });
 
