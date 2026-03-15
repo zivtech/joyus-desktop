@@ -148,9 +148,9 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP08
 **Subtasks**: T039–T041 (3 subtasks, ~350 lines)
 
-- [ ] T039: Build Servers page (server list, status badges, start/stop/restart controls, error display)
-- [ ] T040: Build Skills page (skill list with versions, bundle info, last sync timestamp)
-- [ ] T041: Wire server action buttons to Tauri commands (start/stop/restart with optimistic UI)
+- [x] T039: Build Servers page (server list, status badges, start/stop/restart controls, error display)
+- [x] T040: Build Skills page (skill list with versions, bundle info, last sync timestamp)
+- [x] T041: Wire server action buttons to Tauri commands (start/stop/restart with optimistic UI)
 
 ### WP10 — Governance, Usage & Settings Pages
 **Prompt**: [`tasks/WP10-governance-usage-settings.md`](tasks/WP10-governance-usage-settings.md)
