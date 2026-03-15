@@ -180,11 +180,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP07, WP12
 **Subtasks**: T053–T057 (5 subtasks, ~350 lines)
 
-- [ ] T053: Configure Tauri bundle settings (app name, identifier, category, description)
-- [ ] T054: Create app icons for both platforms (tray icon variants, app icon, installer branding)
-- [ ] T055: Set up macOS code signing and notarization configuration
-- [ ] T056: Set up Windows Authenticode signing configuration
-- [ ] T057: Implement uninstall cleanup prompt (full cleanup vs app-only removal)
+- [x] T053: Configure Tauri bundle settings (app name, identifier, category, description)
+- [x] T054: Create app icons for both platforms (tray icon variants, app icon, installer branding)
+- [x] T055: Set up macOS code signing and notarization configuration
+- [x] T056: Set up Windows Authenticode signing configuration
+- [x] T057: Implement uninstall cleanup prompt (full cleanup vs app-only removal)
 
 ---
 
@@ -195,11 +195,11 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP13
 **Subtasks**: T058–T062 (5 subtasks, ~400 lines)
 
-- [ ] T058: Create GitHub Actions workflow with macOS + Windows build matrix
-- [ ] T059: Add code signing secrets management and certificate import steps
-- [ ] T060: Add Node.js binary download and sidecar bundling to CI build
-- [ ] T061: Produce .dmg (macOS) and .exe/MSI (Windows) release artifacts
-- [ ] T062: Add update manifest generation and upload step to release workflow
+- [x] T058: Create GitHub Actions workflow with macOS + Windows build matrix
+- [x] T059: Add code signing secrets management and certificate import steps
+- [x] T060: Add Node.js binary download and sidecar bundling to CI build
+- [x] T061: Produce .dmg (macOS) and .exe/MSI (Windows) release artifacts
+- [x] T062: Add update manifest generation and upload step to release workflow
 
 ---
 
@@ -210,8 +210,8 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP09, WP10, WP11, WP13
 **Subtasks**: T063–T067 (5 subtasks, ~350 lines)
 
-- [ ] T063: Integration test: sidecar launch → IPC round-trip → graceful shutdown
-- [ ] T064: Integration test: onboarding flow end-to-end (mock auth → MCP config → sync)
-- [ ] T065: Verify dashboard real-time updates (server crash → UI update within 5 seconds)
-- [ ] T066: Cross-platform smoke test checklist (install, launch, tray, dashboard, quit on both OSes)
-- [ ] T067: Performance validation (startup <10s to MCP ready, memory <50 MB idle, sync <15s warm)
+- [x] T063: Integration test: sidecar launch → IPC round-trip → graceful shutdown
+- [x] T064: Integration test: onboarding flow end-to-end (mock auth → MCP config → sync)
+- [x] T065: Verify dashboard real-time updates (server crash → UI update within 5 seconds)
+- [x] T066: Cross-platform smoke test checklist (install, launch, tray, dashboard, quit on both OSes)
+- [x] T067: Performance validation (startup <10s to MCP ready, memory <50 MB idle, sync <15s warm)
