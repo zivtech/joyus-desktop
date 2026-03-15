@@ -88,3 +88,74 @@ pub async fn toggle_autostart(enabled: bool) -> Result<(), String> {
     log::info!("Autostart toggled: {}", enabled);
     Ok(())
 }
+
+/// Stop all MCP server processes, remove managed .mcp.json entries, and optionally
+/// delete app data (skill-sync cache + app data directory).
+#[command]
+pub async fn reset_desktop_companion(
+    state: State<'_, SidecarState>,
+    delete_data: bool,
+) -> Result<(), String> {
+    // Ask the sidecar to stop all servers and clean up .mcp.json entries.
+    state
+        .send_request("servers.stopAll", serde_json::Value::Object(Default::default()))
+        .await
+        .ok(); // best-effort — proceed even if sidecar is already down
+
+    if delete_data {
+        // Remove the skill-sync cache directory (~/.claude/.skill-sync-cache/).
+        if let Some(home) = dirs::home_dir() {
+            let cache = home.join(".claude").join(".skill-sync-cache");
+            if cache.exists() {
+                std::fs::remove_dir_all(&cache)
+                    .map_err(|e| format!("Failed to remove skill-sync cache: {e}"))?;
+            }
+        }
+
+        // Remove Tauri app data directory (config, databases, etc.).
+        // tauri::api::path::app_data_dir is not available as a free function in Tauri v2;
+        // the path follows platform conventions:
+        //   macOS  ~/Library/Application Support/<identifier>
+        //   Windows %APPDATA%\<identifier>
+        //   Linux   ~/.local/share/<identifier>
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(home) = dirs::home_dir() {
+                let app_data = home
+                    .join("Library")
+                    .join("Application Support")
+                    .join("com.joyus.desktop-companion");
+                if app_data.exists() {
+                    std::fs::remove_dir_all(&app_data)
+                        .map_err(|e| format!("Failed to remove app data: {e}"))?;
+                }
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let app_data = std::path::PathBuf::from(appdata).join("com.joyus.desktop-companion");
+                if app_data.exists() {
+                    std::fs::remove_dir_all(&app_data)
+                        .map_err(|e| format!("Failed to remove app data: {e}"))?;
+                }
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(home) = dirs::home_dir() {
+                let app_data = home
+                    .join(".local")
+                    .join("share")
+                    .join("com.joyus.desktop-companion");
+                if app_data.exists() {
+                    std::fs::remove_dir_all(&app_data)
+                        .map_err(|e| format!("Failed to remove app data: {e}"))?;
+                }
+            }
+        }
+    }
+
+    log::info!("reset_desktop_companion complete (delete_data={})", delete_data);
+    Ok(())
+}
