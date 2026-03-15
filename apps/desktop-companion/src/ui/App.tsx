@@ -1,6 +1,9 @@
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
+import { Governance } from "./pages/Governance";
+import { Usage } from "./pages/Usage";
+import { Settings } from "./pages/Settings";
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -19,9 +22,9 @@ export function App() {
           <Route index element={<Dashboard />} />
           <Route path="/servers" element={<Placeholder title="Servers" />} />
           <Route path="/skills" element={<Placeholder title="Skills" />} />
-          <Route path="/governance" element={<Placeholder title="Governance" />} />
-          <Route path="/usage" element={<Placeholder title="Usage" />} />
-          <Route path="/settings" element={<Placeholder title="Settings" />} />
+          <Route path="/governance" element={<Governance />} />
+          <Route path="/usage" element={<Usage />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/onboarding" element={<Placeholder title="Onboarding" />} />
         </Route>
       </Routes>
