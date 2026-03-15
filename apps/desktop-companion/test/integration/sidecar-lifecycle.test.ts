@@ -114,7 +114,7 @@ describe("sidecar lifecycle — health.check", () => {
     await waitMs();
 
     expect(deps.stdoutWrite).toHaveBeenCalled();
-    const response = parseResponse(deps.stdoutWrite.mock.calls[0][0] as string);
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.jsonrpc).toBe("2.0");
     expect(response.id).toBe(1);
     const result = response.result as Record<string, unknown>;
@@ -133,7 +133,7 @@ describe("sidecar lifecycle — servers.list", () => {
     // The sidecar's registerAllMethods only registers health.check, usage.*, onboarding.start.
     // Verify the response is well-formed JSON-RPC (either result or method-not-found error).
     expect(deps.stdoutWrite).toHaveBeenCalled();
-    const response = parseResponse(deps.stdoutWrite.mock.calls[0][0] as string);
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.jsonrpc).toBe("2.0");
     expect(response.id).toBe(2);
     // servers.list may return method-not-found since only health/usage/onboarding are wired in registerAllMethods
@@ -148,7 +148,7 @@ describe("sidecar lifecycle — sync.status", () => {
     await waitMs();
 
     expect(deps.stdoutWrite).toHaveBeenCalled();
-    const response = parseResponse(deps.stdoutWrite.mock.calls[0][0] as string);
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.jsonrpc).toBe("2.0");
     expect(response.id).toBe(3);
     expect(response.result !== undefined || response.error !== undefined).toBe(true);
@@ -162,7 +162,7 @@ describe("sidecar lifecycle — error cases", () => {
     await waitMs();
 
     expect(deps.stdoutWrite).toHaveBeenCalled();
-    const response = parseResponse(deps.stdoutWrite.mock.calls[0][0] as string);
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.error?.code).toBe(-32700);
     expect(response.id).toBeNull();
   });
@@ -173,7 +173,7 @@ describe("sidecar lifecycle — error cases", () => {
     await waitMs();
 
     expect(deps.stdoutWrite).toHaveBeenCalled();
-    const response = parseResponse(deps.stdoutWrite.mock.calls[0][0] as string);
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.error?.code).toBe(-32601);
     expect(response.id).toBe(42);
   });
