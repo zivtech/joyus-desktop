@@ -1,9 +1,20 @@
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Governance } from "./pages/Governance";
 import { Usage } from "./pages/Usage";
 import { Settings } from "./pages/Settings";
+import { Onboarding } from "./pages/Onboarding";
+
+async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return invoke<T>(cmd, args);
+  } catch {
+    return undefined;
+  }
+}
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -14,20 +25,42 @@ function Placeholder({ title }: { title: string }) {
   );
 }
 
+function AppRoutes() {
+  const navigate = useNavigate();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    void safeInvoke<string>("get_config", { key: "onboarding_complete" }).then((value) => {
+      if (value !== "true") {
+        navigate("/onboarding", { replace: true });
+      }
+      setChecked(true);
+    });
+  }, [navigate]);
+
+  if (!checked) {
+    return null;
+  }
+
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="/servers" element={<Placeholder title="Servers" />} />
+        <Route path="/skills" element={<Placeholder title="Skills" />} />
+        <Route path="/governance" element={<Governance />} />
+        <Route path="/usage" element={<Usage />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+      <Route path="/onboarding" element={<Onboarding />} />
+    </Routes>
+  );
+}
+
 export function App() {
   return (
     <MemoryRouter initialEntries={["/"]} initialIndex={0}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="/servers" element={<Placeholder title="Servers" />} />
-          <Route path="/skills" element={<Placeholder title="Skills" />} />
-          <Route path="/governance" element={<Governance />} />
-          <Route path="/usage" element={<Usage />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/onboarding" element={<Placeholder title="Onboarding" />} />
-        </Route>
-      </Routes>
+      <AppRoutes />
     </MemoryRouter>
   );
 }
