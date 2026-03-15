@@ -168,12 +168,17 @@ function SettingsSection({
   );
 }
 
+type ResetStep = "idle" | "confirm" | "running" | "done";
+
 export function Settings() {
   const [config, setConfig] = useState<AppConfig | undefined>(undefined);
   const [syncStatus, setSyncStatus] = useState<string | undefined>(undefined);
   const [updateStatus, setUpdateStatus] = useState<string | undefined>(undefined);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [resetStep, setResetStep] = useState<ResetStep>("idle");
+  const [resetDeleteData, setResetDeleteData] = useState(false);
+  const [resetError, setResetError] = useState<string | undefined>(undefined);
 
   const loadConfig = useCallback(() => {
     void safeInvoke<AppConfig>("get_config").then((result) => {
@@ -241,6 +246,30 @@ export function Settings() {
       setBusy(false);
     });
   }, [clearConfirm]);
+
+  const handleResetStart = useCallback(() => {
+    setResetStep("confirm");
+    setResetDeleteData(false);
+    setResetError(undefined);
+  }, []);
+
+  const handleResetCancel = useCallback(() => {
+    setResetStep("idle");
+    setResetError(undefined);
+  }, []);
+
+  const handleResetConfirm = useCallback(() => {
+    setResetStep("running");
+    setBusy(true);
+    void safeInvoke<void>("reset_desktop_companion", { deleteData: resetDeleteData }).then(() => {
+      setResetStep("done");
+      setBusy(false);
+    }).catch((err: unknown) => {
+      setResetError(String(err));
+      setResetStep("confirm");
+      setBusy(false);
+    });
+  }, [resetDeleteData]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -320,6 +349,79 @@ export function Settings() {
             >
               Cancel
             </button>
+          </div>
+        )}
+      </SettingsSection>
+
+      {/* Reset */}
+      <SettingsSection title="Reset Desktop Companion">
+        {resetStep === "idle" && (
+          <SettingRow
+            label="Reset Desktop Companion"
+            description="Stop all MCP servers and remove managed configuration entries. Use this before uninstalling on macOS."
+          >
+            <ActionButton onClick={handleResetStart} variant="danger" disabled={busy}>
+              Reset…
+            </ActionButton>
+          </SettingRow>
+        )}
+        {resetStep === "confirm" && (
+          <div style={{ paddingTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111827" }}>
+              Choose what to remove:
+            </div>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.875rem", color: "#374151", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="resetMode"
+                checked={!resetDeleteData}
+                onChange={() => setResetDeleteData(false)}
+                style={{ marginTop: "2px" }}
+              />
+              <span>
+                <strong>Remove app only</strong>
+                <span style={{ color: "#6b7280" }}> — stop MCP servers and remove managed .mcp.json entries. Leave settings and skill cache intact.</span>
+              </span>
+            </label>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.875rem", color: "#374151", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="resetMode"
+                checked={resetDeleteData}
+                onChange={() => setResetDeleteData(true)}
+                style={{ marginTop: "2px" }}
+              />
+              <span>
+                <strong>Remove everything</strong>
+                <span style={{ color: "#6b7280" }}> — also delete app data directory and <code style={{ fontFamily: "monospace" }}>~/.claude/.skill-sync-cache/</code>.</span>
+              </span>
+            </label>
+            {resetError !== undefined && (
+              <div style={{ fontSize: "0.813rem", color: "#dc2626" }}>Error: {resetError}</div>
+            )}
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <ActionButton onClick={handleResetConfirm} variant="danger" disabled={busy}>
+                Confirm Reset
+              </ActionButton>
+              <ActionButton onClick={handleResetCancel} disabled={busy}>
+                Cancel
+              </ActionButton>
+            </div>
+          </div>
+        )}
+        {resetStep === "running" && (
+          <div style={{ paddingTop: "0.5rem", fontSize: "0.875rem", color: "#6b7280" }}>
+            Resetting…
+          </div>
+        )}
+        {resetStep === "done" && (
+          <div style={{ paddingTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <div style={{ fontSize: "0.875rem", color: "#16a34a" }}>
+              Reset complete. You can now move Joyus Desktop to the Trash.
+            </div>
+            <div>
+              <ActionButton onClick={handleResetCancel}>Dismiss</ActionButton>
+            </div>
           </div>
         )}
       </SettingsSection>

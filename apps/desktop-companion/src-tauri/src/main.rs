@@ -74,6 +74,7 @@ fn main() {
             commands::toggle_autostart,
             updater::check_for_update,
             updater::install_update,
+            commands::reset_desktop_companion,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
