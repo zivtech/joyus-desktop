@@ -1,0 +1,262 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.2.0)'
+        required: false
+
+env:
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            node-platform: darwin
+          - platform: windows-latest
+            rust-targets: x86_64-pc-windows-msvc
+            node-platform: win32
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Tests ──────────────────────────────────────────────────────────────
+      - name: TypeScript tests
+        run: pnpm test
+
+      - name: Rust tests
+        working-directory: apps/desktop-companion/src-tauri
+        run: cargo test
+
+      # ── Sidecar & Node.js binaries ─────────────────────────────────────────
+      - name: Build sidecar bundle
+        run: pnpm --filter @joyus/desktop-companion build:sidecar
+
+      - name: Download Node.js binaries
+        run: pnpm --filter @joyus/desktop-companion download:node
+
+      - name: Verify sidecar artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          test -f apps/desktop-companion/src-tauri/binaries/node-aarch64-apple-darwin \
+            || (echo "ERROR: missing node-aarch64-apple-darwin" && exit 1)
+          test -f apps/desktop-companion/src-tauri/binaries/node-x86_64-apple-darwin \
+            || (echo "ERROR: missing node-x86_64-apple-darwin" && exit 1)
+          test -f apps/desktop-companion/src-tauri/binaries/sidecar-main.mjs \
+            || (echo "ERROR: missing sidecar-main.mjs" && exit 1)
+
+      - name: Verify sidecar artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "apps/desktop-companion/src-tauri/binaries/node-x86_64-pc-windows-msvc.exe")) {
+            Write-Error "ERROR: missing node-x86_64-pc-windows-msvc.exe"; exit 1
+          }
+          if (-not (Test-Path "apps/desktop-companion/src-tauri/binaries/sidecar-main.mjs")) {
+            Write-Error "ERROR: missing sidecar-main.mjs"; exit 1
+          }
+
+      # ── macOS code signing ─────────────────────────────────────────────────
+      - name: Import macOS certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+      # ── Tauri build ────────────────────────────────────────────────────────
+      - name: Build Tauri app (macOS — universal)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: cargo tauri build --target universal-apple-darwin
+        working-directory: apps/desktop-companion
+
+      - name: Build Tauri app (Windows)
+        if: matrix.platform == 'windows-latest'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: cargo tauri build
+        working-directory: apps/desktop-companion
+
+      # ── Upload build artifacts ─────────────────────────────────────────────
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME:-$(node -p "require('./apps/desktop-companion/src-tauri/tauri.conf.json').version")}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
+            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz
+            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz.sig
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.zip
+            apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.zip.sig
+
+      # ── GitHub Release ─────────────────────────────────────────────────────
+      - name: Rename macOS release assets
+        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUNDLE_DIR="apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle"
+          DMG=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" | head -1)
+          TARGZ=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" | head -1)
+          TARGZ_SIG=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz.sig" | head -1)
+          [ -n "$DMG" ] && cp "$DMG" \
+            "joyus-desktop-companion-${VERSION}-darwin-universal.dmg"
+          [ -n "$TARGZ" ] && cp "$TARGZ" \
+            "joyus-desktop-companion-${VERSION}-darwin-universal.tar.gz"
+          [ -n "$TARGZ_SIG" ] && cp "$TARGZ_SIG" \
+            "joyus-desktop-companion-${VERSION}-darwin-universal.tar.gz.sig"
+
+      - name: Rename Windows release assets
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $VERSION = "${{ steps.version.outputs.version }}"
+          $BUNDLE_DIR = "apps/desktop-companion/src-tauri/target/release/bundle/nsis"
+          $EXE = Get-ChildItem "$BUNDLE_DIR" -Filter "*.exe" | Select-Object -First 1
+          $ZIP = Get-ChildItem "$BUNDLE_DIR" -Filter "*.zip" | Select-Object -First 1
+          $ZIP_SIG = Get-ChildItem "$BUNDLE_DIR" -Filter "*.zip.sig" | Select-Object -First 1
+          if ($EXE) { Copy-Item $EXE.FullName "joyus-desktop-companion-$VERSION-windows-x86_64.exe" }
+          if ($ZIP) { Copy-Item $ZIP.FullName "joyus-desktop-companion-$VERSION-windows-x86_64.zip" }
+          if ($ZIP_SIG) { Copy-Item $ZIP_SIG.FullName "joyus-desktop-companion-$VERSION-windows-x86_64.zip.sig" }
+
+      - name: Publish GitHub Release (macOS)
+        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            joyus-desktop-companion-*-darwin-universal.dmg
+            joyus-desktop-companion-*-darwin-universal.tar.gz
+            joyus-desktop-companion-*-darwin-universal.tar.gz.sig
+
+      - name: Publish GitHub Release (Windows)
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            joyus-desktop-companion-*-windows-x86_64.exe
+            joyus-desktop-companion-*-windows-x86_64.zip
+            joyus-desktop-companion-*-windows-x86_64.zip.sig
+
+  # ── Update manifest (runs after both platform builds succeed) ──────────────
+  generate-update-manifest:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifacts
+          path: release-artifacts/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: release-artifacts/windows
+
+      - name: Rename artifacts for manifest script
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release-artifacts/renamed
+          find release-artifacts/macos -name "*.tar.gz" | head -1 | \
+            xargs -I{} cp {} \
+            "release-artifacts/renamed/joyus-desktop-companion-${VERSION}-darwin-universal.tar.gz"
+          find release-artifacts/macos -name "*.tar.gz.sig" | head -1 | \
+            xargs -I{} cp {} \
+            "release-artifacts/renamed/joyus-desktop-companion-${VERSION}-darwin-universal.tar.gz.sig"
+          find release-artifacts/windows -name "*.zip" | head -1 | \
+            xargs -I{} cp {} \
+            "release-artifacts/renamed/joyus-desktop-companion-${VERSION}-windows-x86_64.zip"
+          find release-artifacts/windows -name "*.zip.sig" | head -1 | \
+            xargs -I{} cp {} \
+            "release-artifacts/renamed/joyus-desktop-companion-${VERSION}-windows-x86_64.zip.sig"
+
+      - name: Generate update manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          chmod +x .github/scripts/generate-update-manifest.sh
+          .github/scripts/generate-update-manifest.sh
+
+      - name: Upload update manifest to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: update-manifest.json
