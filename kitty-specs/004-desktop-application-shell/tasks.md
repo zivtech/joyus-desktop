@@ -157,9 +157,9 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP08, WP06
 **Subtasks**: T042–T044 (3 subtasks, ~400 lines)
 
-- [ ] T042: Build Governance page (mode indicator, recent decisions table with filtering)
-- [ ] T043: Build Usage page (30-day activity chart, top tools ranking, daily counts)
-- [ ] T044: Build Settings page (auto-start toggle, telemetry opt-out, sync trigger, about)
+- [x] T042: Build Governance page (mode indicator, recent decisions table with filtering)
+- [x] T043: Build Usage page (30-day activity chart, top tools ranking, daily counts)
+- [x] T044: Build Settings page (auto-start toggle, telemetry opt-out, sync trigger, about)
 
 ### WP11 — Onboarding Wizard
 **Prompt**: [`tasks/WP11-onboarding-wizard.md`](tasks/WP11-onboarding-wizard.md)
