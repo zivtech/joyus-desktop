@@ -166,10 +166,10 @@ Layer 8: WP15 (integration testing)                              [depends on WP0
 **Dependencies**: WP08, WP06
 **Subtasks**: T045–T048 (4 subtasks, ~350 lines)
 
-- [ ] T045: Build Onboarding wizard UI (multi-step: auth → MCP config → sync → completion)
-- [ ] T046: Implement first-run detection and automatic onboarding trigger
-- [ ] T047: Wire onboarding steps to sidecar IPC (onboarding.start method)
-- [ ] T048: Handle onboarding errors (retry per step, partial progress preservation)
+- [x] T045: Build Onboarding wizard UI (multi-step: auth → MCP config → sync → completion)
+- [x] T046: Implement first-run detection and automatic onboarding trigger
+- [x] T047: Wire onboarding steps to sidecar IPC (onboarding.start method)
+- [x] T048: Handle onboarding errors (retry per step, partial progress preservation)
 
 ---
 
