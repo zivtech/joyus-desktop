@@ -13,6 +13,7 @@ export default defineConfig({
         "packages/mcp-governance/src/types.ts",
         "packages/mcp-registry/src/types.ts",
         "packages/desktop-sync/src/types.ts",
+        "apps/**/src/ui/**",
       ],
       thresholds: {
         lines: 100,
