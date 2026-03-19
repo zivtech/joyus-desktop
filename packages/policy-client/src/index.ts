@@ -7,3 +7,4 @@ export * from "./snapshotEncryption";
 export * from "./handoffContracts";
 export * from "./handoffVerification";
 export * from "./eventEmitter";
+export * from "./replayCache";
