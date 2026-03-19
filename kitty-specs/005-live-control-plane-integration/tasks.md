@@ -63,11 +63,11 @@ SQLite-backed (`node:sqlite`) JTI cache. Persists consumed decision token IDs ac
 Proactive token refresh scheduled at 80% of TTL. Serializes concurrent refresh requests for the same action key via a shared in-flight Promise map.
 
 **Subtasks**:
-- [ ] T011: Create `TokenRefreshService` with in-flight dedup `Map<string, Promise>`
-- [ ] T012: Implement proactive refresh scheduling at 80% of TTL using `setTimeout`
-- [ ] T013: Serialize concurrent callers — second caller awaits in-flight Promise
-- [ ] T014: Implement `cancelAll()` — clears all `setTimeout` handles on shutdown
-- [ ] T015: Write unit tests — refresh timing, dedup, failure propagation, cancelAll
+- [x] T011: Create `TokenRefreshService` with in-flight dedup `Map<string, Promise>`
+- [x] T012: Implement proactive refresh scheduling at 80% of TTL using `setTimeout`
+- [x] T013: Serialize concurrent callers — second caller awaits in-flight Promise
+- [x] T014: Implement `cancelAll()` — clears all `setTimeout` handles on shutdown
+- [x] T015: Write unit tests — refresh timing, dedup, failure propagation, cancelAll
 
 **Parallel opportunities**: Can run in parallel with WP02 and WP04.
 **Risks**: `exactOptionalPropertyTypes` in Map lookups; use `Map.get()` with explicit undefined checks. Timer cleanup critical on shutdown to prevent memory leaks in tests.
