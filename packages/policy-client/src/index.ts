@@ -1,4 +1,5 @@
 export * from "./controlPlaneContracts";
+export * from "./controlPlaneClient";
 export * from "./policyClient";
 export * from "./handoffTypes";
 export * from "./handoffStateMachine";
