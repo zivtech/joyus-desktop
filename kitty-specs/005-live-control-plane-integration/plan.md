@@ -1,108 +1,167 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Live Control Plane Integration & Pilot Readiness
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `005-live-control-plane-integration` | **Date**: 2026-03-18 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `kitty-specs/005-live-control-plane-integration/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Connect joyus-desktop's existing policy client and companion flows to the live joyus-ai control plane. The `FetchLike` injection seam in `packages/policy-client/src/controlPlaneContracts.ts` already exists — this plan creates the concrete HTTP client that satisfies it, adds a SQLite-backed replay cache, a token refresh service, and an async event emitter. The companion is then wired to use these real implementations. Pilot readiness is validated through acceptance tests and an operational runbook.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: TypeScript 5.8+, Node.js 24, ESM-only
+**Primary Dependencies**: native `fetch` (Node 24 built-in); `node:sqlite` (Node 24 built-in); `msw` (dev/test only, mock HTTP server)
+**Storage**: SQLite via `node:sqlite` for replay cache (`~/.joyus/replay-cache.db`); NDJSON local log for failed events
+**Testing**: Vitest + MSW (Node intercept mode) for unit/integration; pilot acceptance tests against staging control plane
+**Target Platform**: macOS and Windows desktop companion
+**Performance Goals**: Policy decision round-trip adds <100ms median latency over baseline; event emission never blocks primary action flow
+**Constraints**: 100% line/function/branch/statement coverage; `noUncheckedIndexedAccess`; `exactOptionalPropertyTypes`; no new runtime dependencies except `msw` (dev-only)
+**Scale/Scope**: Single-user desktop companion; 3–5 internal pilot users; 1 external tenant pilot
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| TypeScript 5.8+ strict mode | ✓ PASS | All new modules follow existing strict patterns |
+| Node.js 24 ESM-only | ✓ PASS | `node:sqlite` built-in; no CJS shims needed |
+| Vitest + 100% coverage | ✓ PASS | Each module ships with a paired test file |
+| No new runtime dependencies | ✓ PASS | `msw` is dev-only; native fetch + node:sqlite for runtime |
+| pnpm monorepo structure | ✓ PASS | New modules extend existing packages; no new packages |
+| macOS + Windows targeting | ✓ PASS | `node:sqlite` and native fetch are cross-platform |
 
-[Gates determined based on constitution file]
+No violations. No complexity tracking required.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/005-live-control-plane-integration/
+├── plan.md              ← this file
+├── spec.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+│   ├── control-plane-client.ts
+│   ├── replay-cache.ts
+│   └── event-emitter.ts
+├── checklists/
+│   └── requirements.md
+└── tasks.md             ← generated by /spec-kitty.tasks
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code
+
+New modules within existing packages:
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+packages/policy-client/src/
+├── controlPlaneContracts.ts   [existing — no changes]
+├── policyClient.ts            [existing — no changes]
+├── controlPlaneClient.ts      [NEW] concrete FetchLike (fetch + retry + timeout + mTLS)
+├── replayCache.ts             [NEW] SQLite JTI cache
+├── tokenRefresh.ts            [NEW] proactive refresh + in-flight dedup
+└── eventEmitter.ts            [NEW] async non-blocking event/artifact delivery
 
-tests/
-├── contract/
-├── integration/
-└── unit/
+packages/policy-client/test/
+├── controlPlaneClient.test.ts [NEW]
+├── replayCache.test.ts        [NEW]
+├── tokenRefresh.test.ts       [NEW]
+└── eventEmitter.test.ts       [NEW]
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+apps/desktop-companion/src/
+└── controlPlaneWiring.ts      [NEW] loads config from env, wires client into companion
 
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
+apps/desktop-companion/test/integration/
+├── control-plane-wiring.test.ts  [NEW] end-to-end with MSW mock server
+└── pilot-acceptance.test.ts      [NEW] acceptance tests (MSW + staging stubs)
 
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+docs/operations/
+└── incident-runbook-005.md    [NEW] pilot operational runbook
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+## Work Packages
 
-## Complexity Tracking
+### WP01 — Control Plane HTTP Client
+**Location**: `packages/policy-client/src/controlPlaneClient.ts`
+**Depends on**: nothing (foundation)
+**Deliverable**: Concrete `FetchLike` implementation backed by native `fetch`. Loads `ControlPlaneConfig` from env vars. Enforces per-request timeout via `AbortController`. Retries on 5xx and network errors with exponential backoff (`retryBaseDelayMs * 2^(attempt-1)`). Passes mTLS `Agent` when cert paths are configured. Treats unexpected HTTP status codes as policy failures (not allow).
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+Tests: timeout fires correctly; retries on 503, stops on 4xx; mTLS agent is constructed when cert paths present; missing required env vars throw at startup.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+---
+
+### WP02 — Replay Cache
+**Location**: `packages/policy-client/src/replayCache.ts`
+**Depends on**: WP01 (config pattern established)
+**Deliverable**: `ReplayCache` implementation using `node:sqlite`. Creates schema on open. `consume()` is atomic (INSERT OR IGNORE + SELECT to detect conflict). `prune()` deletes rows where `expires_at + 3600 < now`. Exposes `close()` for graceful shutdown.
+
+Tests: first consume returns ok=true; second consume of same JTI returns ok=false reason=replay; prune removes only expired rows; concurrent consume calls for same JTI resolve deterministically.
+
+---
+
+### WP03 — Token Refresh Service
+**Location**: `packages/policy-client/src/tokenRefresh.ts`
+**Depends on**: WP01
+**Deliverable**: Service that accepts a `PolicyDecideResponse` and a re-fetch callback. Schedules proactive refresh at 80% of token TTL. Uses a `Map<actionKey, Promise>` to serialize concurrent refresh requests for the same action key. Entry removed on promise settlement. Provides `cancelAll()` for shutdown.
+
+Tests: refresh fires at correct time; two concurrent callers for same key share one promise; refresh failure propagates as policy failure; cancelAll clears timers.
+
+---
+
+### WP04 — Async Event Emitter
+**Location**: `packages/policy-client/src/eventEmitter.ts`
+**Depends on**: WP01
+**Deliverable**: `AsyncEventEmitter` implementation. `emit()` enqueues and returns immediately. Background loop drains queue with exponential backoff retries. After `maxAttempts` failures, writes NDJSON entry to `failureLogPath`. `flush()` drains queue synchronously on shutdown.
+
+Tests: emit returns immediately; successful delivery on first attempt; retry on transient failure; fallback to log after max attempts; flush drains all pending events.
+
+---
+
+### WP05 — Companion Wiring
+**Location**: `apps/desktop-companion/src/controlPlaneWiring.ts`
+**Depends on**: WP01, WP02, WP03, WP04
+**Deliverable**: Module that reads `ControlPlaneConfig` from env vars, constructs `ControlPlaneClient`, `ReplayCache`, `TokenRefreshService`, and `AsyncEventEmitter`, and wires them into the companion's `authorization.ts`, `handoffAuthorization.ts`, and `runtimeOrchestrator.ts` entry points. Registers `close()` calls on companion shutdown signal.
+
+Tests: wiring constructs all components; missing env var throws at startup; shutdown calls close on all components.
+
+---
+
+### WP06 — Integration Test Suite
+**Location**: `apps/desktop-companion/test/integration/control-plane-wiring.test.ts`
+**Depends on**: WP05
+**Deliverable**: End-to-end integration tests using MSW in Node.js intercept mode. Covers: real policy decision round-trip through all layers; replay rejection emits event; external tenant forced to remote workspace; control plane outage triggers fail-closed; outage recovery resumes enforcement automatically; artifact registration produces provenance record.
+
+Tests are the deliverable — each spec user story maps to at least one test scenario.
+
+---
+
+### WP07 — Pilot Readiness Gate
+**Location**: `docs/operations/incident-runbook-005.md`
+**Depends on**: WP06
+**Deliverable**: (1) Alert definition document specifying policy failure rate threshold (>5% of decisions in a 5-minute window), replay attempt alert (any occurrence), and control plane latency alert (p95 > 2s). (2) Incident runbook walkthrough: simulate policy failure, verify alert fires, follow remediation steps, verify recovery. (3) `apps/desktop-companion/test/integration/pilot-acceptance.test.ts` with acceptance scenarios matching spec SC-001 through SC-008.
+
+---
+
+## Dependency Graph
+
+```
+WP01 (HTTP Client)
+  ├── WP02 (Replay Cache)     ─┐
+  ├── WP03 (Token Refresh)    ─┤─→ WP05 (Wiring) → WP06 (Integration Tests) → WP07 (Pilot Gate)
+  └── WP04 (Event Emitter)   ─┘
+```
+
+**Parallelism**: WP02, WP03, WP04 all depend only on WP01 and can run in parallel. WP05 requires WP02+WP03+WP04. WP06 requires WP05. WP07 requires WP06.
+
+| Layer | WPs | Parallel? |
+|-------|-----|-----------|
+| 0 | WP01 | — (foundation) |
+| 1 | WP02, WP03, WP04 | ✓ all parallel |
+| 2 | WP05 | — (requires layer 1) |
+| 3 | WP06 | — (requires WP05) |
+| 4 | WP07 | — (requires WP06) |
+
+## Estimated Work Packages: 7
+## Peak Parallelism: 3 (Layer 1)
