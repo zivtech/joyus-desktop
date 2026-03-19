@@ -81,12 +81,12 @@ Proactive token refresh scheduled at 80% of TTL. Serializes concurrent refresh r
 Non-blocking emitter for `/v1/events` and `/v1/artifacts`. Queues in-memory, drains asynchronously with retry, falls back to NDJSON local log on permanent failure.
 
 **Subtasks**:
-- [ ] T016: Create `AsyncEventEmitter` with typed `QueuedEvent` in-memory array
-- [ ] T017: Implement non-blocking `emit()` — enqueues and returns immediately
-- [ ] T018: Implement background drain loop with exponential backoff retries
-- [ ] T019: Implement NDJSON failure log on permanent failure (max attempts exceeded)
-- [ ] T020: Implement `flush()` — drains remaining queue synchronously on shutdown
-- [ ] T021: Write unit tests — emit returns immediately, retry, fallback, flush
+- [x] T016: Create `AsyncEventEmitter` with typed `QueuedEvent` in-memory array
+- [x] T017: Implement non-blocking `emit()` — enqueues and returns immediately
+- [x] T018: Implement background drain loop with exponential backoff retries
+- [x] T019: Implement NDJSON failure log on permanent failure (max attempts exceeded)
+- [x] T020: Implement `flush()` — drains remaining queue synchronously on shutdown
+- [x] T021: Write unit tests — emit returns immediately, retry, fallback, flush
 
 **Parallel opportunities**: Can run in parallel with WP02 and WP03.
 **Risks**: Background drain loop in tests must be cleanly teardownable. `noUncheckedIndexedAccess` requires array bounds checks on queue head access.
