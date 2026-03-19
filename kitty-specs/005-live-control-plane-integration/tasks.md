@@ -102,12 +102,12 @@ Non-blocking emitter for `/v1/events` and `/v1/artifacts`. Queues in-memory, dra
 Wire all components into the companion entry point. Inject real `FetchLike` client into `authorization.ts` and `handoffAuthorization.ts`. Register `ReplayCache.consume()` in token validation flow. Register shutdown handlers.
 
 **Subtasks**:
-- [ ] T022: Create `controlPlaneWiring.ts` — read env, construct all components, export wired instances
-- [ ] T023: Inject `FetchLike` into `authorization.ts` policy decision calls
-- [ ] T024: Inject `FetchLike` into `handoffAuthorization.ts` workspace/artifact calls
-- [ ] T025: Register `ReplayCache.consume()` in `handoffVerification.ts` token validation
-- [ ] T026: Register shutdown handlers (SIGTERM/SIGINT) calling `replayCache.close()`, `tokenRefresh.cancelAll()`, `eventEmitter.flush()`
-- [ ] T027: Write unit tests — wiring constructs components, missing env throws, shutdown calls close
+- [x] T022: Create `controlPlaneWiring.ts` — read env, construct all components, export wired instances
+- [x] T023: Inject `FetchLike` into `authorization.ts` policy decision calls
+- [x] T024: Inject `FetchLike` into `handoffAuthorization.ts` workspace/artifact calls
+- [x] T025: Register `ReplayCache.consume()` in `handoffVerification.ts` token validation
+- [x] T026: Register shutdown handlers (SIGTERM/SIGINT) calling `replayCache.close()`, `tokenRefresh.cancelAll()`, `eventEmitter.flush()`
+- [x] T027: Write unit tests — wiring constructs components, missing env throws, shutdown calls close
 
 **Parallel opportunities**: None — requires WP02+WP03+WP04.
 **Risks**: Circular dependency risk if `controlPlaneWiring.ts` imports from modules that also import policy-client. Verify import graph before implementation.
