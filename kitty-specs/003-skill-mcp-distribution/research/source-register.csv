@@ -1,0 +1,5 @@
+id,type,title,url_or_path,accessed,reliability,notes
+SR-001,platform-docs,Anthropic Cowork February 2026 Announcements — connector catalog and plugin system,https://anthropic.com/news/team-plan-cowork,2026-02-15,HIGH,Confirmed HTTP/SSE-only transport; admin-managed connectors; claude.ai→Claude Code sync direction
+SR-002,internal-design,joyus-desktop architecture — existing packages/updater and joyus-ai infrastructure,packages/updater/,2026-03-10,HIGH,Established workspace package convention and joyus-ai as control plane
+SR-003,internal-design,plan.md — architecture decisions AD-001 through AD-004,kitty-specs/003-skill-mcp-distribution/plan.md,2026-03-10,HIGH,AD-001: transport; AD-002: config API; AD-003: skill-sync package; AD-004: mcp-registry package
+SR-004,internal-design,spec.md — feature requirements and user stories,kitty-specs/003-skill-mcp-distribution/spec.md,2026-03-10,HIGH,FR-001 through FR-014; NFR-001 through NFR-004; 29 skills confirmed
