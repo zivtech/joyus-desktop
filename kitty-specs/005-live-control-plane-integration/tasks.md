@@ -123,13 +123,13 @@ Wire all components into the companion entry point. Inject real `FetchLike` clie
 End-to-end integration tests using MSW (Node intercept mode) for all six spec user stories. No live control plane needed — MSW intercepts native `fetch`.
 
 **Subtasks**:
-- [ ] T028: Set up MSW `setupServer` fixture with typed request handlers for all four endpoints
-- [ ] T029: Test: policy decision round-trip — allow/deny/escalate outcomes flow through all layers
-- [ ] T030: Test: replay rejection — consumed JTI triggers replay event emission to `/v1/events`
-- [ ] T031: Test: external tenant forced to remote workspace — no local execution path
-- [ ] T032: Test: control plane outage — timeout triggers spec-001 fail-closed behavior
-- [ ] T033: Test: outage recovery — enforcement resumes on reconnection without restart
-- [ ] T034: Test: artifact provenance — `/v1/artifacts` registration produces queryable record
+- [x] T028: Set up MSW `setupServer` fixture with typed request handlers for all four endpoints
+- [x] T029: Test: policy decision round-trip — allow/deny/escalate outcomes flow through all layers
+- [x] T030: Test: replay rejection — consumed JTI triggers replay event emission to `/v1/events`
+- [x] T031: Test: external tenant forced to remote workspace — no local execution path
+- [x] T032: Test: control plane outage — timeout triggers spec-001 fail-closed behavior
+- [x] T033: Test: outage recovery — enforcement resumes on reconnection without restart
+- [x] T034: Test: artifact provenance — `/v1/artifacts` registration produces queryable record
 
 **Parallel opportunities**: T029-T034 are independent once T028 MSW fixture is ready.
 **Risks**: MSW v2 Node intercept mode requires `server.listen()` in `beforeAll` and `server.close()` in `afterAll`. Timer-based tests (outage recovery) need `vi.useFakeTimers()` to avoid flakiness.
