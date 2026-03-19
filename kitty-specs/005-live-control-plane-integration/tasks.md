@@ -25,11 +25,11 @@ Layer 4: WP07 (pilot readiness — requires WP06)
 Create the concrete `FetchLike` implementation backed by native `fetch`. Loads `ControlPlaneConfig` from environment variables. Enforces per-request timeout via `AbortController`. Retries on transient failures with exponential backoff. Supports mTLS via cert/key/ca paths.
 
 **Subtasks**:
-- [ ] T001: Create `ControlPlaneConfig` type and `loadConfigFromEnv()` — reads env vars, throws on missing required
-- [ ] T002: Implement concrete `FetchLike` with native fetch and `AbortController` timeout
-- [ ] T003: Add retry logic — exponential backoff, retry on 5xx/network errors, stop on 4xx
-- [ ] T004: Add mTLS support — construct `https.Agent` from cert paths when configured
-- [ ] T005: Write unit tests for all four subtasks above
+- [x] T001: Create `ControlPlaneConfig` type and `loadConfigFromEnv()` — reads env vars, throws on missing required
+- [x] T002: Implement concrete `FetchLike` with native fetch and `AbortController` timeout
+- [x] T003: Add retry logic — exponential backoff, retry on 5xx/network errors, stop on 4xx
+- [x] T004: Add mTLS support — construct `https.Agent` from cert paths when configured
+- [x] T005: Write unit tests for all four subtasks above
 
 **Parallel opportunities**: None — foundation.
 **Risks**: `node:https` Agent integration with native `fetch` requires undici `Agent` options in Node 24; verify the correct API surface before implementing.
