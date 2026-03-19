@@ -71,7 +71,7 @@ export function openReplayCache(options?: ReplayCacheOptions): ReplayCache {
         return { ok: true };
       }
 
-      const row = selectStmt.get(token.jti, token.tenantId) as StoredRow;
+      const row = selectStmt.get(token.jti, token.tenantId) as unknown as StoredRow;
       return { ok: false, originalConsumedAt: row.consumed_at };
     },
 
