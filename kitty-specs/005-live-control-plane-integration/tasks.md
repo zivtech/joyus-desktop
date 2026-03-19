@@ -145,10 +145,10 @@ End-to-end integration tests using MSW (Node intercept mode) for all six spec us
 Alert definitions, incident runbook, and acceptance tests covering SC-001 through SC-008. Operational sign-off artifact.
 
 **Subtasks**:
-- [ ] T035: Write alert definitions — policy failure rate (>5% in 5min), replay attempt (any), latency (p95 >2s)
-- [ ] T036: Write incident runbook — simulate failure, verify alert, follow remediation, verify recovery
-- [ ] T037: Implement `pilot-acceptance.test.ts` mapping each SC-001..SC-008 to a test case
-- [ ] T038: Document runbook walkthrough sign-off template
+- [x] T035: Write alert definitions — policy failure rate (>5% in 5min), replay attempt (any), latency (p95 >2s)
+- [x] T036: Write incident runbook — simulate failure, verify alert, follow remediation, verify recovery
+- [x] T037: Implement `pilot-acceptance.test.ts` mapping each SC-001..SC-008 to a test case
+- [x] T038: Document runbook walkthrough sign-off template
 
 **Parallel opportunities**: T035+T036 can run in parallel with T037.
 **Risks**: Acceptance tests must be runnable against MSW (CI) and optionally against staging (manual). Use an env flag `JOYUS_PILOT_STAGING_URL` to switch between mock and live.
