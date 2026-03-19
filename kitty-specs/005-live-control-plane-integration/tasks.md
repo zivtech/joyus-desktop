@@ -45,11 +45,11 @@ Create the concrete `FetchLike` implementation backed by native `fetch`. Loads `
 SQLite-backed (`node:sqlite`) JTI cache. Persists consumed decision token IDs across companion restarts to reject replay attacks.
 
 **Subtasks**:
-- [ ] T006: Create SQLite schema and `openReplayCache()` factory
-- [ ] T007: Implement `consume()` — atomic INSERT-or-detect; returns ok/replay
-- [ ] T008: Implement `prune()` — deletes rows where `expires_at + 3600 < now`
-- [ ] T009: Implement `close()` — graceful SQLite connection shutdown
-- [ ] T010: Write unit tests — first consume ok, second=replay, prune, close
+- [x] T006: Create SQLite schema and `openReplayCache()` factory
+- [x] T007: Implement `consume()` — atomic INSERT-or-detect; returns ok/replay
+- [x] T008: Implement `prune()` — deletes rows where `expires_at + 3600 < now`
+- [x] T009: Implement `close()` — graceful SQLite connection shutdown
+- [x] T010: Write unit tests — first consume ok, second=replay, prune, close
 
 **Parallel opportunities**: Can run in parallel with WP03 and WP04.
 **Risks**: `node:sqlite` ESM import path; verify `import { DatabaseSync } from 'node:sqlite'` works in Node 24 with `"type": "module"`. The `exactOptionalPropertyTypes` flag requires careful null handling at read boundaries.
