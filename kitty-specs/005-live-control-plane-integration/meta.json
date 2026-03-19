@@ -4,5 +4,7 @@
   "friendly_name": "Live Control Plane Integration & Pilot Readiness",
   "mission": "software-dev",
   "source_description": "joyus-desktop's policy client, runtime routing, and handoff flows were built against contract interfaces but have never connected to a live joyus-ai control plane. Now that joyus-ai is deployed on AWS (spec 010), this feature closes that gap. Scope: replace stub/mock control plane calls with real HTTP calls, harden the connection layer (requirements defined here; PKI/certs owned by joyus-ai-ops), validate internal and external pilot paths, and complete the operational readiness gate.",
-  "created_at": "2026-03-18T00:00:00Z"
+  "created_at": "2026-03-18T00:00:00Z",
+  "vcs": "git",
+  "vcs_locked_at": "2026-03-19T10:43:26.360375+00:00"
 }
