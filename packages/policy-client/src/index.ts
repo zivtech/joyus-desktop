@@ -8,3 +8,4 @@ export * from "./handoffContracts";
 export * from "./handoffVerification";
 export * from "./eventEmitter";
 export * from "./replayCache";
+export * from "./tokenRefresh";
