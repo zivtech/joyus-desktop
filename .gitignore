@@ -26,6 +26,8 @@ coverage/
 .amazonq/
 .github/copilot/
 .kittify/.dashboard
+.kittify/workspaces/
+.pnpm-store/
 # Excluded via sparse-checkout
 .omc/
 # Block WP status files (managed in main repo, prevents merge conflicts)
