@@ -1,7 +1,9 @@
 import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
-import { createServices, registerAllMethods } from "./services";
+import { createServices, registerAllMethods, registerSessionMethods } from "./services";
 import type { ServiceDeps } from "./services";
+import { createSessionWiring } from "./sessionWiring";
+import type { SessionWiringDeps } from "./sessionWiring";
 
 export interface SidecarDeps {
   stdin: NodeJS.ReadableStream;
@@ -19,6 +21,13 @@ export interface SidecarDeps {
     source: string;
     message: string;
   }) => Promise<void>;
+  createSessionWiringFn?: (deps: SessionWiringDeps) => Promise<{
+    sessionManager: unknown;
+    store: unknown;
+    detector: unknown;
+    driftDetector: unknown;
+    shutdown: () => Promise<void>;
+  }>;
 }
 
 export interface SidecarHandle {
@@ -38,6 +47,20 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerAllMethods(ipc, services, startTime, deps.nowFn);
+
+  // Wire session methods asynchronously — keep startSidecar synchronous
+  const sessionWiringFn = deps.createSessionWiringFn ?? createSessionWiring;
+  let sessionShutdown: (() => Promise<void>) | undefined;
+
+  void sessionWiringFn({
+    sendNotification: ipc.sendNotification.bind(ipc),
+  }).then((wiring) => {
+    // Cast needed since the injectable type uses `unknown` for testability
+    registerSessionMethods(ipc, wiring as Parameters<typeof registerSessionMethods>[1]);
+    sessionShutdown = wiring.shutdown;
+  }).catch((_err: unknown) => {
+    // Session wiring failure is non-fatal: sidecar continues without session methods
+  });
 
   function handleFatalError(source: string, err: unknown): void {
     const message = err instanceof Error ? err.message : String(err);
@@ -76,11 +99,14 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
 
   deps.onSignal("SIGTERM", () => {
     rl.close();
-    void services.processManager.stopAll().then(() => {
-      services.configPoller.stop();
-      services.periodicSync.stop();
-      deps.exit(0);
-    });
+    const cleanup = sessionShutdown !== undefined ? sessionShutdown() : Promise.resolve();
+    void cleanup.then(() =>
+      services.processManager.stopAll().then(() => {
+        services.configPoller.stop();
+        services.periodicSync.stop();
+        deps.exit(0);
+      }),
+    );
   });
 
   return {

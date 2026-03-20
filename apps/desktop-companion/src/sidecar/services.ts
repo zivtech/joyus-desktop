@@ -376,3 +376,134 @@ export function registerErrorReporting(ipc: IpcHandler, deps: TelemetryErrorDeps
     return { ok: true };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Session IPC methods
+// ---------------------------------------------------------------------------
+
+import type { SessionWiring } from "./sessionWiring.js";
+import { SessionBrokenError, UncommittedChangesError } from "./sessionWiring.js";
+
+function parseFileModifiedParams(
+  params: unknown,
+): { sessionId: string; repoPath: string; filePath: string } {
+  if (params === null || typeof params !== "object") {
+    throw new Error("session.fileModified: params must be an object");
+  }
+  const p = params as Record<string, unknown>;
+  if (typeof p["sessionId"] !== "string" || p["sessionId"] === "") {
+    throw new Error("session.fileModified: missing required field: sessionId");
+  }
+  if (typeof p["repoPath"] !== "string" || p["repoPath"] === "") {
+    throw new Error("session.fileModified: missing required field: repoPath");
+  }
+  if (typeof p["filePath"] !== "string" || p["filePath"] === "") {
+    throw new Error("session.fileModified: missing required field: filePath");
+  }
+  return {
+    sessionId: p["sessionId"],
+    repoPath: p["repoPath"],
+    filePath: p["filePath"],
+  };
+}
+
+function requireTaskBranchId(params: unknown): { taskBranchId: string } {
+  if (params !== null && typeof params === "object") {
+    const p = params as Record<string, unknown>;
+    if (typeof p["taskBranchId"] === "string" && p["taskBranchId"] !== "") {
+      return { taskBranchId: p["taskBranchId"] };
+    }
+  }
+  throw new Error("Missing required param: taskBranchId");
+}
+
+function extractOptionalRepoPath(params: unknown): string | undefined {
+  if (params !== null && typeof params === "object") {
+    const p = params as Record<string, unknown>;
+    if (typeof p["repoPath"] === "string" && p["repoPath"] !== "") {
+      return p["repoPath"];
+    }
+  }
+  return undefined;
+}
+
+export function registerSessionMethods(
+  ipc: IpcHandler,
+  wiring: SessionWiring,
+): void {
+  // T022 — session.fileModified
+  ipc.registerMethod("session.fileModified", async (params: unknown) => {
+    const { sessionId, repoPath, filePath } = parseFileModifiedParams(params);
+    wiring.detector.handleIpcEvent({ sessionId, repoPath, filePath });
+    return { ok: true };
+  });
+
+  // T023 — session.list
+  ipc.registerMethod("session.list", async () => {
+    return wiring.store.listAll();
+  });
+
+  // T023 — session.resume
+  ipc.registerMethod("session.resume", async (params: unknown) => {
+    const { taskBranchId } = requireTaskBranchId(params);
+    try {
+      return await wiring.sessionManager.resume(taskBranchId);
+    } catch (err) {
+      if (err instanceof SessionBrokenError) {
+        return { error: "broken", message: err.message };
+      }
+      throw err;
+    }
+  });
+
+  // T023 — session.delete
+  ipc.registerMethod("session.delete", async (params: unknown) => {
+    const p = params as Record<string, unknown>;
+    const taskBranchId = p["taskBranchId"];
+    const force = p["force"] === true;
+    if (typeof taskBranchId !== "string" || taskBranchId === "") {
+      throw new Error("Missing taskBranchId");
+    }
+    try {
+      await wiring.sessionManager.delete(taskBranchId, { force });
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof UncommittedChangesError) {
+        return { error: "uncommitted_changes" };
+      }
+      throw err;
+    }
+  });
+
+  // T023 — session.hasUncommittedChanges
+  ipc.registerMethod(
+    "session.hasUncommittedChanges",
+    async (params: unknown) => {
+      const { taskBranchId } = requireTaskBranchId(params);
+      const hasUncommittedChanges =
+        await wiring.sessionManager.hasUncommittedChanges(taskBranchId);
+      return { hasUncommittedChanges };
+    },
+  );
+
+  // T024 — session.getMode
+  ipc.registerMethod("session.getMode", async (params: unknown) => {
+    const repoPath = extractOptionalRepoPath(params);
+    const mode = wiring.sessionManager.getMode(repoPath);
+    return { mode };
+  });
+
+  // T024 — session.setMode
+  ipc.registerMethod("session.setMode", async (params: unknown) => {
+    const p = params as Record<string, unknown>;
+    const mode = p["mode"];
+    if (mode !== "managed" && mode !== "advisory") {
+      throw new Error(
+        `session.setMode: invalid mode "${String(mode)}". Must be 'managed' or 'advisory'`,
+      );
+    }
+    const repoPath = extractOptionalRepoPath(params);
+    wiring.sessionManager.setMode(mode, repoPath);
+    return { ok: true };
+  });
+}
