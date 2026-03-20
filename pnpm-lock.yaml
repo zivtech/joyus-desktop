@@ -26,6 +26,9 @@ importers:
       '@joyus/desktop-sync':
         specifier: workspace:*
         version: link:../../packages/desktop-sync
+      '@joyus/drift-detector':
+        specifier: workspace:*
+        version: link:../../packages/drift-detector
       '@joyus/mcp-governance':
         specifier: workspace:*
         version: link:../../packages/mcp-governance
@@ -71,6 +74,8 @@ importers:
         version: 6.4.1(tsx@4.21.0)
 
   packages/desktop-sync: {}
+
+  packages/drift-detector: {}
 
   packages/mcp-governance: {}
 
