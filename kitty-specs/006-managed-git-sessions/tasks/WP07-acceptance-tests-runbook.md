@@ -1,12 +1,15 @@
 ---
 work_package_id: WP07
 title: Acceptance Tests & Runbook
-lane: planned
+lane: for_review
 dependencies: []
 subtasks: [T042, T043, T044, T045, T046, T047, T048]
 history:
 - date: '2026-03-19'
   event: created
+- date: '2026-03-20'
+  event: implemented
+  note: All 7 artifacts delivered. 39 acceptance tests passing, 100% coverage, typecheck clean.
 ---
 
 # WP07 — Acceptance Tests & Runbook
@@ -410,14 +413,14 @@ Before shipping 006 to the first non-technical pilot user:
 
 ## Definition of Done
 
-- [ ] 6 acceptance test files created in `apps/desktop-companion/test/acceptance/`
-- [ ] All 8 SCs (SC-001 through SC-008) covered
-- [ ] Git terminology blocklist sweep passes
-- [ ] Drift corpus ≥95% fire rate
-- [ ] Timing budgets tested (SC-003 < 60s, SC-004 < 3s)
-- [ ] Batch cleanup partial failure handled gracefully
-- [ ] `docs/operations/runbook-006.md` created with pre-pilot checklist, 2 alerts, 2 incidents
-- [ ] `pnpm typecheck` passes
+- [x] 6 acceptance test files created in `apps/desktop-companion/test/acceptance/`
+- [x] All 8 SCs (SC-001 through SC-008) covered
+- [x] Git terminology blocklist sweep passes
+- [x] Drift corpus ≥95% fire rate
+- [x] Timing budgets tested (SC-003 < 60s, SC-004 < 3s)
+- [x] Batch cleanup partial failure handled gracefully
+- [x] `docs/operations/runbook-006.md` created with pre-pilot checklist, 2 alerts, 2 incidents
+- [x] `pnpm typecheck` passes
 
 ## Risks
 
