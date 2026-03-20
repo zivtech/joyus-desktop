@@ -46,6 +46,7 @@ export type ExecGit = (
 
 export interface TaskBranchStore {
   create(input: CreateTaskBranchInput): TaskBranch;
+  findById(id: string): TaskBranch | undefined;
   findBySessionId(sessionId: string): TaskBranch | undefined;
   listAll(): readonly TaskBranch[];
   updateStatus(id: string, status: TaskBranchStatus): void;
@@ -160,6 +161,10 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
   );
 
+  const findByIdStmt = db.prepare(
+    `SELECT * FROM task_branches WHERE id = ? AND deleted_at IS NULL`,
+  );
+
   const findBySessionStmt = db.prepare(
     `SELECT * FROM task_branches WHERE session_id = ? AND deleted_at IS NULL`,
   );
@@ -224,6 +229,14 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
         createdAt: now,
         lastActivityAt: now,
       };
+    },
+
+    findById(id: string): TaskBranch | undefined {
+      const row = findByIdStmt.get(id) as unknown as StoredRow | undefined;
+      if (row === undefined) {
+        return undefined;
+      }
+      return mapRowToTaskBranch(row);
     },
 
     findBySessionId(sessionId: string): TaskBranch | undefined {

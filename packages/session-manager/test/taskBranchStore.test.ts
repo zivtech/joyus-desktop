@@ -140,6 +140,43 @@ describe("create + findBySessionId", () => {
   });
 });
 
+describe("findById", () => {
+  let store: TaskBranchStore;
+  let dbPath: string;
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    store = openTaskBranchStore(dbPath);
+  });
+
+  afterEach(() => {
+    try {
+      store.close();
+    } catch {
+      // already closed
+    }
+    cleanupPath(dbPath);
+  });
+
+  it("returns TaskBranch by id", () => {
+    const created = store.create(makeInput({ sessionId: "sess-findbyid" }));
+    const found = store.findById(created.id);
+    expect(found).toBeDefined();
+    expect(found?.id).toBe(created.id);
+    expect(found?.sessionId).toBe("sess-findbyid");
+  });
+
+  it("returns undefined for unknown id", () => {
+    expect(store.findById("no-such-id")).toBeUndefined();
+  });
+
+  it("returns undefined for soft-deleted branch", () => {
+    const created = store.create(makeInput({ sessionId: "sess-del-byid" }));
+    store.softDelete(created.id);
+    expect(store.findById(created.id)).toBeUndefined();
+  });
+});
+
 describe("listAll", () => {
   let store: TaskBranchStore;
   let dbPath: string;
