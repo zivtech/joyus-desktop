@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DriftBanner, type DriftSignalPayload } from "../components/DriftBanner";
 import { TaskBranchCard, type TaskBranch, buildGitHubDesktopUrl } from "../components/TaskBranchCard";
@@ -51,6 +51,7 @@ export function Sessions() {
   const [mode, setMode] = useState<"managed" | "advisory" | undefined>(
     undefined
   );
+  const modeNoteTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<string | undefined>(
     undefined
   );
@@ -94,6 +95,9 @@ export function Sessions() {
 
     return () => {
       unlisten?.();
+      if (modeNoteTimerRef.current !== undefined) {
+        clearTimeout(modeNoteTimerRef.current);
+      }
     };
   }, []);
 
@@ -155,7 +159,13 @@ export function Sessions() {
     await safeInvoke("session_set_mode", { mode: newMode });
     setMode(newMode);
     setModeChangedNote(true);
-    setTimeout(() => setModeChangedNote(false), 4000);
+    if (modeNoteTimerRef.current !== undefined) {
+      clearTimeout(modeNoteTimerRef.current);
+    }
+    modeNoteTimerRef.current = setTimeout(() => {
+      modeNoteTimerRef.current = undefined;
+      setModeChangedNote(false);
+    }, 4000);
   }
 
   // ── GitHub Desktop ────────────────────────────────────────────────────────

@@ -279,6 +279,10 @@ export function Onboarding() {
   // ── Event listeners for MCP and Sync ──────────────────────────────────────
 
   const attachEventListeners = useCallback(() => {
+    // Clean up any previous listeners before attaching new ones
+    for (const fn of unlistenRefs.current) fn();
+    unlistenRefs.current = [];
+
     // MCP server-changed events
     const mcpUnlisten = safeListen("state:server-changed", (payload) => {
       const server = payload as ServerInfo;

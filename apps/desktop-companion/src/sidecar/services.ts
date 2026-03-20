@@ -78,13 +78,34 @@ export function registerHealthCheck(
   });
 }
 
+function parseOnboardingParams(params: unknown): OnboardingParams {
+  if (params === null || typeof params !== "object") {
+    throw new Error("onboarding.start: params must be an object");
+  }
+  const p = params as Record<string, unknown>;
+  if (typeof p["authToken"] !== "string" || p["authToken"] === "") {
+    throw new Error("onboarding.start: missing required field: authToken");
+  }
+  if (typeof p["tenantId"] !== "string" || p["tenantId"] === "") {
+    throw new Error("onboarding.start: missing required field: tenantId");
+  }
+  if (typeof p["workspaceId"] !== "string" || p["workspaceId"] === "") {
+    throw new Error("onboarding.start: missing required field: workspaceId");
+  }
+  return {
+    authToken: p["authToken"],
+    tenantId: p["tenantId"],
+    workspaceId: p["workspaceId"],
+  };
+}
+
 export function registerOnboarding(
   ipc: IpcHandler,
   container: ServiceContainer,
   usageCollector: UsageCollector,
 ): void {
   ipc.registerMethod("onboarding.start", async (params: unknown) => {
-    const p = params as OnboardingParams;
+    const p = parseOnboardingParams(params);
     const errors: string[] = [];
     let serversStarted = 0;
     let skillsSynced = false;
@@ -458,14 +479,11 @@ export function registerSessionMethods(
 
   // T023 — session.delete
   ipc.registerMethod("session.delete", async (params: unknown) => {
-    const p = params as Record<string, unknown>;
-    const taskBranchId = p["taskBranchId"];
-    const force = p["force"] === true;
-    if (typeof taskBranchId !== "string" || taskBranchId === "") {
-      throw new Error("Missing taskBranchId");
-    }
+    const { taskBranchId } = requireTaskBranchId(params);
+    const force = (params as Record<string, unknown>)["force"] === true;
     try {
       await wiring.sessionManager.delete(taskBranchId, { force });
+      wiring.driftDetector.clearSession(taskBranchId);
       return { ok: true };
     } catch (err) {
       if (err instanceof UncommittedChangesError) {

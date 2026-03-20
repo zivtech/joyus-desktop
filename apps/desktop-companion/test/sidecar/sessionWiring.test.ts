@@ -382,7 +382,7 @@ describe("registerSessionMethods", () => {
 
   it("session.delete: missing taskBranchId throws", async () => {
     const handler = handlers.get("session.delete")!;
-    await expect(handler({})).rejects.toThrow("Missing taskBranchId");
+    await expect(handler({})).rejects.toThrow("Missing required param: taskBranchId");
   });
 
   // --- session.hasUncommittedChanges ---

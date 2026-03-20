@@ -239,8 +239,8 @@ export async function uploadEncryptedSnapshot(
         config.onError?.(err);
 
         // Attempt resumable fallback if we have a resource URL
-        if (uploadUrl || upload.url) {
-          const resourceUrl = uploadUrl ?? upload.url!;
+        const resourceUrl = uploadUrl ?? upload.url ?? null;
+        if (resourceUrl !== null) {
           resumeUpload(resourceUrl, blob, config)
             .then(resolve)
             .catch(() => {

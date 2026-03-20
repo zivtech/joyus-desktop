@@ -91,6 +91,7 @@ export async function createSessionWiring(
     for (const branch of branches.filter((b) => b.status === "active")) {
       detector.stopPolling(branch.sessionId);
     }
+    store.close();
   }
 
   return { sessionManager, store, detector, driftDetector, shutdown };

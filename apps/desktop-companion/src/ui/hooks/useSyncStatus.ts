@@ -56,16 +56,22 @@ export function useSyncStatus(): UseSyncStatusResult {
   useEffect(() => {
     refresh();
 
-    let unlisten: (() => void) | undefined;
+    let unlistenFn: (() => void) | undefined;
+    let active = true;
     void safeListen("state:sync-completed", (payload) => {
       const updated = payload as Partial<SyncStatus>;
       setStatus((prev) => ({ ...prev, ...updated }));
     }).then((fn) => {
-      unlisten = fn;
+      if (active) {
+        unlistenFn = fn;
+      } else {
+        fn();
+      }
     });
 
     return () => {
-      unlisten?.();
+      active = false;
+      unlistenFn?.();
     };
   }, [refresh]);
 

@@ -618,6 +618,34 @@ describe("registerOnboarding", () => {
     const result = await ipc._invoke("onboarding.start", { authToken: "t", tenantId: "t", workspaceId: "w" }) as OnboardingResult;
     expect(result.errors.some((e) => e === "sync: string-sync-error")).toBe(true);
   });
+
+  it("rejects null params with a descriptive error", async () => {
+    const ipc = makeIpc();
+    const container = makeContainer();
+    registerOnboarding(ipc, container, makeCollector());
+    await expect(ipc._invoke("onboarding.start", null)).rejects.toThrow("params must be an object");
+  });
+
+  it("rejects missing authToken", async () => {
+    const ipc = makeIpc();
+    const container = makeContainer();
+    registerOnboarding(ipc, container, makeCollector());
+    await expect(ipc._invoke("onboarding.start", { tenantId: "t", workspaceId: "w" })).rejects.toThrow("missing required field: authToken");
+  });
+
+  it("rejects missing tenantId", async () => {
+    const ipc = makeIpc();
+    const container = makeContainer();
+    registerOnboarding(ipc, container, makeCollector());
+    await expect(ipc._invoke("onboarding.start", { authToken: "a", workspaceId: "w" })).rejects.toThrow("missing required field: tenantId");
+  });
+
+  it("rejects missing workspaceId", async () => {
+    const ipc = makeIpc();
+    const container = makeContainer();
+    registerOnboarding(ipc, container, makeCollector());
+    await expect(ipc._invoke("onboarding.start", { authToken: "a", tenantId: "t" })).rejects.toThrow("missing required field: workspaceId");
+  });
 });
 
 // ---------------------------------------------------------------------------

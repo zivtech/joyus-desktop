@@ -57,7 +57,7 @@ function buildInput(overrides: Partial<RuntimeExecutionInput> = {}): RuntimeExec
     jtiRegistry: {
       reserveIfUnused: () => "reserved"
     },
-    tokenVerifier: createDecisionTokenVerifier(),
+    tokenVerifier: createDecisionTokenVerifier({ validateSignature: () => true }),
     nowEpochSeconds: 1_900_000_000,
     ...overrides
   };
@@ -333,7 +333,7 @@ describe("executeRuntimeAction", () => {
       jtiRegistry: {
         reserveIfUnused: () => "reserved"
       },
-      tokenVerifier: createDecisionTokenVerifier()
+      tokenVerifier: createDecisionTokenVerifier({ validateSignature: () => true })
     });
 
     expect(result.status).toBe("allowed");
@@ -1008,7 +1008,7 @@ describe("executeRuntimeAction", () => {
     expect(result.reasonCode).toBe("provenance_verification_failed");
   });
 
-  it("accepts provenance records with optional missing identity fields", async () => {
+  it("flags provenance records with missing identity fields in audit mode (does not block)", async () => {
     const result = await executeRuntimeAction(
       buildInput({
         executeAction: async () => ({
@@ -1037,7 +1037,7 @@ describe("executeRuntimeAction", () => {
     );
 
     expect(result.status).toBe("allowed");
-    expect(result.provenanceReport?.failedArtifactIds).toEqual([]);
+    expect(result.provenanceReport?.failedArtifactIds).toEqual(["art-1"]);
   });
 
   it("skips provenance lookups when mode is off", async () => {

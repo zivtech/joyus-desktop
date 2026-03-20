@@ -1,5 +1,20 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@joyus/desktop-sync": ["./packages/desktop-sync/src/index.ts"],
+      "@joyus/drift-detector": ["./packages/drift-detector/src/index.ts"],
+      "@joyus/mcp-governance": ["./packages/mcp-governance/src/index.ts"],
+      "@joyus/mcp-registry": ["./packages/mcp-registry/src/index.ts"],
+      "@joyus/mcp-tools-compat": ["./packages/mcp-tools-compat/src/index.ts"],
+      "@joyus/policy-client": ["./packages/policy-client/src/index.ts"],
+      "@joyus/session-agent": ["./packages/session-agent/src/index.ts"],
+      "@joyus/session-manager": ["./packages/session-manager/src/index.ts"],
+      "@joyus/skill-sync": ["./packages/skill-sync/src/index.ts"],
+      "@joyus/telemetry": ["./packages/telemetry/src/index.ts"],
+      "@joyus/updater": ["./packages/updater/src/index.ts"]
+    }
+  },
   "include": ["apps/**/*.ts", "packages/**/*.ts"],
   "exclude": ["**/node_modules", "**/dist", "**/dist-ui", "**/vite.config.ts", "**/src-tauri", "**/*.tsx", "**/test/**"]
 }

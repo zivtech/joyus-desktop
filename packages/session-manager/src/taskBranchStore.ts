@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -134,6 +134,7 @@ async function isWorktreeHealthy(
   repoPath: string,
   execGit: ExecGit,
 ): Promise<boolean> {
+  if (!existsSync(worktreePath)) return false;
   try {
     const { stdout } = await execGit(
       ["worktree", "list", "--porcelain"],
@@ -155,6 +156,7 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
 
   const db = new DatabaseSync(resolvedPath);
   db.exec(CREATE_SCHEMA);
+  let closed = false;
 
   const insertStmt = db.prepare(
     `INSERT INTO task_branches (id, session_id, repo_path, worktree_path, branch_name, mission_label, mission_source, mode, status, created_at, last_activity_at, deleted_at)
@@ -311,6 +313,8 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
     },
 
     close(): void {
+      if (closed) return;
+      closed = true;
       db.close();
     },
   };

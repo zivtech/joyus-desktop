@@ -59,7 +59,8 @@ export function useServerStatus(): UseServerStatusResult {
   useEffect(() => {
     refresh();
 
-    let unlisten: (() => void) | undefined;
+    let unlistenFn: (() => void) | undefined;
+    let active = true;
     void safeListen("state:server-changed", (payload) => {
       const updated = payload as ServerInfo;
       setServers((prev) => {
@@ -70,11 +71,16 @@ export function useServerStatus(): UseServerStatusResult {
         return [...prev, updated];
       });
     }).then((fn) => {
-      unlisten = fn;
+      if (active) {
+        unlistenFn = fn;
+      } else {
+        fn();
+      }
     });
 
     return () => {
-      unlisten?.();
+      active = false;
+      unlistenFn?.();
     };
   }, [refresh]);
 

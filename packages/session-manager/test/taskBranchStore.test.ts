@@ -531,24 +531,29 @@ describe("scanIntegrity", () => {
   });
 
   it("leaves healthy worktree unchanged", async () => {
-    store.create(
-      makeInput({
-        sessionId: "sess-integrity-healthy",
-        worktreePath: "/repo/.joyus-worktrees/healthy",
-        repoPath: "/repo",
-      }),
-    );
+    const healthyDir = join(tmpdir(), `healthy-worktree-${randomUUID()}`);
+    mkdirSync(healthyDir, { recursive: true });
+    try {
+      store.create(
+        makeInput({
+          sessionId: "sess-integrity-healthy",
+          worktreePath: healthyDir,
+          repoPath: "/repo",
+        }),
+      );
 
-    const execGit: ExecGit = vi.fn().mockResolvedValue({
-      stdout:
-        "worktree /repo\n\nworktree /repo/.joyus-worktrees/healthy\n\n",
-      stderr: "",
-    });
+      const execGit: ExecGit = vi.fn().mockResolvedValue({
+        stdout: `worktree /repo\n\nworktree ${healthyDir}\n\n`,
+        stderr: "",
+      });
 
-    await store.scanIntegrity(execGit);
+      await store.scanIntegrity(execGit);
 
-    const found = store.findBySessionId("sess-integrity-healthy");
-    expect(found?.status).toBe("active");
+      const found = store.findBySessionId("sess-integrity-healthy");
+      expect(found?.status).toBe("active");
+    } finally {
+      rmSync(healthyDir, { recursive: true, force: true });
+    }
   });
 
   it("skips already-broken records", async () => {
@@ -570,23 +575,29 @@ describe("scanIntegrity", () => {
   });
 
   it("handles execGit errors gracefully", async () => {
-    store.create(
-      makeInput({
-        sessionId: "sess-integrity-error",
-        worktreePath: "/repo/.joyus-worktrees/error-wt",
-        repoPath: "/repo",
-      }),
-    );
+    const errorDir = join(tmpdir(), `error-worktree-${randomUUID()}`);
+    mkdirSync(errorDir, { recursive: true });
+    try {
+      store.create(
+        makeInput({
+          sessionId: "sess-integrity-error",
+          worktreePath: errorDir,
+          repoPath: "/repo",
+        }),
+      );
 
-    const execGit: ExecGit = vi
-      .fn()
-      .mockRejectedValue(new Error("git error"));
+      const execGit: ExecGit = vi
+        .fn()
+        .mockRejectedValue(new Error("git error"));
 
-    await store.scanIntegrity(execGit);
+      await store.scanIntegrity(execGit);
 
-    // When execGit fails, isWorktreeHealthy returns false → broken
-    const found = store.findBySessionId("sess-integrity-error");
-    expect(found?.status).toBe("broken");
+      // When execGit throws, isWorktreeHealthy returns false → broken
+      const found = store.findBySessionId("sess-integrity-error");
+      expect(found?.status).toBe("broken");
+    } finally {
+      rmSync(errorDir, { recursive: true, force: true });
+    }
   });
 });
 

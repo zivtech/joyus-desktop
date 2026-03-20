@@ -145,8 +145,8 @@ export function decodeDecisionToken(
   };
 }
 
-export function createDecisionTokenVerifier(input?: {
-  validateSignature?: (encodedToken: string) => boolean | Promise<boolean>;
+export function createDecisionTokenVerifier(input: {
+  validateSignature: (encodedToken: string) => boolean | Promise<boolean>;
 }): DecisionTokenVerifier {
   return {
     async verifyAndDecode(
@@ -158,11 +158,9 @@ export function createDecisionTokenVerifier(input?: {
         return decoded;
       }
 
-      if (input?.validateSignature) {
-        const signatureValid = await input.validateSignature(encodedToken);
-        if (!signatureValid) {
-          return { ok: false, reason: "invalid_signature" };
-        }
+      const signatureValid = await input.validateSignature(encodedToken);
+      if (!signatureValid) {
+        return { ok: false, reason: "invalid_signature" };
       }
 
       return decoded;

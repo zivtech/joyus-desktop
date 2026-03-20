@@ -29,7 +29,7 @@ export function authorizeAction(input: AuthorizationInput): AuthorizationResult 
       };
     }
 
-    if (input.riskLevel === "high") {
+    if (input.riskLevel === "high" || input.riskLevel === "critical") {
       return {
         allowed: false,
         needsApproval: false,

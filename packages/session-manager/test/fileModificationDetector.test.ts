@@ -176,6 +176,32 @@ describe("FileModificationDetector", () => {
     expect(received[0]?.source).toBe("poll");
   });
 
+  it("dedup: IPC mid-interval suppresses the immediately following poll", async () => {
+    const execGit = vi
+      .fn()
+      .mockResolvedValue({ stdout: "M file.ts", stderr: "" });
+    const detector = new FileModificationDetector(execGit, 10_000);
+
+    const received: FileModificationEvent[] = [];
+    detector.onModification((e) => received.push(e));
+
+    // Start polling, then fire IPC at T=5000 (mid-interval)
+    detector.startPolling("/repo", "sess-mid");
+    await vi.advanceTimersByTimeAsync(5_000);
+    detector.handleIpcEvent({
+      sessionId: "sess-mid",
+      repoPath: "/repo",
+      filePath: "/repo/src/foo.ts",
+    });
+    received.length = 0; // discard the IPC event
+
+    // Poll fires at T=10000 — only 5000ms after IPC, within the 10s window
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(received).toHaveLength(0); // poll suppressed as duplicate of IPC
+    detector.stopPolling("sess-mid");
+  });
+
   // ─── stopPolling ──────────────────────────────────────────────────────────
 
   it("stopPolling clears the interval — no further events emitted", async () => {

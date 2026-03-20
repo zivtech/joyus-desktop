@@ -57,6 +57,7 @@ export class FileModificationDetector {
       clearInterval(timer);
       this.pollTimers.delete(sessionId);
     }
+    this.lastIpcFiredAt.delete(sessionId);
   }
 
   private async pollOnce(repoPath: string, sessionId: string): Promise<void> {

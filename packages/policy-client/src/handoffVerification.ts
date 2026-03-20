@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 import {
   generateEphemeralKeyPair,
@@ -144,14 +144,18 @@ export async function verifySnapshot(
     }
 
     if (snapshot) {
-      // Step 5 — Verify integrity
+      // Step 5 — Verify integrity (constant-time comparison to prevent timing attacks)
       const expected = snapshot.integrity_signature;
       const computed = computeIntegritySignature(snapshot, input.signingKey);
-      if (computed !== expected) {
+      const computedBuf = Buffer.from(computed, "hex");
+      const expectedBuf = Buffer.from(expected, "hex");
+      const integrityMatches =
+        computedBuf.length === expectedBuf.length &&
+        timingSafeEqual(computedBuf, expectedBuf);
+      if (!integrityMatches) {
         errors.push({
           code: "INTEGRITY_MISMATCH",
           message: "Integrity signature does not match",
-          details: { expected, computed },
         });
       }
 

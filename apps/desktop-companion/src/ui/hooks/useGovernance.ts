@@ -57,16 +57,22 @@ export function useGovernance(): UseGovernanceResult {
   useEffect(() => {
     refresh();
 
-    let unlisten: (() => void) | undefined;
+    let unlistenFn: (() => void) | undefined;
+    let active = true;
     void safeListen("state:governance-decision", (payload) => {
       const decision = payload as GovernanceDecision;
       setDecisions((prev) => [decision, ...prev]);
     }).then((fn) => {
-      unlisten = fn;
+      if (active) {
+        unlistenFn = fn;
+      } else {
+        fn();
+      }
     });
 
     return () => {
-      unlisten?.();
+      active = false;
+      unlistenFn?.();
     };
   }, [refresh]);
 

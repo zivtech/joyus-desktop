@@ -461,7 +461,8 @@ async function resolvePolicyState(
       riskLevel: input.action.riskLevel,
       isPrivileged: input.action.isPrivileged,
       metadata: {
-        error: error instanceof Error ? error.message : String(error)
+        // Raw error message intentionally excluded to prevent bearer token leakage
+        errorType: error instanceof Error ? error.name : "unknown"
       }
     });
 
@@ -514,22 +515,22 @@ function isProvenanceValid(
   }
 
   const artifactId = readString(artifact.artifact_id);
-  if (artifactId !== null && artifactId !== expected.artifactId) {
+  if (artifactId === null || artifactId !== expected.artifactId) {
     return false;
   }
 
   const tenantId = readString(artifact.tenant_id);
-  if (tenantId !== null && tenantId !== expected.tenantId) {
+  if (tenantId === null || tenantId !== expected.tenantId) {
     return false;
   }
 
   const workspaceId = readString(artifact.workspace_id);
-  if (workspaceId !== null && workspaceId !== expected.workspaceId) {
+  if (workspaceId === null || workspaceId !== expected.workspaceId) {
     return false;
   }
 
   const sessionId = readString(artifact.session_id);
-  if (sessionId !== null && sessionId !== expected.sessionId) {
+  if (sessionId === null || sessionId !== expected.sessionId) {
     return false;
   }
 

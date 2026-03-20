@@ -23,16 +23,22 @@ export function useTauriEvent<T>(eventName: string): T | undefined {
   const [payload, setPayload] = useState<T | undefined>(undefined);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
+    let unlistenFn: UnlistenFn | undefined;
+    let active = true;
 
     void safeListen<T>(eventName, (e) => {
       setPayload(e.payload);
     }).then((fn) => {
-      unlisten = fn;
+      if (active) {
+        unlistenFn = fn;
+      } else {
+        fn();
+      }
     });
 
     return () => {
-      unlisten?.();
+      active = false;
+      unlistenFn?.();
     };
   }, [eventName]);
 
