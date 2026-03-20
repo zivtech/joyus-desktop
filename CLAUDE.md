@@ -41,6 +41,8 @@ pnpm monorepo (workspaces: `apps/*`, `packages/*`). All packages are ESM (`"type
 
 - **`packages/policy-client`** (`@joyus/policy-client`) — Policy decision client, handoff state machine, handoff contracts/verification, snapshot encryption, control plane contracts
 - **`packages/session-agent`** (`@joyus/session-agent`) — Session health signaling, output ledger, local-vs-remote runtime routing
+- **`packages/session-manager`** (`@joyus/session-manager`) — SQLite-backed TaskBranch store, git worktree lifecycle, file modification detection (IPC + polling), SessionManager with managed/advisory modes
+- **`packages/drift-detector`** (`@joyus/drift-detector`) — Topic-domain heuristics engine, DriftDetector with per-session state and dismissal tracking
 - **`packages/skill-sync`** (`@joyus/skill-sync`) — Skill distribution CLI and library: sync engine with git operations, version pinning, distribution config management
 - **`packages/updater`** (`@joyus/updater`) — Update management
 
