@@ -38,6 +38,9 @@ importers:
       '@joyus/session-agent':
         specifier: workspace:*
         version: link:../../packages/session-agent
+      '@joyus/session-manager':
+        specifier: workspace:*
+        version: link:../../packages/session-manager
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1
@@ -81,6 +84,8 @@ importers:
   packages/policy-client: {}
 
   packages/session-agent: {}
+
+  packages/session-manager: {}
 
   packages/skill-sync: {}
 
