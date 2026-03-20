@@ -2,46 +2,55 @@
 
 **Feature Branch**: `006-managed-git-sessions`
 **Created**: 2026-03-19
-**Status**: Draft
+**Status**: Draft (v2 — revised after proposal-critic + qa-critic review)
 **Input**: Joyus Desktop (features 001–005 complete) needs a git management layer that serves both non-technical users who want full automation and developers who want advisory signals without interference.
 
 ## Scope
 
 ### In Scope
 
-- Automatic workspace creation: on first file modification in a git repo during a session, the desktop app creates an isolated git worktree for that session.
-- Mission labeling: each workspace is assigned a mission label (user-declared at session start or auto-inferred from early context).
+- Automatic task branch creation: on first file modification in a git repo during a session, the desktop app creates an isolated git worktree for that session. The mechanism for detecting "first file modification" is an open architecture question to be resolved in planning (candidates: filesystem watcher, git-status polling, Claude Code IPC hook).
+- Mission labeling: each task branch is assigned a mission label (user-declared at session start or auto-inferred from early file context).
 - Hybrid drift detection: local heuristics (file path diversity, inferred topic spread, session duration) as the first pass; optional LLM confirmation and plain-language explanation when heuristics exceed thresholds.
 - Tiered drift intervention: subtle (badge) to assertive (inline prompt) based on detection confidence.
-- Dual-purpose session panel: shows all app-managed workspaces with status, mission label, last activity, and actions (resume / delete).
+- Dual-purpose session panel: shows all app-managed task branches with status, mission label, last activity, and actions (resume / delete).
 - Two operating modes: **managed** (full automation, no git terminology, for non-developers) and **advisory** (observe-and-suggest, opt-in only, for developers and Claude Code power users).
-- GitHub Desktop integration as an optional companion: launch GitHub Desktop scoped to the workspace branch from within the panel.
-- Stale workspace detection and one-click cleanup, with uncommitted-change warnings before destructive deletes.
-- Context resumption: users can re-enter any prior workspace and have its mission context restored.
+- New persistence layer: a local SQLite store for task branch metadata (mission labels, status, timestamps, mode) — this is new infrastructure, not an extension of existing session tracking.
+- GitHub Desktop integration as an optional companion: launch GitHub Desktop scoped to the task branch from within the panel.
+- Stale task branch detection and one-click cleanup, with uncommitted-change warnings before destructive deletes.
+- Context resumption: users can re-enter any prior task branch and have its mission context restored.
 
 ### Out of Scope
 
 - Remote repository operations (push, pull, fetch) — the desktop app manages local worktrees only; remote operations remain the user's responsibility or GitHub Desktop's.
-- Merge conflict resolution UI — the desktop app creates and isolates workspaces; resolution is outside its scope.
-- Multi-repo workspace linking — each workspace is scoped to a single repository.
+- Merge conflict resolution UI — the desktop app creates and isolates task branches; resolution is outside its scope.
+- Multi-repo task branch linking — each task branch is scoped to a single repository.
 - AI code review or diff explanation within the panel — content analysis is limited to drift detection signals, not code quality feedback.
-- Automatic commits on a timer or background schedule — commits happen at session close or on user action, not autonomously mid-session.
+- Automatic commits on a timer or background schedule — commits happen at session close or on explicit user action, not autonomously mid-session.
+- Branch cleanup after merge: git branches associated with deleted task branches are not automatically deleted; a post-delete prompt will suggest branch cleanup but not enforce it.
+
+### Open Architecture Questions (resolve during planning)
+
+1. **File modification detection mechanism**: How does the app detect "first file modification in a git repo"? Options: (a) filesystem watcher (e.g., chokidar); (b) periodic `git status` polling; (c) Claude Code session sends an IPC notification when it first writes a file. Each has different performance, permission, and offline-mode implications.
+2. **Git operation layer**: The existing codebase has an `execGit` wrapper in `packages/desktop-sync`. Determine whether the new task branch operations (`git worktree add/remove/list`) reuse that wrapper or require a new abstraction.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 — Non-Dev: Workspace Created Invisibly on First Change (Priority: P0)
+### User Story 1 — Non-Dev: Task Branch Created Invisibly on First Change (Priority: P0)
 
-A non-technical user starts a session and makes their first file change. The desktop app silently creates an isolated workspace. The user never sees a git command, branch name, or worktree path — they see only a session label and status indicator.
+A non-technical user starts a session and makes their first file change. The desktop app silently creates an isolated task branch. The user never sees a git command, branch name, or worktree path — they see only a session label and status indicator.
 
 **Why this priority**: This is the foundational managed-mode guarantee. If this fails, every subsequent non-dev workflow breaks.
 
-**Independent Test**: Automated test — simulate a managed-mode session; assert a worktree is created in the background on first file write; assert no git terminology appears in any user-facing notification.
+**Independent Test**: Automated test — simulate a managed-mode session; assert a worktree is created in the background on first file write; assert no word from the git terminology blocklist (branch, commit, hash, HEAD, checkout, merge, stash, worktree, ref, diff, push, pull) appears in any user-facing notification or label.
 
 **Acceptance Scenarios**:
 
 1. **Given** managed mode is active and a session has no prior file changes, **When** the first file in a git repo is modified, **Then** the app creates a named worktree silently and associates it with the session.
-2. **Given** the worktree is created, **When** the user views the session panel, **Then** they see a mission label and status indicator — no branch names, hashes, or git paths.
-3. **Given** the session is in a non-git directory, **When** the first file is modified, **Then** no worktree is created and no error is surfaced; the session proceeds normally without workspace isolation.
+2. **Given** the worktree is created, **When** the user views the session panel, **Then** they see a mission label and status indicator — no words from the git terminology blocklist appear in any visible text.
+3. **Given** the session is in a non-git directory, **When** the first file is modified, **Then** no worktree is created and no error is surfaced; the session proceeds normally without isolation.
+4. **Given** two sessions open the same repository at the same time and both trigger their first file modification, **When** both task branch creation events complete, **Then** each session has a distinct, uniquely-named worktree and neither session's file changes appear in the other's worktree.
+5. **Given** two task branches would produce the same name (same date and same inferred mission slug), **When** the second is created, **Then** the app disambiguates the name (e.g., appends a counter) rather than failing or overwriting.
 
 ---
 
@@ -49,55 +58,83 @@ A non-technical user starts a session and makes their first file change. The des
 
 A non-technical user begins a session to "update the homepage copy" but gradually shifts to debugging a payment integration. The app detects the divergence and prompts them to start a fresh session for the new topic.
 
-**Why this priority**: Without drift detection, the whole premise of worktree isolation fails — users accumulate a single giant mixed-context workspace.
+**Why this priority**: Without drift detection, the whole premise of task branch isolation fails — users accumulate a single giant mixed-context workspace.
 
-**Independent Test**: Heuristic unit tests — simulate file touch patterns across two distinct directories; assert drift signal fires above threshold. Integration test — assert tiered intervention UI appears at correct confidence levels.
+**Independent Test**: Heuristic unit tests — simulate file touch patterns across two distinct top-level directories and two distinct inferred topic domains; assert drift signal fires above default thresholds (3 directories OR 2 topic domains OR 30 minutes elapsed). Integration test — assert tiered intervention UI appears at correct confidence levels.
+
+**Default drift thresholds** (configurable; defined here as the planning baseline):
+- Directory threshold: 3 distinct top-level directories
+- Topic domain threshold: 2 distinct inferred topic domains (derived from path segments and file extensions)
+- Time threshold: 30 minutes elapsed session time
+- LLM escalation: triggered when any two thresholds are exceeded simultaneously
 
 **Acceptance Scenarios**:
 
-1. **Given** a session has touched files in N distinct top-level directories and/or M inferred topic domains, **When** configurable drift thresholds are exceeded, **Then** a drift signal is generated with a confidence score.
-2. **Given** a low-confidence drift signal (heuristics barely exceeded), **When** the signal is surfaced, **Then** a subtle badge or notification appears without blocking the user.
-3. **Given** a high-confidence drift signal (heuristics well exceeded or LLM confirms), **When** the signal is surfaced, **Then** an assertive inline prompt appears suggesting the user start a new session and offers to create one immediately.
-4. **Given** the user declines the suggestion, **When** they continue the session, **Then** the app records the declination and does not re-prompt for the same drift event.
+1. **Given** a session has touched files in 3 or more distinct top-level directories, **When** the threshold is crossed, **Then** a drift signal is generated with a low-confidence score.
+2. **Given** a session has crossed both the directory threshold and the topic domain threshold, **When** the combined signal is evaluated, **Then** a high-confidence drift signal is generated.
+3. **Given** a low-confidence drift signal, **When** the signal is surfaced, **Then** a subtle badge or notification appears without blocking the user.
+4. **Given** a high-confidence drift signal (two or more thresholds exceeded, or LLM confirms), **When** the signal is surfaced, **Then** an assertive inline prompt appears suggesting the user start a new session and offers to create one immediately.
+5. **Given** the user declines the suggestion, **When** they continue the session, **Then** the app records the declination and does not re-prompt for the same drift event.
+6. **Given** a single coherent task that legitimately spans 3+ directories (e.g., a feature touching frontend, backend, and config), **When** the user has previously dismissed a drift prompt, **Then** the dismissal is honored and the user is not re-prompted until the next threshold crossing.
+7. **Given** the LLM confirmation service is unavailable (offline, rate-limited, or times out), **When** local heuristics exceed the high-confidence threshold, **Then** the heuristic-only signal is used, the user sees the appropriate intervention, and no error or spinner is shown related to the LLM call.
 
 ---
 
 ### User Story 3 — Non-Dev: Resume a Prior Session (Priority: P1)
 
-A non-technical user wants to return to a task they were working on two days ago. They open the session panel, see their labeled workspaces, and click to resume. The app restores the workspace context.
+A non-technical user wants to return to a task they were working on two days ago. They open the session panel, see their labeled task branches, and click to resume. The app restores the task branch context.
 
-**Why this priority**: Without resumption, the workspace isolation creates friction instead of reducing it — users are stranded if they close the app.
+**Why this priority**: Without resumption, the task branch isolation creates friction instead of reducing it — users are stranded if they close the app.
 
-**Independent Test**: Integration test — create a workspace, close and reopen the app, assert the workspace appears in the panel with correct label and status; assert resuming it restores the associated worktree as the active workspace.
+**Independent Test**: Integration test — create a task branch, close and reopen the app, assert the task branch appears in the panel with correct label and status; assert resuming it activates the worktree and surfaces the mission label.
 
 **Acceptance Scenarios**:
 
-1. **Given** a list of prior workspaces exists in the panel, **When** the user selects one and clicks "Resume", **Then** the app activates that worktree and restores the session mission context.
-2. **Given** the workspace's git worktree is intact, **When** resumption completes, **Then** the workspace status changes to "active" and the panel reflects this.
-3. **Given** the workspace's git worktree was manually deleted outside the app, **When** the user attempts to resume, **Then** the app surfaces a clear message (no git terminology) and offers to clean up the broken entry.
+1. **Given** a list of prior task branches exists in the panel, **When** the user selects one and clicks "Resume", **Then** the app activates that worktree and restores the session mission context; the status changes to "active".
+2. **Given** the task branch was created in managed mode and the user is now in advisory mode, **When** the user resumes it, **Then** the task branch is activated and the panel continues to use non-git terminology for that task branch (the mode governing a task branch is the mode active when it was created, not the current global mode).
+3. **Given** the task branch's git worktree was manually deleted outside the app, **When** the user attempts to resume, **Then** the app surfaces a clear plain-language message ("This session's files are no longer available") and offers to clean up the broken entry.
+4. **Given** a task branch that was flagged as stale, **When** the user resumes it, **Then** the stale flag is cleared and the status becomes "active".
 
 ---
 
-### User Story 4 — Non-Dev: Clean Up Stale Workspaces (Priority: P1)
+### User Story 4 — Non-Dev: Clean Up Stale Task Branches (Priority: P1)
 
-A non-technical user has accumulated 12 workspaces over the past month. Many are from finished or abandoned tasks. They open the cleanup panel, see which are stale, and delete the ones they no longer need.
+A non-technical user has accumulated 12 task branches over the past month. Many are from finished or abandoned tasks. They open the session panel, see which are stale, and delete the ones they no longer need.
 
 **Why this priority**: Without cleanup, the Codex-style "new folder for everything" pattern devolves into disk sprawl and user confusion.
 
-**Independent Test**: Integration test — create multiple workspaces with varying last-activity timestamps; assert that workspaces inactive beyond the stale threshold are flagged; assert delete with uncommitted changes shows a warning and delete of clean workspace does not.
+**Independent Test**: Integration test — create multiple task branches with varying last-activity timestamps; assert that task branches inactive beyond the stale threshold are flagged; assert delete with uncommitted changes shows a warning and delete of clean task branch does not.
 
 **Acceptance Scenarios**:
 
-1. **Given** a workspace has had no activity for longer than the stale threshold, **When** the panel is open, **Then** the workspace is visually flagged as stale.
-2. **Given** a stale workspace with no uncommitted changes, **When** the user deletes it, **Then** it is removed immediately with no warning dialog.
-3. **Given** a workspace with uncommitted changes, **When** the user attempts to delete it, **Then** the app shows a plain-language warning ("This session has unsaved work") and requires explicit confirmation before deletion.
-4. **Given** multiple stale workspaces, **When** the user invokes "clean up all stale", **Then** workspaces with no uncommitted changes are deleted in batch; workspaces with uncommitted changes are listed separately for individual review.
+1. **Given** a task branch has had no activity for longer than the stale threshold (default 14 days), **When** the panel is open, **Then** the task branch is visually flagged as stale.
+2. **Given** a stale task branch with no uncommitted changes, **When** the user deletes it, **Then** it is removed immediately with no warning dialog, and a post-delete prompt offers to also delete the underlying git branch.
+3. **Given** a task branch with uncommitted changes, **When** the user attempts to delete it, **Then** the app shows a plain-language warning ("This session has unsaved work") and requires explicit confirmation before deletion.
+4. **Given** multiple stale task branches, **When** the user invokes "clean up all stale", **Then** task branches with no uncommitted changes are deleted in batch; task branches with uncommitted changes are listed separately for individual review.
+5. **Given** a batch cleanup of 8 stale task branches where worktree deletion fails for one (e.g., file lock or permission denied), **When** the batch completes, **Then** the successfully deleted entries are removed, the failed entry remains in the panel with an error indicator and a plain-language explanation, and the cleanup is not silently treated as fully successful.
+6. **Given** the stale threshold is changed from 14 days to 7 days in settings, **When** the panel is next opened or refreshed, **Then** task branches inactive for 7–14 days are now flagged as stale without requiring an app restart.
 
 ---
 
-### User Story 5 — Dev: Advisory Mode, No Automatic Git Actions (Priority: P1)
+### User Story 5 — Non-Dev: Task Branch Reaches "Merged" State (Priority: P2)
 
-A developer has advisory mode enabled. They use Claude Code heavily and manage their own git workflow. The app surfaces drift signals and workspace suggestions but never creates a branch, worktree, or commit without explicit user approval.
+A non-technical user has finished a task. After their changes are incorporated, the task branch is marked as merged and presented as safe to clean up.
+
+**Why this priority**: Without a "merged" lifecycle state, completed task branches look identical to stale ones — users cannot distinguish "done and safe to delete" from "abandoned and might matter."
+
+**Independent Test**: Integration test — simulate a task branch whose underlying git branch has been merged into the repository's default branch; assert the panel detects the merged state and displays appropriate actions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a task branch's underlying git branch has been merged into the repository's default branch, **When** the panel refreshes, **Then** the task branch status changes to "merged" automatically.
+2. **Given** a task branch in "merged" status, **When** the user views the panel, **Then** the available actions are "delete" (with no uncommitted-changes warning, since the work is merged) and "view history" — not "resume".
+3. **Given** a task branch in "merged" status with no uncommitted changes, **When** the user deletes it, **Then** it is removed immediately with a prompt to also delete the underlying git branch.
+
+---
+
+### User Story 6 — Dev: Advisory Mode, No Automatic Git Actions (Priority: P1)
+
+A developer has advisory mode enabled. They use Claude Code heavily and manage their own git workflow. The app surfaces drift signals and task branch suggestions but never creates a branch, worktree, or commit without explicit user approval.
 
 **Why this priority**: Developers have existing git workflows. Unexpected automatic actions would undermine trust and break their process.
 
@@ -106,80 +143,92 @@ A developer has advisory mode enabled. They use Claude Code heavily and manage t
 **Acceptance Scenarios**:
 
 1. **Given** advisory mode is active and a session modifies files, **When** the first modification occurs, **Then** no worktree is created automatically.
-2. **Given** drift is detected in advisory mode, **When** the signal is surfaced, **Then** a non-blocking suggestion appears (e.g., "This session is mixing concerns — want to branch off?") with explicit accept/dismiss actions.
+2. **Given** drift is detected in advisory mode at high confidence, **When** the signal is surfaced, **Then** a non-blocking suggestion appears ("This session is mixing concerns — want to branch off?") with explicit accept/dismiss actions; no git operation is performed before the user acts.
 3. **Given** a developer accepts a suggestion, **When** the action executes, **Then** the git operation is performed and a confirmation is shown with the underlying git details (branch name, path) visible.
 4. **Given** a developer dismisses a suggestion, **When** they continue working, **Then** the app takes no git action and re-evaluates drift at the next threshold crossing.
+5. **Given** advisory mode is active and the user opens the session panel for a task branch that was originally created in managed mode, **When** they view the available actions, **Then** the actions are the same as for any task branch; advisory mode does not retroactively change the mode governing that task branch.
+6. **Given** advisory mode is switched on globally after a managed-mode task branch already exists, **When** a new session starts in the same repository, **Then** the new session gets no automatic worktree; the existing managed-mode task branch is unaffected and continues to display with non-git terminology.
+7. **Given** advisory mode is active and any event (drift, resumption, cleanup) would in managed mode trigger an automatic git operation, **When** that event occurs, **Then** zero git operations are performed without a logged user confirmation; this invariant holds across all code paths.
 
 ---
 
-### User Story 6 — Dev: GitHub Desktop Integration (Priority: P2)
+### User Story 7 — Dev: GitHub Desktop Integration (Priority: P2)
 
 A developer wants to use GitHub Desktop for reviewing diffs and creating pull requests, while still having Joyus Desktop manage session context. They click "Open in GitHub Desktop" from the session panel and GitHub Desktop opens scoped to the correct branch.
 
 **Why this priority**: Bridges the managed/advisory gap — developers get the Joyus context layer without giving up their preferred git client.
 
-**Independent Test**: Integration test — create a workspace; assert "Open in GitHub Desktop" triggers the GitHub Desktop deep-link URL protocol with the correct repository and branch parameters.
+**Independent Test**: Integration test — create a task branch; assert "Open in GitHub Desktop" triggers the GitHub Desktop URL protocol with the correct repository path and branch parameters.
 
 **Acceptance Scenarios**:
 
-1. **Given** a workspace is associated with a git branch, **When** the user clicks "Open in GitHub Desktop", **Then** GitHub Desktop launches and navigates to that branch in the correct repository.
-2. **Given** GitHub Desktop is not installed, **When** the user clicks "Open in GitHub Desktop", **Then** the app shows a message with a download link rather than a silent failure.
+1. **Given** a task branch is associated with a git branch, **When** the user clicks "Open in GitHub Desktop", **Then** GitHub Desktop launches and navigates to that branch in the correct repository.
+2. **Given** GitHub Desktop is not installed, **When** the user clicks "Open in GitHub Desktop", **Then** the app shows a message with a download link rather than a silent failure or crash.
 
 ---
 
 ### Edge Cases
 
-- User opens the same repository in two concurrent sessions: workspaces must not share a worktree; each session gets its own isolated worktree.
-- A session starts in a subdirectory that is not the git root: the app must traverse up to find the git root before creating the worktree.
-- Git repo is bare or corrupted: workspace creation must fail gracefully with a plain-language message; the session continues without isolation.
-- User manually deletes a worktree folder outside the app: the panel must detect the missing worktree on next load and mark the workspace as "broken" rather than crashing.
-- Stale threshold is configurable: default is 14 days; must be adjustable without restarting the app.
-- Mode toggle (managed ↔ advisory): changing modes mid-session must not affect workspaces already created; takes effect for new sessions only.
+- **Concurrent sessions, same repo**: Two sessions open the same repository simultaneously. Each must receive a distinct, uniquely-named worktree. Neither session's changes appear in the other's context. (Covered by US-1, scenario 4.)
+- **Subdirectory start**: A session starts in a subdirectory that is not the git root. The app must traverse up to find the git root before creating the worktree; the task branch is associated with the root, not the subdirectory.
+- **Bare or corrupted repo**: Git repo is bare or corrupted. Task branch creation must fail gracefully with a plain-language message; the session continues without isolation rather than blocking the user.
+- **Externally deleted worktree**: User manually deletes a worktree folder outside the app. On next panel load, the associated task branch is marked "broken" — not removed silently, not causing a crash. (Covered by US-3, scenario 3.)
+- **Stale threshold adjustment**: Changing the threshold takes effect immediately on the next panel load without requiring an app restart. (Covered by US-4, scenario 6.)
+- **Mode toggle**: Changing modes (managed ↔ advisory) takes effect for new sessions only; existing task branches retain the mode under which they were created. (Covered by US-3 scenario 2, US-6 scenarios 5 and 6.)
+- **Branch lifecycle after deletion**: When a task branch is deleted from the panel, its underlying git branch is NOT automatically deleted. A post-delete prompt offers the option. Orphan branches are the user's responsibility beyond that prompt.
+- **App crash mid-worktree-creation**: If the app or OS terminates during worktree creation, the partial worktree may be left on disk. On next start, the app detects any worktree in a partially-initialized state and marks the associated task branch "broken" rather than treating it as valid.
+- **Non-git worktree naming collision**: Two task branches produced the same name (same date + mission slug). The second creation appends a counter (`-2`, `-3`, etc.) to ensure uniqueness. (Covered by US-1, scenario 5.)
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: In managed mode, the app MUST create a named, isolated git worktree for a session on the first file modification within a git repository; no user action or confirmation is required.
-- **FR-002**: Each workspace MUST be assigned a mission label: user-provided at session start if one is declared, or auto-inferred from the session's initial context if not.
-- **FR-003**: Drift detection MUST evaluate at minimum: (a) the number of distinct top-level directories touched, (b) the number of inferred topic domains derived from file names and paths, and (c) elapsed session duration.
-- **FR-004**: When local drift heuristics exceed configurable thresholds, the app MAY invoke an LLM to confirm the drift signal and generate a plain-language explanation for the user.
-- **FR-005**: Drift intervention severity MUST scale with detection confidence: low confidence produces a passive notification; high confidence produces an assertive inline prompt offering to create a new session.
-- **FR-006**: The session panel MUST display all app-managed workspaces with: mission label, last activity timestamp, status (active / stale / merged / broken), and actions appropriate to that status.
-- **FR-007**: In managed mode, all git operations (worktree creation, branch naming) MUST use non-git terminology in every user-facing surface; no branch names, hashes, or git paths SHALL be exposed unless the user explicitly requests them.
-- **FR-008**: In advisory mode, the app MUST NOT perform any git operation (worktree creation, branch creation, commit) without explicit user confirmation of a specific suggested action.
-- **FR-009**: The app MUST support launching GitHub Desktop scoped to a workspace's branch and repository via the GitHub Desktop URL protocol.
-- **FR-010**: Workspaces with no activity beyond a configurable stale threshold (default: 14 days) MUST be flagged as stale in the panel.
-- **FR-011**: Deleting a workspace with uncommitted changes MUST require explicit user confirmation with a plain-language warning; deleting a clean workspace requires no confirmation.
-- **FR-012**: Users MUST be able to resume any prior workspace; resumption MUST restore the worktree as active and display the workspace's mission context.
-- **FR-013**: If a git worktree associated with a workspace is missing or corrupted, the app MUST mark the workspace "broken" and offer cleanup, without crashing or hiding the entry.
-- **FR-014**: The operating mode (managed / advisory) MUST be configurable globally and optionally overridable per repository; mode changes take effect for new sessions only and do not affect existing workspaces.
+- **FR-001**: In managed mode, the app MUST create a named, isolated git worktree for a session on the first file modification within a git repository; no user action or confirmation is required. The file modification detection mechanism is an open architecture question resolved during planning.
+- **FR-002**: Each task branch MUST be assigned a mission label: user-provided at session start if declared, or auto-inferred from the session's initial file context (path segments, file extensions, directory names) if not.
+- **FR-003**: Drift detection MUST evaluate at minimum three signals: (a) count of distinct top-level directories touched, (b) count of inferred topic domains derived from file paths, and (c) elapsed session time. Default thresholds: 3 directories, 2 topic domains, 30 minutes. All thresholds MUST be configurable without restarting the app.
+- **FR-004**: When two or more drift heuristic thresholds are exceeded simultaneously, the app MAY invoke an LLM to confirm the drift signal and generate a plain-language explanation. If the LLM is unavailable (offline, timeout, rate-limited), the heuristic-only signal MUST be used; the user MUST NOT be blocked or shown an LLM-specific error.
+- **FR-005**: Drift intervention severity MUST scale with detection confidence: single-threshold breach produces a passive notification; two-threshold breach or LLM confirmation produces an assertive inline prompt offering to create a new session.
+- **FR-006**: The session panel MUST display all app-managed task branches with: mission label, last activity timestamp, status (active / stale / merged / broken), and actions appropriate to each status. Status transitions: active→stale (threshold elapsed), active or stale→merged (underlying branch detected as merged into default branch), any→broken (worktree missing or corrupt on disk). Resuming a stale task branch transitions it back to active.
+- **FR-007**: In managed mode, all git operations and all user-facing text MUST exclude words from the git terminology blocklist: branch, commit, hash, HEAD, checkout, merge, stash, worktree, ref, diff, push, pull, fetch, rebase, tag. No technical identifiers (branch names, hashes, file paths to `.git/`) SHALL be exposed unless the user explicitly requests them via a "show details" action.
+- **FR-008**: In advisory mode, the app MUST NOT perform any git operation (worktree creation, branch creation, commit) without explicit user confirmation of a specific suggested action. This invariant MUST hold across all code paths and event types.
+- **FR-009**: The app MUST support launching GitHub Desktop scoped to a task branch's underlying git branch and repository via the GitHub Desktop URL protocol. If GitHub Desktop is not installed, the app MUST show a download prompt rather than a silent failure.
+- **FR-010**: Task branches with no activity beyond a configurable stale threshold (default: 14 days) MUST be flagged as stale. Threshold changes MUST take effect on the next panel load without an app restart.
+- **FR-011**: Deleting a task branch with uncommitted changes MUST require explicit user confirmation with a plain-language warning; deleting a clean task branch requires no confirmation. After deletion, the app MUST prompt (but not require) the user to also delete the underlying git branch.
+- **FR-012**: Users MUST be able to resume any task branch in non-broken status. Resumption MUST activate the worktree and surface the mission context. Resuming a stale task branch MUST clear the stale flag.
+- **FR-013**: If a git worktree associated with a task branch is missing or corrupt on disk, the app MUST mark it "broken" on next load and offer cleanup, without crashing.
+- **FR-014**: The operating mode (managed / advisory) MUST be configurable globally and overridable per repository. Mode changes take effect for new sessions only; the mode governing a task branch is determined at the time of creation and does not change when the global mode is toggled. Resuming a task branch in a different global mode retains the task branch's creation-time mode for UI and automation behavior.
+- **FR-015**: Task branch metadata (mission label, status, mode, creation timestamp, last-activity timestamp, repository path, worktree path) MUST be persisted in a local SQLite store. This is new infrastructure; it does not extend the existing `replayCache` schema.
+- **FR-016**: When a task branch creation event races with another creation in the same repository (concurrent sessions), each creation MUST produce a uniquely-named worktree. If a name collision would occur, the app MUST append a counter suffix to ensure uniqueness.
+- **FR-017**: On app startup, the app MUST scan all persisted task branches and verify that their worktrees exist on disk. Any task branch whose worktree is missing or partially initialized MUST be immediately transitioned to "broken" status.
 
 ### Key Entities
 
-- **Workspace**: The core record managed by this feature. Represents one isolated git worktree tied to a session. Has a mission label, status (active / stale / merged / broken), creation timestamp, and last-activity timestamp.
-- **Session**: A Claude Code conversation instance. In managed mode, a session is associated with exactly one workspace. In advisory mode, a session may have a suggested workspace that the user can accept.
-- **Mission**: The declared or inferred purpose of a session. Used to label the workspace, anchor drift comparison, and restore context on resumption.
-- **Drift Signal**: A detected divergence from the session's original mission. Has a confidence score, contributing heuristic values, and an optional LLM-generated explanation.
-- **Operating Mode**: The user's configured interaction style — managed (full automation) or advisory (observe-and-suggest). Scoped globally or per repository.
+- **TaskBranch**: The core record managed by this feature. Represents one isolated git worktree tied to a session. Has a mission label, operating mode (managed / advisory), status (active / stale / merged / broken), creation timestamp, last-activity timestamp, repository path, and worktree path. Distinct from `WorkspaceRecord` in `packages/policy-client` (which is a multi-tenant control plane concept).
+- **Session**: A Claude Code conversation instance. In managed mode, a session is associated with exactly one `TaskBranch` created lazily on first file modification. In advisory mode, a session may have a suggested `TaskBranch` that the user can accept. The persistent session entity with mission context is new infrastructure introduced by this feature; the existing `sessionId` field in policy enforcement is a separate, unrelated identifier.
+- **Mission**: The declared or inferred purpose of a session. Used to label the `TaskBranch`, anchor drift comparison, and restore context on resumption. Auto-inferred from file path segments, directory names, and file extensions when not declared.
+- **DriftSignal**: A detected divergence from the session's original mission. Has a confidence score (low / high), the specific heuristic thresholds that triggered it, and an optional LLM-generated plain-language explanation.
+- **OperatingMode**: The configured interaction style for a session — managed (full automation, no git terminology) or advisory (observe-and-suggest, opt-in only). Stored per-TaskBranch at creation time; also configurable globally and per-repository for future sessions.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Managed-mode users complete the full workspace lifecycle (create, work, resume, delete) without encountering any git terminology or needing any git knowledge.
-- **SC-002**: Drift detection fires within 10 file-touch events or 30 minutes after a measurable context switch, whichever comes first, in 95% of simulated drift test scenarios.
-- **SC-003**: Users can review all their workspaces, identify stale ones, and complete a full cleanup of all stale clean workspaces in under 60 seconds from panel open.
-- **SC-004**: Resuming a prior workspace restores the session to active state and surfaces the mission label within 3 seconds of user action.
-- **SC-005**: Advisory mode produces zero automatic git operations across all test scenarios; every git action requires a logged user confirmation event.
+- **SC-001**: Managed-mode users complete the full task branch lifecycle (create, work, resume, delete) without any word from the FR-007 git terminology blocklist appearing in any user-facing surface.
+- **SC-002**: Drift detection fires within 10 file-touch events or 30 minutes after a measurable context switch (crossing default heuristic thresholds), whichever comes first, in 95% of defined test scenarios. The test scenario corpus is defined during planning with a minimum of 10 "should fire" and 5 "should not fire" cases.
+- **SC-003**: Users can review all their task branches, identify stale ones, and complete a full cleanup of all stale clean task branches in under 60 seconds from panel open.
+- **SC-004**: Resuming a prior task branch restores the session to active state and surfaces the mission label within 3 seconds of user action.
+- **SC-005**: Advisory mode produces zero automatic git operations across all test scenarios; every git action is preceded by a logged user confirmation event.
 - **SC-006**: GitHub Desktop launches scoped to the correct branch in 100% of launch attempts on machines where it is installed.
-- **SC-007**: Broken workspace detection catches 100% of externally-deleted worktrees on next panel load and marks them correctly without a crash.
+- **SC-007**: Broken task branch detection catches 100% of externally-deleted or partially-initialized worktrees on next app load and marks them correctly without a crash.
+- **SC-008**: Batch cleanup with a mid-batch deletion failure removes all successfully deletable task branches and leaves failed ones visible in the panel with an error indicator — no silent partial failures.
 
 ### Assumptions
 
-- The desktop app has read/write access to the local git repositories it manages; permission issues are surfaced as workspace creation failures.
-- GitHub Desktop's URL protocol (`x-github-client://openRepo/...`) is available on machines where it is installed; the app does not need to install or configure it.
-- Drift detection thresholds (FR-003, SC-002) are configurable via the app's settings layer; default values are defined at planning time.
-- In advisory mode, developers are assumed to have their own git workflow and the app's role is additive, not authoritative.
-- Worktree naming uses a human-readable convention (e.g., session date + mission slug) to remain interpretable if a user inspects the filesystem directly.
-- The LLM call for drift confirmation is optional and gracefully degraded — if unavailable (offline, rate-limited), the heuristic-only signal is used without blocking the user.
+- The desktop app has read/write access to the local git repositories it manages; permission issues are surfaced as task branch creation failures, not silent no-ops.
+- GitHub Desktop's URL protocol is available on machines where GitHub Desktop is installed; the exact current protocol path is verified during planning before implementation.
+- Drift detection default thresholds (FR-003) are defined in this spec as planning baselines; they are tunable by users and may be revised based on pilot feedback.
+- In advisory mode, developers are assumed to have their own git workflow; the app's role is additive and non-authoritative.
+- Task branch names use a human-readable convention (e.g., `YYYY-MM-DD-mission-slug`) so they are interpretable if a user inspects the filesystem directly.
+- The LLM call for drift confirmation is optional and gracefully degraded — the feature must be fully functional without it.
+- The new SQLite persistence layer (FR-015) follows the same patterns established by the `replayCache` in `packages/policy-client` but is a separate schema and store.
+- The file modification detection mechanism (open architecture question) does not require changes to the Claude Code CLI itself; if IPC-based detection proves infeasible, filesystem watching is the fallback.
