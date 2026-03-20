@@ -26,6 +26,9 @@ importers:
       '@joyus/desktop-sync':
         specifier: workspace:*
         version: link:../../packages/desktop-sync
+      '@joyus/drift-detector':
+        specifier: workspace:*
+        version: link:../../packages/drift-detector
       '@joyus/mcp-governance':
         specifier: workspace:*
         version: link:../../packages/mcp-governance
@@ -38,6 +41,9 @@ importers:
       '@joyus/session-agent':
         specifier: workspace:*
         version: link:../../packages/session-agent
+      '@joyus/session-manager':
+        specifier: workspace:*
+        version: link:../../packages/session-manager
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1
@@ -72,6 +78,8 @@ importers:
 
   packages/desktop-sync: {}
 
+  packages/drift-detector: {}
+
   packages/mcp-governance: {}
 
   packages/mcp-registry: {}
@@ -81,6 +89,8 @@ importers:
   packages/policy-client: {}
 
   packages/session-agent: {}
+
+  packages/session-manager: {}
 
   packages/skill-sync: {}
 
