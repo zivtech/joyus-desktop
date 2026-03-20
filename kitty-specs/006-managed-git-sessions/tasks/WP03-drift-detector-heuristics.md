@@ -1,12 +1,16 @@
 ---
-work_package_id: "WP03"
-title: "drift-detector: Heuristics Engine"
-lane: "planned"
+work_package_id: WP03
+title: 'drift-detector: Heuristics Engine'
+lane: "doing"
 dependencies: []
-subtasks: ["T015", "T016", "T017", "T018", "T019", "T020"]
+base_branch: main
+base_commit: 4fc309aa8db96ca8f07f1a6b3e8bd48af2b9e099
+created_at: '2026-03-20T01:26:45.256156+00:00'
+subtasks: [T015, T016, T017, T018, T019, T020]
+shell_pid: "44222"
 history:
-  - date: "2026-03-19"
-    event: "created"
+- date: '2026-03-19'
+  event: created
 ---
 
 # WP03 — drift-detector: Heuristics Engine
