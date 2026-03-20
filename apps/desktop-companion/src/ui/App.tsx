@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Governance } from "./pages/Governance";
+import { Sessions } from "./pages/Sessions";
 import { Usage } from "./pages/Usage";
 import { Settings } from "./pages/Settings";
 import { Onboarding } from "./pages/Onboarding";
@@ -48,6 +49,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="/servers" element={<Placeholder title="Servers" />} />
         <Route path="/skills" element={<Placeholder title="Skills" />} />
+        <Route path="/sessions" element={<Sessions />} />
         <Route path="/governance" element={<Governance />} />
         <Route path="/usage" element={<Usage />} />
         <Route path="/settings" element={<Settings />} />
