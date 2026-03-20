@@ -543,3 +543,92 @@ describe("getArtifactProvenance", () => {
     });
   });
 });
+
+describe("parseWorkspaceRecord (via requestWorkspace)", () => {
+  function makeFetch(payload: unknown) {
+    return async (_url: string, _init: unknown) => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { result: { content: [{ type: "text", text: JSON.stringify(payload) }] } };
+      },
+      async text() { return ""; },
+    });
+  }
+
+  const base = {
+    baseUrl: "https://cp.example.com",
+    bearerToken: "tok",
+    tenantId: "t-1",
+  };
+
+  it("rejects non-object response", async () => {
+    await expect(
+      requestWorkspace(makeFetch("not-an-object"), base)
+    ).rejects.toThrow("expected object");
+  });
+
+  it("rejects response with missing workspace_id", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        tenant_id: "t-1", mode: "managed_remote", created_by: "u-1",
+        label: null, created_at: "2026-01-01T00:00:00.000Z", status: "ready"
+      }), base)
+    ).rejects.toThrow("workspace_id");
+  });
+
+  it("rejects response with missing tenant_id", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", mode: "managed_remote", created_by: "u-1",
+        label: null, created_at: "2026-01-01T00:00:00.000Z", status: "ready"
+      }), base)
+    ).rejects.toThrow("tenant_id");
+  });
+
+  it("rejects response with invalid mode", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", tenant_id: "t-1", mode: "unknown",
+        created_by: "u-1", label: null, created_at: "2026-01-01T00:00:00.000Z", status: "ready"
+      }), base)
+    ).rejects.toThrow("mode");
+  });
+
+  it("rejects response with missing created_by", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", tenant_id: "t-1", mode: "managed_remote",
+        label: null, created_at: "2026-01-01T00:00:00.000Z", status: "ready"
+      }), base)
+    ).rejects.toThrow("created_by");
+  });
+
+  it("rejects response with invalid label (not null, not string)", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", tenant_id: "t-1", mode: "managed_remote",
+        created_by: "u-1", label: 42, created_at: "2026-01-01T00:00:00.000Z", status: "ready"
+      }), base)
+    ).rejects.toThrow("label");
+  });
+
+  it("rejects response missing created_at", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", tenant_id: "t-1", mode: "managed_remote",
+        created_by: "u-1", label: null, status: "ready"
+      }), base)
+    ).rejects.toThrow("created_at");
+  });
+
+  it("rejects response with invalid status", async () => {
+    await expect(
+      requestWorkspace(makeFetch({
+        workspace_id: "ws-1", tenant_id: "t-1", mode: "managed_remote",
+        created_by: "u-1", label: null, created_at: "2026-01-01T00:00:00.000Z",
+        status: "pending"
+      }), base)
+    ).rejects.toThrow("status");
+  });
+});

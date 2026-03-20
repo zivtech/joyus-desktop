@@ -378,7 +378,7 @@ describe("createProcessManager", () => {
       // Simulate watchdog tick
       intervalCb?.();
 
-      expect(onRestart).toHaveBeenCalledWith("watched", { command: "", args: [] });
+      expect(onRestart).toHaveBeenCalledWith("watched", { command: "node", args: [] });
       expect(pm.isRunning("watched")).toBe(false);
     });
 

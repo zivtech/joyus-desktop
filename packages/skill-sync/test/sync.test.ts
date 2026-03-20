@@ -490,4 +490,26 @@ describe("syncSkills", () => {
     expect(metadata?.error).toContain("string failure");
   });
 
+  it("rejects invalid repoUrl (flag-injectable)", async () => {
+    await expect(
+      syncSkills({
+        repoUrl: "--upload-pack=malicious",
+        targetVersion: "v1.0.0",
+        destDir: "/tmp/dest",
+        cacheDir: "/tmp/cache",
+      })
+    ).rejects.toThrow("Invalid repoUrl");
+  });
+
+  it("rejects invalid targetVersion (flag-injectable)", async () => {
+    await expect(
+      syncSkills({
+        repoUrl: "https://example.com/repo.git",
+        targetVersion: "--exec=malicious",
+        destDir: "/tmp/dest",
+        cacheDir: "/tmp/cache",
+      })
+    ).rejects.toThrow("Invalid targetVersion");
+  });
+
 });

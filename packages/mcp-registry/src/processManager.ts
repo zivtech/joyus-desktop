@@ -33,6 +33,7 @@ export interface ProcessManagerDeps {
 export interface ProcessEntry {
   child: ChildHandle;
   name: string;
+  config: McpServerConfig;
   restartCount: number;
   lastError?: string;
 }
@@ -73,6 +74,7 @@ export function createProcessManager(deps: ProcessManagerDeps): ProcessManager {
     const entry: ProcessEntry = {
       child,
       name,
+      config,
       restartCount: 0,
     };
 
@@ -189,7 +191,7 @@ export function createProcessManager(deps: ProcessManagerDeps): ProcessManager {
           if (entry.restartCount < maxRestarts) {
             entry.restartCount++;
             processes.delete(name);
-            onRestart(name, { command: "", args: [] });
+            onRestart(name, entry.config);
           } else {
             entry.lastError = `Max restarts (${maxRestarts}) exceeded`;
             processes.delete(name);

@@ -256,6 +256,46 @@ export async function requestPolicyDecision(
   return parsePolicyDecideResponse(raw);
 }
 
+function parseWorkspaceRecord(raw: unknown): WorkspaceRecord {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Invalid workspace response: expected object");
+  }
+
+  const value = raw as Record<string, unknown>;
+
+  if (typeof value.workspace_id !== "string" || !value.workspace_id.trim()) {
+    throw new Error("Invalid workspace response: workspace_id");
+  }
+  if (typeof value.tenant_id !== "string" || !value.tenant_id.trim()) {
+    throw new Error("Invalid workspace response: tenant_id");
+  }
+  if (value.mode !== "managed_remote" && value.mode !== "local") {
+    throw new Error("Invalid workspace response: mode");
+  }
+  if (typeof value.created_by !== "string") {
+    throw new Error("Invalid workspace response: created_by");
+  }
+  if (value.label !== null && typeof value.label !== "string") {
+    throw new Error("Invalid workspace response: label");
+  }
+  if (typeof value.created_at !== "string" || !value.created_at.trim()) {
+    throw new Error("Invalid workspace response: created_at");
+  }
+  if (value.status !== "ready") {
+    throw new Error("Invalid workspace response: status");
+  }
+
+  return {
+    workspace_id: value.workspace_id,
+    tenant_id: value.tenant_id,
+    mode: value.mode,
+    created_by: value.created_by,
+    label: value.label as string | null,
+    created_at: value.created_at,
+    status: value.status,
+  };
+}
+
 export async function requestWorkspace(
   fetchLike: FetchLike,
   input: {
@@ -277,7 +317,7 @@ export async function requestWorkspace(
     }
   });
 
-  return raw as WorkspaceRecord;
+  return parseWorkspaceRecord(raw);
 }
 
 export async function getArtifactProvenance(

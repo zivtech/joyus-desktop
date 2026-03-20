@@ -15,7 +15,8 @@ async function safeInvoke<T>(
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke<T>(cmd, args);
-  } catch {
+  } catch (err) {
+    console.error(`[safeInvoke] ${cmd} failed:`, err);
     return undefined;
   }
 }

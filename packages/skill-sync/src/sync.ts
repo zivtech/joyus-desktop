@@ -260,7 +260,20 @@ function isEqualRecord(left: Record<string, string>, right: Record<string, strin
   return true;
 }
 
+const SAFE_REPO_URL = /^(https?:\/\/|git@|ssh:\/\/|git:\/\/|file:\/\/|\/)/;
+const SAFE_VERSION = /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/;
+
+function validateSyncInputs(repoUrl: string, targetVersion: string): void {
+  if (!SAFE_REPO_URL.test(repoUrl)) {
+    throw new Error(`Invalid repoUrl: must start with https://, git@, ssh://, or git://`);
+  }
+  if (!SAFE_VERSION.test(targetVersion)) {
+    throw new Error(`Invalid targetVersion: must start with alphanumeric and contain only [a-zA-Z0-9._-/]`);
+  }
+}
+
 export async function syncSkills(config: SyncConfig): Promise<SyncResult> {
+  validateSyncInputs(config.repoUrl, config.targetVersion);
   const clock = config.now ?? (() => new Date());
   const destDir = resolveHomePath(config.destDir);
   const cacheDir = resolveHomePath(config.cacheDir);
