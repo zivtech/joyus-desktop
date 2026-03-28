@@ -12,7 +12,7 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`. The lane (planned, claimed, in_progress, for_review, approved, done, blocked, canceled) is stored in the YAML frontmatter `lane:` field.
 
 ## Work Package File Format
 
@@ -47,9 +47,13 @@ history:
 ## Valid Lane Values
 
 - `planned` - Ready for implementation
-- `doing` - Currently being worked on
+- `claimed` - Assigned to an agent but not yet started
+- `in_progress` - Currently being worked on
 - `for_review` - Awaiting review
+- `approved` - Review passed, pending final merge
 - `done` - Completed
+- `blocked` - Cannot proceed due to dependency or issue
+- `canceled` - Will not be implemented
 
 ## Moving Between Lanes
 
@@ -60,7 +64,7 @@ spec-kitty agent tasks move-task <WPID> --to <lane>
 
 Example:
 ```bash
-spec-kitty agent tasks move-task WP01 --to doing
+spec-kitty agent tasks move-task WP01 --to in_progress
 ```
 
 ## File Naming

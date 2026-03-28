@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: 'session-manager: Store & Worktree Operations'
-lane: "doing"
+lane: "in_progress"
 dependencies: []
 base_branch: main
 base_commit: c93ca06c8b87d6f6c0a31b1168de96e1c9216dbf

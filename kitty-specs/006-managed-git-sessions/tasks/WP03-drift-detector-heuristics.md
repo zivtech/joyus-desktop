@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: 'drift-detector: Heuristics Engine'
-lane: "doing"
+lane: "in_progress"
 dependencies: []
 base_branch: main
 base_commit: 4fc309aa8db96ca8f07f1a6b3e8bd48af2b9e099

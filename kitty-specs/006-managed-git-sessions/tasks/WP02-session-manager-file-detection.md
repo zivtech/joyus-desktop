@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: 'session-manager: File Modification Detection'
-lane: "doing"
+lane: "in_progress"
 dependencies: []
 base_branch: 006-managed-git-sessions-WP01
 base_commit: d062bb6fbf0bf2427c64defa0942a67f03ee0782
