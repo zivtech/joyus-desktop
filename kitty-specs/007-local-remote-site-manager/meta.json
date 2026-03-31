@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-03-31T19:50:47.429309+00:00",
+  "feature_number": "007",
+  "feature_slug": "007-local-remote-site-manager",
+  "friendly_name": "local remote site manager",
+  "mission": "software-dev",
+  "slug": "007-local-remote-site-manager",
+  "target_branch": "main"
+}
