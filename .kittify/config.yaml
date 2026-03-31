@@ -7,3 +7,7 @@ agents:
     strategy: preferred
     preferred_implementer: claude
     preferred_reviewer: claude
+project:
+  uuid: e2530332-c94d-4fc0-94e4-20a098b0d7c1
+  slug: joyus-desktop
+  node_id: 35014bf27f28

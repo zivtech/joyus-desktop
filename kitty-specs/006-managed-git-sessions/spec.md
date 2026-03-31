@@ -22,7 +22,7 @@
 
 ### Out of Scope
 
-- Remote repository operations (push, pull, fetch) — the desktop app manages local worktrees only; remote operations remain the user's responsibility or GitHub Desktop's.
+- Remote repository operations beyond push and draft PR creation — pull, fetch, and merge remain the user's responsibility or GitHub Desktop's. Push-to-remote and draft PR creation are in scope for managed mode (see FR-018, FR-019).
 - Merge conflict resolution UI — the desktop app creates and isolates task branches; resolution is outside its scope.
 - Multi-repo task branch linking — each task branch is scoped to a single repository.
 - AI code review or diff explanation within the panel — content analysis is limited to drift detection signals, not code quality feedback.
@@ -167,6 +167,26 @@ A developer wants to use GitHub Desktop for reviewing diffs and creating pull re
 
 ---
 
+### User Story 8 — Non-Dev: Changes Shared and PR Created Automatically (Priority: P1)
+
+A non-technical user finishes working in a managed-mode session. The app pushes their task branch to the remote and creates a draft pull request on GitHub — all without the user needing to understand git remotes, push, or PR workflows. The session panel shows the PR status and any linked preview environment URLs (e.g., Probo).
+
+**Why this priority**: This closes the loop between local task branch isolation and the team collaboration / environment provisioning workflow. Without it, managed-mode users are stranded on a local branch with no path to sharing their work or triggering preview environments.
+
+**Independent Test**: Integration test — simulate a managed-mode session with committed changes; assert the branch is pushed to the remote; assert a draft PR is created via GitHub API; assert the session panel displays the PR URL and status.
+
+**Acceptance Scenarios**:
+
+1. **Given** a managed-mode session has committed changes and the user ends the session (or clicks "Share"), **When** the session close flow runs, **Then** the app pushes the task branch to the configured remote and creates a draft pull request on GitHub.
+2. **Given** the draft PR is created, **When** the user views the session panel, **Then** the task branch entry shows the PR status (draft / open / merged) and a clickable link to the PR.
+3. **Given** the remote repository has a Probo integration (or similar PR-triggered preview environment), **When** the PR is created and the preview environment is ready, **Then** the session panel displays the preview environment URL alongside the PR link.
+4. **Given** a draft PR already exists for this task branch, **When** additional changes are pushed, **Then** the app updates the existing PR rather than creating a duplicate.
+5. **Given** the push fails (network unavailable, authentication expired, permission denied), **When** the failure occurs, **Then** the app shows a plain-language message ("Could not share your work — check your internet connection") and queues a retry for next session open; no data is lost.
+6. **Given** advisory mode is active, **When** the user ends a session with committed changes, **Then** the app suggests pushing and creating a PR but does not perform either action without explicit user confirmation.
+7. **Given** managed mode and the repository has no configured remote, **When** the session close flow runs, **Then** the app skips the push/PR step silently and surfaces a suggestion to connect the repository to GitHub.
+
+---
+
 ### Edge Cases
 
 - **Concurrent sessions, same repo**: Two sessions open the same repository simultaneously. Each must receive a distinct, uniquely-named worktree. Neither session's changes appear in the other's context. (Covered by US-1, scenario 4.)
@@ -200,10 +220,15 @@ A developer wants to use GitHub Desktop for reviewing diffs and creating pull re
 - **FR-015**: Task branch metadata (mission label, status, mode, creation timestamp, last-activity timestamp, repository path, worktree path) MUST be persisted in a local SQLite store. This is new infrastructure; it does not extend the existing `replayCache` schema.
 - **FR-016**: When a task branch creation event races with another creation in the same repository (concurrent sessions), each creation MUST produce a uniquely-named worktree. If a name collision would occur, the app MUST append a counter suffix to ensure uniqueness.
 - **FR-017**: On app startup, the app MUST scan all persisted task branches and verify that their worktrees exist on disk. Any task branch whose worktree is missing or partially initialized MUST be immediately transitioned to "broken" status.
+- **FR-018**: In managed mode, on session close or explicit "share" action, the app MUST push the task branch to the configured remote repository if there are committed changes. If the remote is unavailable, the app MUST queue the push for retry on next session open and surface a plain-language message — no data loss, no silent failure.
+- **FR-019**: In managed mode, after a successful push, the app MUST create a draft pull request on GitHub if one does not already exist for that branch. If a PR already exists, subsequent pushes MUST NOT create duplicate PRs. PR creation uses the GitHub API via authenticated `gh` CLI or equivalent.
+- **FR-020**: The TaskBranch entity MUST store an optional PR association: PR number, PR URL, PR status (draft / open / merged / closed), and an optional preview environment URL. The PR association is populated after FR-019 completes and updated on subsequent panel refreshes.
+- **FR-021**: The session panel MUST display the associated PR status and preview environment URL (if available) for any task branch that has been pushed. Preview environment URLs are discovered by querying PR deployment statuses or check runs (e.g., Probo posts deployment URLs as GitHub deployment events).
+- **FR-022**: In advisory mode, session close with committed changes MUST surface a suggestion to push and create a PR, but MUST NOT perform either action without explicit user confirmation. This extends the FR-008 invariant to remote operations.
 
 ### Key Entities
 
-- **TaskBranch**: The core record managed by this feature. Represents one isolated git worktree tied to a session. Has a mission label, operating mode (managed / advisory), status (active / stale / merged / broken), creation timestamp, last-activity timestamp, repository path, and worktree path. Distinct from `WorkspaceRecord` in `packages/policy-client` (which is a multi-tenant control plane concept).
+- **TaskBranch**: The core record managed by this feature. Represents one isolated git worktree tied to a session. Has a mission label, operating mode (managed / advisory), status (active / stale / merged / broken), creation timestamp, last-activity timestamp, repository path, worktree path, and optional PR association (PR number, PR URL, PR status, preview environment URL). Distinct from `WorkspaceRecord` in `packages/policy-client` (which is a multi-tenant control plane concept).
 - **Session**: A Claude Code conversation instance. In managed mode, a session is associated with exactly one `TaskBranch` created lazily on first file modification. In advisory mode, a session may have a suggested `TaskBranch` that the user can accept. The persistent session entity with mission context is new infrastructure introduced by this feature; the existing `sessionId` field in policy enforcement is a separate, unrelated identifier.
 - **Mission**: The declared or inferred purpose of a session. Used to label the `TaskBranch`, anchor drift comparison, and restore context on resumption. Auto-inferred from file path segments, directory names, and file extensions when not declared.
 - **DriftSignal**: A detected divergence from the session's original mission. Has a confidence score (low / high), the specific heuristic thresholds that triggered it, and an optional LLM-generated plain-language explanation.
@@ -221,6 +246,9 @@ A developer wants to use GitHub Desktop for reviewing diffs and creating pull re
 - **SC-006**: GitHub Desktop launches scoped to the correct branch in 100% of launch attempts on machines where it is installed.
 - **SC-007**: Broken task branch detection catches 100% of externally-deleted or partially-initialized worktrees on next app load and marks them correctly without a crash.
 - **SC-008**: Batch cleanup with a mid-batch deletion failure removes all successfully deletable task branches and leaves failed ones visible in the panel with an error indicator — no silent partial failures.
+- **SC-009**: In managed mode, task branches with committed changes result in a successful remote push and draft PR creation within 30 seconds of session close in 95% of attempts (network availability assumed).
+- **SC-010**: PR association (number, URL, status) is visible in the session panel for 100% of task branches that have been pushed to a remote.
+- **SC-011**: Preview environment URLs (e.g., Probo) appear in the session panel within 60 seconds of the environment becoming ready, as reported by GitHub deployment status events.
 
 ### Assumptions
 
@@ -232,3 +260,5 @@ A developer wants to use GitHub Desktop for reviewing diffs and creating pull re
 - The LLM call for drift confirmation is optional and gracefully degraded — the feature must be fully functional without it.
 - The new SQLite persistence layer (FR-015) follows the same patterns established by the `replayCache` in `packages/policy-client` but is a separate schema and store.
 - The file modification detection mechanism (open architecture question) does not require changes to the Claude Code CLI itself; if IPC-based detection proves infeasible, filesystem watching is the fallback.
+- GitHub authentication for push and PR creation uses the user's existing git credentials (SSH key or credential helper) and `gh` CLI authentication. The app does not manage its own GitHub OAuth flow for this purpose.
+- Preview environment URL discovery relies on GitHub deployment status events or check run annotations. The app polls or receives webhooks for these; the exact mechanism is resolved during planning.
