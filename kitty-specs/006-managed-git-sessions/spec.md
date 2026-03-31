@@ -5,6 +5,12 @@
 **Status**: Draft (v2 — revised after proposal-critic + qa-critic review)
 **Input**: Joyus Desktop (features 001–005 complete) needs a git management layer that serves both non-technical users who want full automation and developers who want advisory signals without interference.
 
+## Clarifications
+
+### Session 2026-03-31
+
+- Q: When a managed-mode session closes with uncommitted file changes, what should happen? → A: Desktop app GUI users get silent auto-commit; Claude Code CLI users get a "save your work" prompt unless they've configured auto-commit.
+
 ## Scope
 
 ### In Scope
@@ -26,7 +32,7 @@
 - Merge conflict resolution UI — the desktop app creates and isolates task branches; resolution is outside its scope.
 - Multi-repo task branch linking — each task branch is scoped to a single repository.
 - AI code review or diff explanation within the panel — content analysis is limited to drift detection signals, not code quality feedback.
-- Automatic commits on a timer or background schedule — commits happen at session close or on explicit user action, not autonomously mid-session.
+- Automatic commits on a timer or background schedule — commits happen at session close or on explicit user action, not autonomously mid-session. (Note: session-close commit behavior varies by client context; see FR-023.)
 - Branch cleanup after merge: git branches associated with deleted task branches are not automatically deleted; a post-delete prompt will suggest branch cleanup but not enforce it.
 
 ### Open Architecture Questions (resolve during planning)
@@ -225,6 +231,7 @@ A non-technical user finishes working in a managed-mode session. The app pushes 
 - **FR-020**: The TaskBranch entity MUST store an optional PR association: PR number, PR URL, PR status (draft / open / merged / closed), and an optional preview environment URL. The PR association is populated after FR-019 completes and updated on subsequent panel refreshes.
 - **FR-021**: The session panel MUST display the associated PR status and preview environment URL (if available) for any task branch that has been pushed. Preview environment URLs are discovered by querying PR deployment statuses or check runs (e.g., Probo posts deployment URLs as GitHub deployment events).
 - **FR-022**: In advisory mode, session close with committed changes MUST surface a suggestion to push and create a PR, but MUST NOT perform either action without explicit user confirmation. This extends the FR-008 invariant to remote operations.
+- **FR-023**: In managed mode, on session close, if there are uncommitted file changes, the app MUST commit them before pushing. The commit behavior varies by client context: (a) Desktop app GUI users: auto-commit all changes silently — no user prompt, no git terminology exposed; (b) Claude Code CLI users: prompt the user to "save your work" (plain-language commit prompt) unless the user has configured auto-commit in their preferences. This ensures FR-018 (push) always has committed changes to work with when the user has made modifications.
 
 ### Key Entities
 

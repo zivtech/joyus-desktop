@@ -5,6 +5,15 @@
 **Status**: Draft
 **Input**: The Joyus Desktop app needs to provision, manage, and monitor site environments for Zivtech staff and clients. Zivtech PMs and ops get local Docker/DDEV environments; clients get remote environments via Probo (GitHub PR-triggered) or joyus-ai hosted fallback.
 
+## Clarifications
+
+### Session 2026-03-31
+
+- Q: How does a PM find/add a project to the site manager? → A: Chained progressive discovery — GitHub org repos + admin-curated list from joyus-ai platform + manual git URL entry as fallback. All combined in one project picker.
+- Q: How does the app detect whether a repository has Probo enabled? → A: Check for `.probo.yaml` config file in the repo.
+- Q: How should internal vs. client users be distinguished before joyus-ai has a user model? → A: Use existing identity signals — GitHub org membership (zivtech) or Google account domain (@zivtech.com) determines internal status; all others are treated as client users.
+- Q: Should the app maintain an activity log for troubleshooting the push/PR/environment pipeline? → A: Yes — internal users get a "Recent activity" log in the site manager showing key events (push, PR created, environment detected, errors).
+
 ## Scope
 
 ### In Scope
@@ -164,13 +173,15 @@ A Zivtech PM starts a new git session in managed mode to investigate a QA issue.
 - **FR-007**: For repositories with Probo's GitHub App installed, the app MUST discover Probo preview environments by querying GitHub deployment status events or PR check runs associated with pull requests. The app MUST display these environments in the site manager panel with status and access URL.
 - **FR-008**: When a TaskBranch (Feature 006) has a PR association with deployment status data, the site manager MUST automatically surface the associated Probo environment without requiring the user to manually link or search for it.
 - **FR-009**: For projects without Probo, the app MUST offer a "Request remote environment" action that provisions an environment via the joyus-ai platform API. The provisioning status (provisioning → ready → expired) MUST be reflected in the site manager panel.
-- **FR-010**: Client users MUST see only remote environment options (Probo and joyus-ai hosted) in the site manager. Local site provisioning options MUST NOT be shown to client users. User type (internal / client) is determined by the user's organization membership in the joyus-ai platform.
+- **FR-010**: Client users MUST see only remote environment options (Probo and joyus-ai hosted) in the site manager. Local site provisioning options MUST NOT be shown to client users. User type (internal / client) is determined by existing identity signals: GitHub organization membership (`zivtech`) or Google account domain (`@zivtech.com`) indicates internal; all others are client. This approach is used until the joyus-ai platform provides its own user/organization model.
 - **FR-011**: All user-facing text in the site manager MUST use plain language appropriate for non-technical users. Error messages MUST include a suggested action rather than raw error output. Technical details (container IDs, port numbers, stack traces) MUST be hidden behind a "show details" expansion.
 - **FR-012**: Local site provisioning failures (port conflicts, missing config, corrupted images, insufficient disk space) MUST be caught and presented as actionable plain-language messages. The app MUST NOT crash or show raw terminal output.
 - **FR-013**: When a Probo environment's PR is merged or closed and the environment is torn down, the site manager MUST update the entry to "expired" and remove the access URL within 60 seconds of detecting the status change.
 - **FR-014**: The app MUST persist local site metadata (project name, repository path, DDEV project name, status, creation timestamp) in the existing SQLite store (shared schema with Feature 006's TaskBranch store or a companion table).
 - **FR-015**: The app MUST respect GitHub API rate limits when polling for deployment statuses. If rate-limited, the app MUST back off and show the last known status with a "last checked" timestamp rather than failing.
 - **FR-016**: When a managed-mode git session creates a branch and PR (Feature 006, FR-018/FR-019), and the repository has Probo enabled, the site manager MUST surface the resulting Probo environment automatically and notify the user when it is ready.
+- **FR-017**: Project discovery MUST use a chained approach: (a) auto-discover repositories from the user's GitHub organizations, (b) surface any admin-curated project list from the joyus-ai platform, and (c) allow manual git URL entry as a fallback. All three sources are combined into a single project picker, with duplicates deduplicated by repository URL.
+- **FR-018**: The site manager MUST maintain a "Recent activity" log visible to internal users, showing key pipeline events: push completed, PR created, environment building, environment ready, environment expired, errors. Each entry includes a timestamp and plain-language description. Client users do not see this log. The log is persisted locally and retained for at least 30 days.
 
 ### Key Entities
 
@@ -195,7 +206,7 @@ A Zivtech PM starts a new git session in managed mode to investigate a QA issue.
 
 - Zivtech client projects use DDEV for local development and have a `.ddev/` configuration directory in their git repositories. Projects without DDEV config cannot be provisioned locally via this feature.
 - OrbStack and Docker Desktop both support the container operations DDEV requires. The app does not need to account for edge cases in container runtime compatibility beyond what DDEV handles.
-- Probo's GitHub App posts deployment status events or check run annotations with environment URLs that can be discovered via the GitHub API. The exact event format is verified during planning.
+- Probo availability for a repository is determined by the presence of a `.probo.yaml` file in the repo root. The app checks for this file after cloning or when evaluating a known repository. Probo environment URLs are still discovered via GitHub deployment status events or check run annotations.
 - The joyus-ai platform API for environment provisioning is defined separately in the joyus-ai project; this feature depends on that API existing but does not define its contracts.
 - GitHub authentication for API calls (deployment status queries, PR status) reuses the same credentials established by Feature 006 (user's `gh` CLI authentication).
 - DDEV installation on macOS uses Homebrew; on Windows uses the official DDEV installer. The app delegates to these standard installation methods.
