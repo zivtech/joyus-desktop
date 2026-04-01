@@ -29,6 +29,12 @@ importers:
       '@joyus/drift-detector':
         specifier: workspace:*
         version: link:../../packages/drift-detector
+      '@joyus/environment-monitor':
+        specifier: workspace:*
+        version: link:../../packages/environment-monitor
+      '@joyus/local-provisioner':
+        specifier: workspace:*
+        version: link:../../packages/local-provisioner
       '@joyus/mcp-governance':
         specifier: workspace:*
         version: link:../../packages/mcp-governance
@@ -79,6 +85,10 @@ importers:
   packages/desktop-sync: {}
 
   packages/drift-detector: {}
+
+  packages/environment-monitor: {}
+
+  packages/local-provisioner: {}
 
   packages/mcp-governance: {}
 
