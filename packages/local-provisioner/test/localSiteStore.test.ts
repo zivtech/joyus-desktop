@@ -244,7 +244,13 @@ describe("openLocalSiteStore", () => {
       const a = store.create(makeSiteInput({ repoPath: "/a" }));
       const b = store.create(makeSiteInput({ repoPath: "/b" }));
 
+      // Ensure b has a strictly later timestamp than a
+      const futureTs = Date.now() + 10_000;
+      const origNow = Date.now;
+      Date.now = () => futureTs;
       store.updateActivity(b.id);
+      Date.now = origNow;
+
       // b was touched after a, so b should come first
       const list = store.listAll();
       expect(list[0]?.id).toBe(b.id);
