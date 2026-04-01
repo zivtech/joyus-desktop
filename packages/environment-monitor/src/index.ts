@@ -11,3 +11,34 @@ export type {
   RemoteEnvironment,
   RemoteEnvironmentStore,
 } from "./remoteEnvironmentStore.js";
+
+export { createUserIdentity } from "./userIdentity.js";
+export type { UserType, UserIdentity, UserIdentityDeps } from "./userIdentity.js";
+
+export {
+  createProjectDiscovery,
+  normalizeRepoUrl,
+} from "./projectDiscovery.js";
+export type {
+  DiscoveredProject,
+  ProjectDiscovery,
+  ProjectDiscoveryDeps,
+} from "./projectDiscovery.js";
+
+export {
+  createDeploymentStatusPoller,
+  mapGitHubStateToStatus,
+} from "./deploymentStatusPoller.js";
+export type {
+  ExecCommand,
+  DeploymentStatusPollerDeps,
+  PollResult,
+  DeploymentStatusPoller,
+} from "./deploymentStatusPoller.js";
+
+export { openActivityLog } from "./activityLog.js";
+export type {
+  ActivityEventType,
+  ActivityLogEntry,
+  ActivityLog,
+} from "./activityLog.js";
