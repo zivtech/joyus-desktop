@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-local-remote-site-manager`
 **Created**: 2026-03-31
-**Status**: Draft
+**Status**: Accepted
 **Input**: The Joyus Desktop app needs to provision, manage, and monitor site environments for Zivtech staff and clients. Zivtech PMs and ops get local Docker/DDEV environments; clients get remote environments via Probo (GitHub PR-triggered) or joyus-ai hosted fallback.
 
 ## Clarifications

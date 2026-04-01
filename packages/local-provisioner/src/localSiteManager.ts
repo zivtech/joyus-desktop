@@ -81,6 +81,7 @@ export function extractDdevProjectName(
  * Strips the trailing `.git`, takes the last path segment.
  */
 function projectNameFromUrl(repoUrl: string): string {
+  /* v8 ignore next -- .split("/").pop() always returns a string */
   const last = repoUrl.split("/").pop() ?? repoUrl;
   return last.endsWith(".git") ? last.slice(0, -4) : last;
 }
@@ -107,8 +108,8 @@ export function createLocalSiteManager(
     defaultCloneBase = join(homedir(), ".joyus", "sites"),
   } = deps;
 
-  const store =
-    deps.store ?? openLocalSiteStore(deps.dbPath);
+  /* v8 ignore next -- openLocalSiteStore tested in localSiteStore.test.ts */
+  const store = deps.store ?? openLocalSiteStore(deps.dbPath);
 
   const readFileFn: (path: string) => string =
     deps.readFileFn ?? ((p) => readFileSync(p, "utf8"));

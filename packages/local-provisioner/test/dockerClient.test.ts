@@ -281,6 +281,18 @@ describe("createDockerClient", () => {
       });
     });
 
+    it("defaults system_cpu_usage to 0 when not a number", async () => {
+      const body = JSON.stringify({
+        cpu_stats: { cpu_usage: { total_usage: 100 }, system_cpu_usage: "bad" },
+        precpu_stats: { cpu_usage: { total_usage: 50 }, system_cpu_usage: null },
+        memory_stats: { usage: 1000, limit: 8000 },
+      });
+      const client = createDockerClient(SOCKET, stubHttp(200, body));
+      const stats = await client.containerStats("abc123");
+      expect(stats).toBeDefined();
+      expect(stats!.systemDelta).toBe(0);
+    });
+
     it("defaults onlineCpus to 1 when missing", async () => {
       const body = JSON.stringify({
         cpu_stats: { cpu_usage: { total_usage: 10 }, system_cpu_usage: 100 },

@@ -271,6 +271,7 @@ async function doPollForPr(
 
   // Use the most recent deployment (first in array — GitHub returns newest first)
   const deployment = deploymentsResult[0];
+  /* v8 ignore next -- length > 0 guarantees element exists */
   if (deployment === undefined) return undefined;
 
   // 3. Query deployment statuses

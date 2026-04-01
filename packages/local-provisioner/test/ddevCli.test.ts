@@ -575,6 +575,23 @@ describe("createDdevCli", () => {
       expect(snapshot).toBeDefined();
     });
 
+    it("parseEnvelope handles non-string msg and level in JSON", async () => {
+      const badEnvelope = JSON.stringify({ msg: 42, level: null, raw: "data" });
+      const deps = makeDeps({
+        "ddev version -j": { stdout: badEnvelope, stderr: "" },
+      });
+      const cli = createDdevCli(deps);
+      const result = await cli.version();
+      expect(result.msg).toBe("");
+      expect(result.level).toBe("");
+    });
+
+    it("classifies error from non-Error rejection value", async () => {
+      const execCommand = vi.fn().mockRejectedValue("string rejection") as unknown as ExecCommand;
+      const cli = createDdevCli({ execCommand, dockerClient: makeDockerClient() });
+      await expect(cli.start("my-project", "/path")).rejects.toThrow();
+    });
+
     it("returns cpuPercent=0 when systemDelta is 0", async () => {
       const stats = makeStats(1000, 0, 4, 1000000, 8000000000);
       const deps = makeDeps(

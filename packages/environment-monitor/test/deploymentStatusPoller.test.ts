@@ -492,6 +492,16 @@ describe("pollForPr — rate limit handling", () => {
 // ─── Non-rate-limited failures ────────────────────────────────────────────────
 
 describe("pollForPr — non-rate-limited gh failures", () => {
+  it("handles non-Error rejection from gh CLI", async () => {
+    const execCommand = vi.fn().mockRejectedValue("non-error string") as ExecCommand;
+
+    const store = makeStore();
+    const poller = createDeploymentStatusPoller({ execCommand, store });
+    const result = await poller.pollForPr("acme-org", "my-repo", 42);
+
+    expect(result).toBeUndefined();
+  });
+
   it("returns undefined when gh pr view fails without rate limit signal", async () => {
     const execCommand = makeExecCommand({
       "gh pr view 42 --repo acme-org/my-repo --json headRefOid": new Error(
@@ -521,6 +531,54 @@ describe("pollForPr — non-rate-limited gh failures", () => {
 
     // empty deployments → undefined
     expect(result).toBeUndefined();
+  });
+
+  it("treats deployment statuses API failure as building status", async () => {
+    const sha = "abc123def456";
+    const deploymentId = 9001;
+    const execCommand = makeExecCommand({
+      "gh pr view 42 --repo acme-org/my-repo --json headRefOid": ok(prViewJson(sha)),
+      [`gh api repos/acme-org/my-repo/deployments?sha=${sha}&per_page=20`]: ok(
+        deploymentsJson([{ id: deploymentId, sha }]),
+      ),
+      [`gh api repos/acme-org/my-repo/deployments/${deploymentId}/statuses?per_page=10`]: new Error(
+        "gh: Internal Server Error",
+      ),
+    });
+
+    const store = makeStore({
+      findByDeploymentId: vi.fn().mockReturnValue(undefined),
+      listByRepo: vi.fn().mockReturnValue([]),
+    });
+    const poller = createDeploymentStatusPoller({ execCommand, store });
+    const result = await poller.pollForPr("acme-org", "my-repo", 42);
+
+    expect(result).toBeDefined();
+    expect(result?.status).toBe("building");
+  });
+
+  it("treats deployment statuses API returning invalid JSON as building status", async () => {
+    const sha = "abc123def456";
+    const deploymentId = 9001;
+    const execCommand = makeExecCommand({
+      "gh pr view 42 --repo acme-org/my-repo --json headRefOid": ok(prViewJson(sha)),
+      [`gh api repos/acme-org/my-repo/deployments?sha=${sha}&per_page=20`]: ok(
+        deploymentsJson([{ id: deploymentId, sha }]),
+      ),
+      [`gh api repos/acme-org/my-repo/deployments/${deploymentId}/statuses?per_page=10`]: ok(
+        "not-valid-json{{{",
+      ),
+    });
+
+    const store = makeStore({
+      findByDeploymentId: vi.fn().mockReturnValue(undefined),
+      listByRepo: vi.fn().mockReturnValue([]),
+    });
+    const poller = createDeploymentStatusPoller({ execCommand, store });
+    const result = await poller.pollForPr("acme-org", "my-repo", 42);
+
+    expect(result).toBeDefined();
+    expect(result?.status).toBe("building");
   });
 });
 

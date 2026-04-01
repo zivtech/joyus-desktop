@@ -66,6 +66,7 @@ function doRequest(
         });
         res.on("end", () => {
           resolve({
+            /* v8 ignore next -- statusCode always set by http module */
             status: res.statusCode ?? 0,
             body: Buffer.concat(chunks).toString("utf8"),
           });

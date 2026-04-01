@@ -204,6 +204,16 @@ describe("addManual", () => {
     expect(result.source).toBe("manual");
   });
 
+  it("falls back to empty owner/name for non-standard URL", () => {
+    const exec = vi.fn() as ExecCommand;
+    const discovery = createProjectDiscovery({ execCommand: exec });
+    const result = discovery.addManual("https://custom-host.local/repo");
+
+    expect(result.repoOwner).toBe("");
+    expect(result.repoName).toBe("");
+    expect(result.source).toBe("manual");
+  });
+
   it("does not add duplicate by normalized URL", () => {
     const exec = vi.fn() as ExecCommand;
     const discovery = createProjectDiscovery({ execCommand: exec });

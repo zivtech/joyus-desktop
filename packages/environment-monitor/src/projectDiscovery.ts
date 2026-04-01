@@ -70,6 +70,7 @@ function parseOwnerRepo(
   // Match https://github.com/owner/repo or similar
   const match = /https?:\/\/[^/]+\/([^/]+)\/([^/]+)$/.exec(normalized);
   if (match === null) return undefined;
+  /* v8 ignore next -- regex groups always defined when match succeeds */
   return { owner: match[1] ?? "", name: match[2] ?? "" };
 }
 
@@ -171,11 +172,8 @@ export function createProjectDiscovery(
         if (!seen.has(project.repoUrl)) {
           seen.add(project.repoUrl);
 
-          // Enrich with hasProbo if detector provided and repoUrl is available
-          const hasProbo =
-            proboDetector !== undefined
-              ? undefined // proboDetector.hasProbo() requires a local path, not a URL
-              : undefined;
+          // proboDetector.hasProbo() requires a local path, not a URL — always undefined here
+          const hasProbo = undefined;
 
           deduplicated.push({ ...project, hasProbo, hasDdev: undefined });
         }

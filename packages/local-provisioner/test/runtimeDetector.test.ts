@@ -459,4 +459,18 @@ describe("createRuntimeDetector", () => {
       expect(result).toBe(false);
     });
   });
+
+  describe("function overload", () => {
+    it("accepts a bare ExecCommand function instead of deps object", async () => {
+      const execCommand = vi
+        .fn()
+        .mockRejectedValue(new Error("not found")) as ExecCommand;
+
+      const detector = createRuntimeDetector(execCommand);
+      const result = await detector.installDdev();
+
+      expect(result).toBe(false);
+      expect(execCommand).toHaveBeenCalledWith(["brew", "install", "ddev/ddev/ddev"]);
+    });
+  });
 });
