@@ -42,3 +42,9 @@ export type {
   ActivityLogEntry,
   ActivityLog,
 } from "./activityLog.js";
+
+export { createEnvironmentMonitor } from "./environmentMonitor.js";
+export type {
+  EnvironmentMonitor,
+  EnvironmentMonitorDeps,
+} from "./environmentMonitor.js";
