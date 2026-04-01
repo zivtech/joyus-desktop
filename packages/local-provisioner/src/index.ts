@@ -28,3 +28,20 @@ export type {
   DdevCliDeps,
 } from "./ddevCli.js";
 export { createDdevCli, classifyDdevError } from "./ddevCli.js";
+
+export type {
+  LocalSiteStatus,
+  LocalSite,
+  LocalSiteStore,
+} from "./localSiteStore.js";
+export { openLocalSiteStore, mapRowToLocalSite } from "./localSiteStore.js";
+
+export type {
+  CreateLocalSiteInput,
+  LocalSiteManager,
+  LocalSiteManagerDeps,
+} from "./localSiteManager.js";
+export {
+  createLocalSiteManager,
+  extractDdevProjectName,
+} from "./localSiteManager.js";
