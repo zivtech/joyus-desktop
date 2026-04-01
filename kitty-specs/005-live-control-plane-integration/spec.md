@@ -171,3 +171,75 @@ If the live control plane becomes unreachable, the companion must not allow priv
 - mTLS certificate material and PKI infrastructure are provisioned by joyus-ai-ops before integration testing begins.
 - Spec 001 fail-closed behavior is correct and regression-tested; this feature inherits and does not replace it.
 - The replay rejection mechanism is implemented server-side in joyus-ai; the companion's role is to handle the rejection response and emit the event.
+
+## Amendments
+
+### Claude Channels: Control Plane Channel Server (2026-03-31)
+
+*Source: [joyus-ai-internal Claude Channels Impact Analysis §4.5](https://github.com/zivtech/joyus-ai-internal/blob/main/planning/claude-channels-impact-analysis.md) — Issue: [#36](https://github.com/zivtech/joyus-ai-internal/issues/36)*
+
+A new MCP server in the joyus-desktop companion that bridges the Gateway Event Bus to the admin's active Claude Code session via Claude Channels.
+
+#### Architecture
+
+```
+Gateway Event Bus (joyus-ai, Spec 014)
+        |
+        | WebSocket (persistent, authenticated)
+        v
+Channel Server (joyus-desktop companion, local MCP server)
+        |
+        | notifications/claude/channel (MCP notification)
+        v
+Claude Code session (admin's active session)
+        |
+        | MCP tool calls (review_decide, alert_acknowledge, etc.)
+        v
+Channel Server -> POST /api/v1/gateway/decisions (HTTP)
+```
+
+The Channel Server is an MCP server that:
+1. Declares `capabilities.experimental['claude/channel']`
+2. Maintains a persistent WebSocket to the gateway event bus
+3. Subscribes to events for the current tenant (authenticated via the companion's existing mTLS certificate)
+4. Re-emits gateway events as `notifications/claude/channel` MCP notifications
+5. Exposes MCP tools for admin decisions:
+   - `review_decide(executionId, decision, metadata)` — approve/reject pipeline review
+   - `alert_acknowledge(eventId, metadata)` — acknowledge monitoring alert
+   - `event_dismiss(eventId)` — dismiss informational notification
+
+#### User Stories
+
+**US-CS-1: Admin receives pipeline review request in Claude Code session (P1)**
+
+Given an admin is running Claude Code with the companion's Channel Server active, when a pipeline step enters `waiting_review`, then a `<channel>` tag appears in the admin's session with the review details and available actions.
+
+**US-CS-2: Admin approves review from Claude Code session (P1)**
+
+Given a review request has been delivered via Channel, when the admin says "approve", then Claude calls the `review_decide` tool, which routes through the gateway decision endpoint, and the pipeline resumes.
+
+**US-CS-3: Admin receives monitoring alert in Claude Code session (P2)**
+
+Given a monitoring threshold is breached, when the admin has an active Channel Server, then the alert appears inline. The admin can acknowledge it or investigate further using their existing Claude Code tools.
+
+**US-CS-4: Channel Server is optional — companion works without it (P0)**
+
+Given the admin has not enabled Channels (no `--channels` flag), then the companion functions exactly as specified in Specs 001-005. No degradation, no error, no missing capability. All event delivery falls back to Slack/email/web dashboard via the gateway's other backends.
+
+#### Dependencies
+
+- Spec 014 Gateway Event Bus (FR-GEB-001 through FR-GEB-005) — the Channel Server subscribes to the gateway's event stream
+- Spec 005 WP existing — the companion's mTLS connection and tenant authentication are prerequisites
+- Claude Code Channels API stability — currently research preview; if the `notifications/claude/channel` contract changes, the Channel Server must adapt
+
+#### Out of Scope
+
+- Channel Server as a standalone product (it's part of the companion)
+- Channels for external tenants (internal admin tool only in v1)
+- Channel-based file transfer or artifact delivery (events are text notifications only)
+- Custom channel plugins for third-party chat platforms (use gateway webhook delivery instead)
+
+#### Open Questions
+
+1. Should the Channel Server be a separate MCP server process or integrated into the companion's existing MCP server? **Recommendation**: Separate process — Channels require the `experimental/claude/channel` capability declaration, which may conflict with the companion's standard MCP capabilities.
+2. Event filtering: should the Channel Server deliver ALL subscribed events or allow per-session filtering? **Recommendation**: Deliver all subscribed events in v1; add session-level filtering as a follow-up.
