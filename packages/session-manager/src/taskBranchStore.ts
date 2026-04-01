@@ -22,6 +22,9 @@ export interface TaskBranch {
   readonly status: TaskBranchStatus;
   readonly createdAt: number;
   readonly lastActivityAt: number;
+  readonly prNumber: number | undefined;
+  readonly prUrl: string | undefined;
+  readonly prTitle: string | undefined;
 }
 
 export interface CreateTaskBranchInput {
@@ -44,6 +47,13 @@ export type ExecGit = (
   cwd?: string,
 ) => Promise<{ stdout: string; stderr: string }>;
 
+export interface UpdatePrAssociationInput {
+  readonly taskBranchId: string;
+  readonly prNumber: number;
+  readonly prUrl: string;
+  readonly prTitle: string | undefined;
+}
+
 export interface TaskBranchStore {
   create(input: CreateTaskBranchInput): TaskBranch;
   findById(id: string): TaskBranch | undefined;
@@ -51,6 +61,7 @@ export interface TaskBranchStore {
   listAll(): readonly TaskBranch[];
   updateStatus(id: string, status: TaskBranchStatus): void;
   updateActivity(input: UpdateActivityInput): void;
+  updatePrAssociation(input: UpdatePrAssociationInput): void;
   softDelete(id: string): void;
   applyStaleThreshold(staleBefore: number): void;
   detectMerged(execGit: ExecGit): Promise<void>;
@@ -73,6 +84,9 @@ interface StoredRow {
   created_at: number;
   last_activity_at: number;
   deleted_at: number | null;
+  pr_number: number | null;
+  pr_url: string | null;
+  pr_title: string | null;
 }
 
 interface IntegrityRow {
@@ -100,7 +114,10 @@ const CREATE_SCHEMA = `
     status TEXT NOT NULL CHECK (status IN ('active','stale','merged','broken')),
     created_at INTEGER NOT NULL,
     last_activity_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    pr_number INTEGER,
+    pr_url TEXT,
+    pr_title TEXT
   );
   CREATE UNIQUE INDEX IF NOT EXISTS idx_task_branches_session_id
     ON task_branches (session_id) WHERE deleted_at IS NULL;
@@ -108,6 +125,28 @@ const CREATE_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_task_branches_status ON task_branches (status) WHERE deleted_at IS NULL;
   CREATE INDEX IF NOT EXISTS idx_task_branches_last_activity ON task_branches (last_activity_at) WHERE deleted_at IS NULL;
 `;
+
+// ─── Schema Migration ─────────────────────────────────────────────────────────
+
+interface PragmaColumn {
+  name: string;
+}
+
+function migrateSchema(db: DatabaseSync): void {
+  const cols = db
+    .prepare("PRAGMA table_info(task_branches)")
+    .all() as unknown as PragmaColumn[];
+  const colNames = new Set(cols.map((c) => c.name));
+  if (!colNames.has("pr_number")) {
+    db.exec("ALTER TABLE task_branches ADD COLUMN pr_number INTEGER");
+  }
+  if (!colNames.has("pr_url")) {
+    db.exec("ALTER TABLE task_branches ADD COLUMN pr_url TEXT");
+  }
+  if (!colNames.has("pr_title")) {
+    db.exec("ALTER TABLE task_branches ADD COLUMN pr_title TEXT");
+  }
+}
 
 // ─── Row Mapping ─────────────────────────────────────────────────────────────
 
@@ -124,6 +163,9 @@ export function mapRowToTaskBranch(row: StoredRow): TaskBranch {
     status: row.status as TaskBranchStatus,
     createdAt: row.created_at,
     lastActivityAt: row.last_activity_at,
+    prNumber: row.pr_number ?? undefined,
+    prUrl: row.pr_url ?? undefined,
+    prTitle: row.pr_title ?? undefined,
   };
 }
 
@@ -156,6 +198,7 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
 
   const db = new DatabaseSync(resolvedPath);
   db.exec(CREATE_SCHEMA);
+  migrateSchema(db);
   let closed = false;
 
   const insertStmt = db.prepare(
@@ -199,6 +242,10 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
     `SELECT id, worktree_path, repo_path FROM task_branches WHERE status != 'broken' AND deleted_at IS NULL`,
   );
 
+  const updatePrAssociationStmt = db.prepare(
+    `UPDATE task_branches SET pr_number = ?, pr_url = ?, pr_title = ? WHERE id = ?`,
+  );
+
   return {
     create(input: CreateTaskBranchInput): TaskBranch {
       const id = randomUUID();
@@ -230,6 +277,9 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
         status: "active",
         createdAt: now,
         lastActivityAt: now,
+        prNumber: undefined,
+        prUrl: undefined,
+        prTitle: undefined,
       };
     },
 
@@ -262,6 +312,15 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
 
     updateActivity(input: UpdateActivityInput): void {
       updateActivityStmt.run(input.lastActivityAt, input.taskBranchId);
+    },
+
+    updatePrAssociation(input: UpdatePrAssociationInput): void {
+      updatePrAssociationStmt.run(
+        input.prNumber,
+        input.prUrl,
+        input.prTitle ?? null,
+        input.taskBranchId,
+      );
     },
 
     softDelete(id: string): void {

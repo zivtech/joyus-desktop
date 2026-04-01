@@ -55,6 +55,14 @@ describe("openTaskBranchStore", () => {
     cleanupPath(dbPath);
   });
 
+  it("close() is idempotent — calling twice does not throw", () => {
+    const dbPath = makeTmpDbPath();
+    const store = openTaskBranchStore(dbPath);
+    store.close();
+    expect(() => store.close()).not.toThrow();
+    cleanupPath(dbPath);
+  });
+
   it("creates parent directory if missing", () => {
     const dbPath = makeTmpDbPath();
     const store = openTaskBranchStore(dbPath);
@@ -641,6 +649,111 @@ describe("close", () => {
     const dbPath = makeTmpDbPath();
     const store = openTaskBranchStore(dbPath);
     expect(() => store.close()).not.toThrow();
+    cleanupPath(dbPath);
+  });
+});
+
+describe("updatePrAssociation", () => {
+  let store: TaskBranchStore;
+  let dbPath: string;
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    store = openTaskBranchStore(dbPath);
+  });
+
+  afterEach(() => {
+    try {
+      store.close();
+    } catch {
+      // already closed
+    }
+    cleanupPath(dbPath);
+  });
+
+  it("persists PR fields and round-trips via findById", () => {
+    const input = makeInput({ sessionId: "sess-pr-assoc" });
+    const created = store.create(input);
+
+    expect(created.prNumber).toBeUndefined();
+    expect(created.prUrl).toBeUndefined();
+    expect(created.prTitle).toBeUndefined();
+
+    store.updatePrAssociation({
+      taskBranchId: created.id,
+      prNumber: 99,
+      prUrl: "https://github.com/org/repo/pull/99",
+      prTitle: "My draft PR",
+    });
+
+    const updated = store.findById(created.id);
+    expect(updated?.prNumber).toBe(99);
+    expect(updated?.prUrl).toBe("https://github.com/org/repo/pull/99");
+    expect(updated?.prTitle).toBe("My draft PR");
+  });
+
+  it("stores null prTitle when undefined is passed", () => {
+    const created = store.create(makeInput({ sessionId: "sess-pr-notitle" }));
+
+    store.updatePrAssociation({
+      taskBranchId: created.id,
+      prNumber: 5,
+      prUrl: "https://github.com/org/repo/pull/5",
+      prTitle: undefined,
+    });
+
+    const updated = store.findById(created.id);
+    expect(updated?.prNumber).toBe(5);
+    expect(updated?.prTitle).toBeUndefined();
+  });
+});
+
+describe("schema migration — PR columns added to existing DB", () => {
+  it("migrates an existing database that is missing PR columns", () => {
+    const dbPath = makeTmpDbPath();
+    mkdirSync(join(dbPath, ".."), { recursive: true });
+
+    // Simulate an old-style database by creating it without PR columns
+    const { DatabaseSync } = require("node:sqlite");
+    const oldDb = new DatabaseSync(dbPath);
+    oldDb.exec(`
+      CREATE TABLE IF NOT EXISTS task_branches (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        repo_path TEXT NOT NULL,
+        worktree_path TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        mission_label TEXT NOT NULL,
+        mission_source TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_activity_at INTEGER NOT NULL,
+        deleted_at INTEGER
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_task_branches_session_id
+        ON task_branches (session_id) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_task_branches_repo_path ON task_branches (repo_path);
+      CREATE INDEX IF NOT EXISTS idx_task_branches_status ON task_branches (status) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_task_branches_last_activity ON task_branches (last_activity_at) WHERE deleted_at IS NULL;
+    `);
+    oldDb.close();
+
+    // Opening with openTaskBranchStore should apply migration
+    const store = openTaskBranchStore(dbPath);
+    const created = store.create(makeInput({ sessionId: "sess-migrate" }));
+    store.updatePrAssociation({
+      taskBranchId: created.id,
+      prNumber: 1,
+      prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Migrated PR",
+    });
+
+    const found = store.findById(created.id);
+    expect(found?.prNumber).toBe(1);
+    expect(found?.prTitle).toBe("Migrated PR");
+
+    store.close();
     cleanupPath(dbPath);
   });
 });
