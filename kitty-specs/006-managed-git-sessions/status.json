@@ -1,0 +1,46 @@
+{
+  "event_count": 4,
+  "feature_slug": "006-managed-git-sessions",
+  "last_event_id": "01KN70M3DYEXYS8243D5P0XB0M",
+  "materialized_at": "2026-04-02T11:52:55.333107+00:00",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 1,
+    "in_progress": 3,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KN70M3DJHYS5NVE4T9E23YJ7",
+      "last_transition_at": "2026-04-02T11:52:54.962500+00:00"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KN70M3DMK3MD0Q4JAPW2D86T",
+      "last_transition_at": "2026-04-02T11:52:54.964692+00:00"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KN70M3DPTTCWY774HJMNEQBH",
+      "last_transition_at": "2026-04-02T11:52:54.966368+00:00"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KN70M3DYEXYS8243D5P0XB0M",
+      "last_transition_at": "2026-04-02T11:52:54.974399+00:00"
+    }
+  }
+}

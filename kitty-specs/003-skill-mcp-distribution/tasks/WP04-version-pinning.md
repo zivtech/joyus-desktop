@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Version Pinning & Admin Controls
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T019
@@ -11,10 +11,10 @@ subtasks:
 - T023
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: "codex"
-shell_pid: "39444"
-review_status: "approved"
-reviewed_by: "Alex Urevick-Ackelsberg"
+agent: codex
+shell_pid: '39444'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
