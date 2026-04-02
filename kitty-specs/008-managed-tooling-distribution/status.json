@@ -1,15 +1,15 @@
 {
-  "event_count": 15,
+  "event_count": 16,
   "feature_slug": "008-managed-tooling-distribution",
-  "last_event_id": "01KN704KHN4SQJEXA41DCBAAYY",
-  "materialized_at": "2026-04-02T11:44:27.190052+00:00",
+  "last_event_id": "01KN70K3JN57KFY71H9T0D4XN2",
+  "materialized_at": "2026-04-02T11:52:22.358086+00:00",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 4,
+    "for_review": 3,
     "in_progress": 3,
     "planned": 0
   },
@@ -37,10 +37,10 @@
     },
     "WP04": {
       "actor": "user",
-      "force_count": 2,
-      "lane": "for_review",
-      "last_event_id": "01KN684BYGNMHZH4SKYW35DSR2",
-      "last_transition_at": "2026-04-02T04:44:53.584329+00:00"
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KN70K3JN57KFY71H9T0D4XN2",
+      "last_transition_at": "2026-04-02T11:52:22.357784+00:00"
     },
     "WP05": {
       "actor": "user",
