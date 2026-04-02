@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Package Scaffold & Manifest Module
-lane: "in_progress"
+lane: in_progress
 dependencies: []
 requirement_refs: [FR-002, FR-003, FR-006, FR-016]
 planning_base_branch: feat/008-managed-tooling-distribution

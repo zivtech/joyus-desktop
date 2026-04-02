@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Reconciler Core — Hook & MCP Merge
-lane: "for_review"
+lane: for_review
 dependencies: [WP01, WP02, WP03]
 requirement_refs: [FR-001, FR-004, FR-005, FR-006, FR-008, FR-016, FR-017, FR-019]
 planning_base_branch: feat/008-managed-tooling-distribution

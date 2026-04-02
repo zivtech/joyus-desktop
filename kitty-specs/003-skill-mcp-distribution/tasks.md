@@ -168,3 +168,18 @@ Phase 2:
 - [x] T062: SC-006 — Desktop companion provisions local MCPs for 2 testers
 - [x] T063: Collect user feedback from initial rollout group
 - [x] T064: Document known limitations and next steps
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+- WP11: done
+<!-- status-model:end -->

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Config-Check Poller Sidecar
-lane: "for_review"
+lane: for_review
 dependencies: [WP01]
 requirement_refs: [FR-010, FR-020]
 planning_base_branch: feat/008-managed-tooling-distribution

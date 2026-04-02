@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Git Sync for CLI Developers
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T013
@@ -13,10 +13,10 @@ subtasks:
 - T065
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: "codex"
-shell_pid: "17250"
-review_status: "approved"
-reviewed_by: "Alex Urevick-Ackelsberg"
+agent: codex
+shell_pid: '17250'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned

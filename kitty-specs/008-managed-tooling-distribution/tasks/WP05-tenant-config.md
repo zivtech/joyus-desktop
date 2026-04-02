@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Tenant Config Module
-lane: "for_review"
+lane: for_review
 dependencies: [WP01]
 requirement_refs: [FR-009]
 planning_base_branch: feat/008-managed-tooling-distribution
