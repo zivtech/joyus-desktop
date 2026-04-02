@@ -1,13 +1,13 @@
 ---
 work_package_id: WP02
 title: 'session-manager: File Modification Detection'
-lane: "in_progress"
+lane: in_progress
 dependencies: []
 base_branch: 006-managed-git-sessions-WP01
 base_commit: d062bb6fbf0bf2427c64defa0942a67f03ee0782
 created_at: '2026-03-20T01:34:57.735165+00:00'
 subtasks: [T009, T010, T011, T012, T013, T014]
-shell_pid: "71029"
+shell_pid: '71029'
 history:
 - date: '2026-03-19'
   event: created

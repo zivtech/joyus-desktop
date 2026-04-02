@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Tenant Config Module
-lane: "approved"
+lane: approved
 dependencies: [WP01]
 requirement_refs: [FR-009]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -10,8 +10,8 @@ branch_strategy: Planning artifacts for this feature were generated on feat/008-
 subtasks: [T024, T025, T026, T027]
 agent: codex
 shell_pid: '76971'
-reviewed_by: "Alex Urevick-Ackelsberg"
-review_status: "approved"
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-04-01'
   event: created

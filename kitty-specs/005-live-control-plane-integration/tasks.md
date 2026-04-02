@@ -169,3 +169,14 @@ Alert definitions, incident runbook, and acceptance tests covering SC-001 throug
 
 **Total**: 38 subtasks | **Peak parallelism**: WP02+WP03+WP04 (Layer B)
 **MVP scope**: WP01 → WP02 → WP05 (minimum for replay-safe live policy decisions)
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+<!-- status-model:end -->

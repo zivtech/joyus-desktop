@@ -53,3 +53,11 @@ Layer 1: WP04 (integration + verification)
 2. **Token mismatch (tenant/workspace/action hash)**: Verify authorization rejects tokens that don't match the current context.
 3. **Late-arriving policy response after timeout**: Verify deterministic behavior when policy response arrives after action timeout.
 4. **Routing disagreement (cached vs fresh tenant metadata)**: Verify behavior when cached tenant class disagrees with freshly fetched metadata.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+<!-- status-model:end -->

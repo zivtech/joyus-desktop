@@ -1,15 +1,15 @@
 ---
 work_package_id: WP07
 title: Integration Wiring & Acceptance
-lane: "approved"
+lane: approved
 dependencies: [WP04, WP05, WP06]
 requirement_refs: [FR-011, FR-012, FR-018]
 planning_base_branch: feat/008-managed-tooling-distribution
 merge_target_branch: feat/008-managed-tooling-distribution
 branch_strategy: Planning artifacts for this feature were generated on feat/008-managed-tooling-distribution. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/008-managed-tooling-distribution unless the human explicitly redirects the landing branch.
 subtasks: [T034, T035, T036, T037, T038]
-reviewed_by: "Alex Urevick-Ackelsberg"
-review_status: "approved"
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-04-01'
   event: created

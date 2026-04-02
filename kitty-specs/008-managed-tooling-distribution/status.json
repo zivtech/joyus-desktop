@@ -2,7 +2,7 @@
   "event_count": 19,
   "feature_slug": "008-managed-tooling-distribution",
   "last_event_id": "01KN70K5YBTKA1WNZK6KRCYPRE",
-  "materialized_at": "2026-04-02T11:52:24.779676+00:00",
+  "materialized_at": "2026-04-02T11:52:51.412298+00:00",
   "summary": {
     "approved": 4,
     "blocked": 0,
