@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Integration Wiring & Acceptance
-lane: planned
+lane: "in_progress"
 dependencies: [WP04, WP05, WP06]
 requirement_refs: [FR-011, FR-012, FR-018]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -186,3 +186,7 @@ Wire the config-check poller, skill-sync, and settings reconciler together in de
 - Verify error handling: each step's failure is isolated and logged
 - Verify the revocation integration test checks BOTH that managed entries are gone AND user entries are untouched
 - Verify `pnpm ci` output shows 100% on the new package
+
+## Activity Log
+
+- 2026-04-02T11:22:36Z – unknown – lane=in_progress – Starting implementation via codex
