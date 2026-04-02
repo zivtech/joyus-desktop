@@ -28,3 +28,5 @@ export {
 } from "./reconciler.js";
 
 export type { ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
+
+export * from "./tenantConfig";
