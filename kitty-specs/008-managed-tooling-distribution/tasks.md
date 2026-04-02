@@ -139,13 +139,13 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01, WP02, WP03
 **Estimated prompt size**: ~500 lines
 
-- [ ] T017: Implement hook merge — for each managed hook in manifest, append a matcher group to the appropriate event type array in settings.hooks
-- [ ] T018: Implement hook removal — filter out matcher groups where matcher starts with `joyus:` and ID is not in current manifest
-- [ ] T019: Implement MCP server merge — for each managed MCP in manifest, set the `joyus:<id>` key in settings.mcpServers
-- [ ] T020: Implement MCP server removal — delete `joyus:`-prefixed keys not in current manifest
-- [ ] T021: Implement global vs project target routing — route entries to the correct settings file based on manifest `target` field
-- [ ] T022: Implement full reconcile() pipeline: fetch/receive manifest → read settings → read registry → compute diff → backup → merge hooks → merge MCPs → write settings → update registry → return result
-- [ ] T023: Tests for reconciler — hook append preserves user hooks, hook removal is selective, MCP merge/removal, global vs project routing, full pipeline with rollback on write failure, empty manifest = full removal
+- [x] T017: Implement hook merge — for each managed hook in manifest, append a matcher group to the appropriate event type array in settings.hooks
+- [x] T018: Implement hook removal — filter out matcher groups where matcher starts with `joyus:` and ID is not in current manifest
+- [x] T019: Implement MCP server merge — for each managed MCP in manifest, set the `joyus:<id>` key in settings.mcpServers
+- [x] T020: Implement MCP server removal — delete `joyus:`-prefixed keys not in current manifest
+- [x] T021: Implement global vs project target routing — route entries to the correct settings file based on manifest `target` field
+- [x] T022: Implement full reconcile() pipeline: fetch/receive manifest → read settings → read registry → compute diff → backup → merge hooks → merge MCPs → write settings → update registry → return result
+- [x] T023: Tests for reconciler — hook append preserves user hooks, hook removal is selective, MCP merge/removal, global vs project routing, full pipeline with rollback on write failure, empty manifest = full removal
 
 **Implementation notes**: The reconcile function is the public API. It takes a DistributionManifest and ReconcileConfig, returns ReconcileResult. Internal functions (mergeHooks, removeStaleHooks, mergeMcpServers, removeStaleMcpServers) are pure — they take settings objects and return new settings objects. Side effects (file I/O) only happen in reconcile() itself.
 
