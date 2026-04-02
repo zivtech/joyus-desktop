@@ -14,7 +14,8 @@
       "@joyus/skill-sync": ["./packages/skill-sync/src/index.ts"],
       "@joyus/telemetry": ["./packages/telemetry/src/index.ts"],
       "@joyus/local-provisioner": ["./packages/local-provisioner/src/index.ts"],
-      "@joyus/updater": ["./packages/updater/src/index.ts"]
+      "@joyus/updater": ["./packages/updater/src/index.ts"],
+      "@joyus/settings-reconciler": ["./packages/settings-reconciler/src/index.ts"]
     }
   },
   "include": ["apps/**/*.ts", "packages/**/*.ts"],
