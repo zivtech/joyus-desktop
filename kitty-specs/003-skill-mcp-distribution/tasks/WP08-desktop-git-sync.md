@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Desktop Git Sync Integration
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T044
@@ -11,10 +11,10 @@ subtasks:
 - T068
 phase: Phase 2 - Desktop Companion
 assignee: ''
-agent: "claude-opus"
-shell_pid: "83295"
-review_status: "approved"
-reviewed_by: "Alex Urevick-Ackelsberg"
+agent: claude-opus
+shell_pid: '83295'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Policy-Gated Handoff Authorization
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 002-desktop-cloud-session-handoff-WP01
 base_commit: a9a6bf7926cf3f8037515271481ea2cf3184a8fb
@@ -14,7 +14,7 @@ subtasks:
 phase: Phase 2 - Core Capabilities
 assignee: ''
 agent: ''
-shell_pid: "84864"
+shell_pid: '84864'
 review_status: ''
 reviewed_by: ''
 history:

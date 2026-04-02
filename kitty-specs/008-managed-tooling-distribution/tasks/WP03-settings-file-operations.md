@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Settings File Operations
-lane: "in_progress"
+lane: in_progress
 dependencies: []
 requirement_refs: [FR-012, FR-014, FR-015]
 planning_base_branch: feat/008-managed-tooling-distribution

@@ -1,25 +1,26 @@
 ---
-work_package_id: "WP04"
-title: "Verification and CI Gate Compliance"
-lane: "done"
+work_package_id: WP04
+title: Verification and CI Gate Compliance
+lane: done
+dependencies: []
 subtasks:
-  - "T009"
-  - "T010"
-phase: "Phase 2 - Verification"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T009
+- T010
+phase: Phase 2 - Verification
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-05T00:00:00Z"
-    lane: "planned"
-    agent: "codex"
-    action: "Prompt generated"
-  - timestamp: "2026-03-05T19:13:01Z"
-    lane: "done"
-    agent: "codex"
-    action: "Ran pnpm run ci; typecheck and coverage passed at 100/100/100/100."
+- timestamp: '2026-03-05T00:00:00Z'
+  lane: planned
+  agent: codex
+  action: Prompt generated
+- timestamp: '2026-03-05T19:13:01Z'
+  lane: done
+  agent: codex
+  action: Ran pnpm run ci; typecheck and coverage passed at 100/100/100/100.
 ---
 
 # Work Package Prompt: WP04 - Verification and CI Gate Compliance

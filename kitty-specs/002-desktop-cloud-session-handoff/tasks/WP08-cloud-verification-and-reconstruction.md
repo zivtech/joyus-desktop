@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP08"
+work_package_id: WP08
+title: Cloud Snapshot Verification & Session Reconstruction
+lane: done
+dependencies: [WP01, WP04]
 subtasks:
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-title: "Cloud Snapshot Verification & Session Reconstruction"
-phase: "Phase 6 - Verification"
-lane: "done"
-dependencies: ["WP01", "WP04"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T037
+- T038
+- T039
+- T040
+phase: Phase 6 - Verification
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP08 – Cloud Snapshot Verification & Session Reconstruction

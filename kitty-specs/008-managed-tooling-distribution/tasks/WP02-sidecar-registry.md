@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Sidecar Registry Module
-lane: "in_progress"
+lane: in_progress
 dependencies: []
 requirement_refs: [FR-007, FR-013]
 planning_base_branch: feat/008-managed-tooling-distribution
