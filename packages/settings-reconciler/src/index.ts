@@ -17,3 +17,14 @@ export type {
 export * from "./registry";
 
 export * from "./settingsFile";
+
+export {
+  reconcile,
+  mergeHooks,
+  removeStaleHooks,
+  mergeMcpServers,
+  removeStaleMcpServers,
+  partitionByTarget,
+} from "./reconciler.js";
+
+export type { ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
