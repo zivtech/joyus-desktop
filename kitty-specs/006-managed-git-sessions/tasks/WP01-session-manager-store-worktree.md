@@ -1,13 +1,13 @@
 ---
 work_package_id: WP01
 title: 'session-manager: Store & Worktree Operations'
-lane: "in_progress"
+lane: in_progress
 dependencies: []
 base_branch: main
 base_commit: c93ca06c8b87d6f6c0a31b1168de96e1c9216dbf
 created_at: '2026-03-20T01:26:31.973491+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006, T007, T008]
-shell_pid: "41754"
+shell_pid: '41754'
 history:
 - date: '2026-03-19'
   event: created

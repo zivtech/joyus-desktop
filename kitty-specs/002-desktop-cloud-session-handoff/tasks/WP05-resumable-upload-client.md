@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Resumable Upload Client (tus)
+lane: done
+dependencies: [WP01, WP04]
 subtasks:
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-title: "Resumable Upload Client (tus)"
-phase: "Phase 4 - Transport"
-lane: "done"
-dependencies: ["WP01", "WP04"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T020
+- T021
+- T022
+- T023
+- T024
+- T025
+phase: Phase 4 - Transport
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Resumable Upload Client (tus)
