@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/test/**/*.test.ts"],
+    exclude: [".worktrees/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
