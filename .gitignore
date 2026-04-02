@@ -35,3 +35,4 @@ coverage/
 .kittify/events/
 .kittify/dossiers/
 kitty-specs/**/.kittify/dossiers/
+.omx/
