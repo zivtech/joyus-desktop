@@ -15,3 +15,5 @@ export type {
 } from "./manifest.js";
 
 export * from "./registry";
+
+export * from "./settingsFile";
