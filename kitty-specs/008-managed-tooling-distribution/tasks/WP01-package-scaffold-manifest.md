@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Package Scaffold & Manifest Module
-lane: planned
+lane: "in_progress"
 dependencies: []
 requirement_refs: [FR-002, FR-003, FR-006, FR-016]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -217,3 +217,7 @@ Scaffold the new `packages/settings-reconciler` package and implement the manife
 - Verify validation is exhaustive (every required field checked, every type guard correct)
 - Verify fetch error handling matches the pattern in `packages/skill-sync/src/distributionConfig.ts`
 - Verify package.json matches the conventions of existing packages (especially scripts, exports, type fields)
+
+## Activity Log
+
+- 2026-04-02T02:40:33Z – unknown – lane=in_progress – Dispatching to codex

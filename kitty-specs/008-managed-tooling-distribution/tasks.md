@@ -212,3 +212,8 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Implementation notes**: Integration tests should use the same in-memory/temp-dir patterns as existing desktop-companion tests. The orchestration is deliberately simple: three function calls in sequence with error handling. If syncSkills fails, skip reconcile. If reconcile fails, it handles its own rollback internally.
 
 **Prompt file**: [tasks/WP07-integration-wiring.md](tasks/WP07-integration-wiring.md)
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: in_progress
+<!-- status-model:end -->
