@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Phase 1 Verification & Rollout
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T053
@@ -14,10 +14,10 @@ subtasks:
 - T060
 phase: Phase 1 - Cowork Distribution
 assignee: ''
-agent: "claude-opus"
-shell_pid: "84232"
-review_status: "approved"
-reviewed_by: "Alex Urevick-Ackelsberg"
+agent: claude-opus
+shell_pid: '84232'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned

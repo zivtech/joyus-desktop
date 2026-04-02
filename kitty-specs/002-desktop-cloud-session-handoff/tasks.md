@@ -348,3 +348,15 @@ WP01 ──► WP02 ──► WP04 ──► WP05 ──► WP07
 | T038 | Define session reconstruction contract | WP08 | P2 | No |
 | T039 | Implement test doubles for cloud behavior | WP08 | P2 | No |
 | T040 | Tests for verification and reconstruction | WP08 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+<!-- status-model:end -->

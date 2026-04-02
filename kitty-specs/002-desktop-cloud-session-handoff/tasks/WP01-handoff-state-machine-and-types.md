@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-title: "Handoff State Machine & Types"
-phase: "Phase 1 - Foundation"
-lane: "done"
+work_package_id: WP01
+title: Handoff State Machine & Types
+lane: done
 dependencies: []
-assignee: ""
-agent: "claude-opus"
-shell_pid: "36405"
-review_status: ""
-reviewed_by: ""
+subtasks:
+- T001
+- T002
+- T003
+- T004
+phase: Phase 1 - Foundation
+assignee: ''
+agent: claude-opus
+shell_pid: '36405'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Handoff State Machine & Types

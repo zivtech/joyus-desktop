@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP06"
-title: "Fix zivtech-mcp-tools Critical Issues"
-lane: "done"
+work_package_id: WP06
+title: Fix zivtech-mcp-tools Critical Issues
+lane: done
 dependencies: []
 subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T066"
-phase: "Phase 2 - Desktop Companion"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "79561"
-review_status: "approved"
-reviewed_by: "Alex Urevick-Ackelsberg"
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+- T066
+phase: Phase 2 - Desktop Companion
+assignee: ''
+agent: claude-opus
+shell_pid: '79561'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
-  - timestamp: "2026-03-10T00:00:00Z"
-    lane: "planned"
-    agent: ""
-    action: "Prompt generated"
+- timestamp: '2026-03-10T00:00:00Z'
+  lane: planned
+  agent: ''
+  action: Prompt generated
 ---
 
 # Work Package Prompt: WP06 - Fix zivtech-mcp-tools Critical Issues

@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: MCP Handoff Contracts
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-title: "MCP Handoff Contracts"
-phase: "Phase 4 - Transport"
-lane: "done"
-dependencies: ["WP01"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T026
+- T027
+- T028
+- T029
+- T030
+phase: Phase 4 - Transport
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T15:13:40Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T15:13:40Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – MCP Handoff Contracts
