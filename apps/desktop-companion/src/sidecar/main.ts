@@ -2,6 +2,14 @@ import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
 import { createServices, registerAllMethods, registerSessionMethods } from "./services";
 import type { ServiceDeps } from "./services";
+import {
+  createConfigChangeHandler,
+  createConfigCheckWiring,
+  resolveSidecarManagedToolingConfigFromEnv,
+  type ConfigCheckWiringConfig,
+  type SidecarManagedToolingConfig,
+} from "./configCheckWiring";
+import type { PollerHandle } from "./configCheckPoller";
 import { createSessionWiring } from "./sessionWiring";
 import type { SessionWiringDeps } from "./sessionWiring";
 
@@ -21,6 +29,10 @@ export interface SidecarDeps {
     source: string;
     message: string;
   }) => Promise<void>;
+  managedToolingConfig?: SidecarManagedToolingConfig;
+  createConfigCheckWiringFn?: (
+    config: ConfigCheckWiringConfig,
+  ) => PollerHandle;
   createSessionWiringFn?: (deps: SessionWiringDeps) => Promise<{
     sessionManager: unknown;
     store: unknown;
@@ -47,6 +59,48 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerAllMethods(ipc, services, startTime, deps.nowFn);
+
+  const managedToolingConfig =
+    deps.managedToolingConfig ?? resolveSidecarManagedToolingConfigFromEnv();
+  const configCheckWiringFn =
+    deps.createConfigCheckWiringFn ?? createConfigCheckWiring;
+  const configCheckHandle =
+    managedToolingConfig !== undefined
+      ? configCheckWiringFn({
+          manifestUrl: managedToolingConfig.manifestUrl,
+          ...(
+            managedToolingConfig.intervalMs !== undefined
+              ? { intervalMs: managedToolingConfig.intervalMs }
+              : {}
+          ),
+          onSync: createConfigChangeHandler({
+            syncConfig: managedToolingConfig.syncConfig,
+            ...(
+              managedToolingConfig.reconcileConfig !== undefined
+                ? { reconcileConfig: managedToolingConfig.reconcileConfig }
+                : {}
+            ),
+            ...(
+              managedToolingConfig.tenantConfigPath !== undefined
+                ? { tenantConfigPath: managedToolingConfig.tenantConfigPath }
+                : {}
+            ),
+            logger: {
+              error: (message: string) => {
+                deps.stderr.write(message + "\n");
+              },
+              warn: (message: string) => {
+                deps.stderr.write(message + "\n");
+              },
+            },
+          }),
+          onPollError: (error: Error) => {
+            deps.stderr.write(
+              `configCheckWiring: poll failed: ${error.message}\n`,
+            );
+          },
+        })
+      : undefined;
 
   // Wire session methods asynchronously — keep startSidecar synchronous
   const sessionWiringFn = deps.createSessionWiringFn ?? createSessionWiring;
@@ -102,6 +156,7 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
     const cleanup = sessionShutdown !== undefined ? sessionShutdown() : Promise.resolve();
     void cleanup.then(() =>
       services.processManager.stopAll().then(() => {
+        configCheckHandle?.stop();
         services.configPoller.stop();
         services.periodicSync.stop();
         deps.exit(0);
