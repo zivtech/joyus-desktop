@@ -216,4 +216,5 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: in_progress
+- WP02: in_progress
 <!-- status-model:end -->

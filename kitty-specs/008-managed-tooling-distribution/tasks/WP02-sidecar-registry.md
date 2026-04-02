@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Sidecar Registry Module
-lane: planned
+lane: "in_progress"
 dependencies: []
 requirement_refs: [FR-007, FR-013]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -159,3 +159,7 @@ Implement the `.claude/.joyus-managed.json` sidecar registry that tracks ownersh
 - Verify repair scanning covers ALL Claude Code hook event types (not just PreToolUse)
 - Verify atomic write uses same-directory temp file (required for rename atomicity)
 - Verify corrupted file handling never throws — always returns undefined or empty registry
+
+## Activity Log
+
+- 2026-04-02T02:40:35Z – unknown – lane=in_progress – Dispatching to codex
