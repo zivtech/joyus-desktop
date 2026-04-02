@@ -203,11 +203,11 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP04, WP05, WP06
 **Estimated prompt size**: ~400 lines
 
-- [ ] T034: Wire configCheckPoller into desktop-companion sidecar module (import, configure, start on app init)
-- [ ] T035: Wire sequential orchestration in the onChangeDetected callback: syncSkills() → reconcile() → writeTenantConfig()
-- [ ] T036: Integration test: provide manifest with hooks + MCPs → run full pipeline → verify settings.json contains managed entries, sidecar registry is correct, tenant config file is written
-- [ ] T037: Integration test: revocation flow — start with deployed entries → update manifest to remove bundle → run pipeline → verify all managed entries removed, user entries preserved, registry cleaned
-- [ ] T038: Full CI validation — pnpm typecheck + pnpm coverage passes across all packages with 100% thresholds
+- [x] T034: Wire configCheckPoller into desktop-companion sidecar module (import, configure, start on app init)
+- [x] T035: Wire sequential orchestration in the onChangeDetected callback: syncSkills() → reconcile() → writeTenantConfig()
+- [x] T036: Integration test: provide manifest with hooks + MCPs → run full pipeline → verify settings.json contains managed entries, sidecar registry is correct, tenant config file is written
+- [x] T037: Integration test: revocation flow — start with deployed entries → update manifest to remove bundle → run pipeline → verify all managed entries removed, user entries preserved, registry cleaned
+- [x] T038: Full CI validation — pnpm typecheck + pnpm coverage passes across all packages with 100% thresholds
 
 **Implementation notes**: Integration tests should use the same in-memory/temp-dir patterns as existing desktop-companion tests. The orchestration is deliberately simple: three function calls in sequence with error handling. If syncSkills fails, skip reconcile. If reconcile fails, it handles its own rollback internally.
 
