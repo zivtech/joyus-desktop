@@ -1,8 +1,8 @@
 {
   "event_count": 4,
   "feature_slug": "001-desktop-runtime-policy-enforcement",
-  "last_event_id": "01KN70M04W130P150898Q877DQ",
-  "materialized_at": "2026-04-02T11:52:51.702770+00:00",
+  "last_event_id": "01KN70KZ9W7ECA4RKSXGXAAFCC",
+  "materialized_at": "2026-04-02T11:52:50.870202+00:00",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -18,28 +18,28 @@
       "actor": "codex",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M04S07SS93HVZCCR4N6R",
+      "last_event_id": "01KN70KZ9R5X8CFBVWA9G0HVAG",
       "last_transition_at": "2026-03-05T19:13:01Z"
     },
     "WP02": {
       "actor": "codex",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M04T83GY0QFMPH7SYQJV",
+      "last_event_id": "01KN70KZ9T356M5T0FDBJA8AD0",
       "last_transition_at": "2026-03-05T19:13:01Z"
     },
     "WP03": {
       "actor": "codex",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M04VYPVM9Z7CZKFYRK3T",
+      "last_event_id": "01KN70KZ9VKZ6MY9NZP4MQ014F",
       "last_transition_at": "2026-03-05T19:13:01Z"
     },
     "WP04": {
       "actor": "codex",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M04W130P150898Q877DQ",
+      "last_event_id": "01KN70KZ9W7ECA4RKSXGXAAFCC",
       "last_transition_at": "2026-03-05T19:13:01Z"
     }
   }

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Settings File Operations
-lane: planned
+lane: in_progress
 dependencies: []
 requirement_refs: [FR-012, FR-014, FR-015]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -168,3 +168,7 @@ All tests should use temp directories (vitest's `tmpdir` or Node's `mkdtemp`).
 - Verify atomic write temp file is in the SAME directory as target (cross-volume rename is not atomic)
 - Verify backup rotation sorts by filename (timestamp format must sort lexicographically)
 - Verify rollback is also atomic (don't just `copyFile` — use temp-then-rename)
+
+## Activity Log
+
+- 2026-04-02T02:40:37Z – unknown – lane=in_progress – Dispatching to codex

@@ -301,7 +301,10 @@ export function Settings() {
 
       {/* Sync */}
       <SettingsSection title="Sync">
-        <SettingRow label="Sync Now" description={syncStatus}>
+        <SettingRow
+          label="Sync Now"
+          {...(syncStatus !== undefined ? { description: syncStatus } : {})}
+        >
           <ActionButton onClick={handleSync} disabled={busy}>
             Sync Now
           </ActionButton>

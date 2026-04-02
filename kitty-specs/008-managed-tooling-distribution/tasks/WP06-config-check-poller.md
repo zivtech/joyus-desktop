@@ -1,13 +1,17 @@
 ---
 work_package_id: WP06
 title: Config-Check Poller Sidecar
-lane: planned
+lane: approved
 dependencies: [WP01]
 requirement_refs: [FR-010, FR-020]
 planning_base_branch: feat/008-managed-tooling-distribution
 merge_target_branch: feat/008-managed-tooling-distribution
 branch_strategy: Planning artifacts for this feature were generated on feat/008-managed-tooling-distribution. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/008-managed-tooling-distribution unless the human explicitly redirects the landing branch.
 subtasks: [T028, T029, T030, T031, T032, T033]
+agent: codex
+shell_pid: '77157'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-04-01'
   event: created
@@ -190,3 +194,9 @@ Implement the config-check poll loop in desktop-companion's sidecar that detects
 - Verify hash NOT updated on callback failure (ensures retry on next tick)
 - Verify stop is idempotent
 - Verify fake timers used correctly in tests (no real delays)
+
+## Activity Log
+
+- 2026-04-02T03:03:16Z – codex – shell_pid=77157 – lane=doing – Started implementation via workflow command
+- 2026-04-02T03:25:25Z – codex – shell_pid=77157 – lane=for_review – Ready for review: config-check poller with SHA-256 hashing, graceful degradation, 100% coverage
+- 2026-04-02T11:52:24Z – codex – shell_pid=77157 – lane=approved – Approved: codex implementation reviewed and accepted

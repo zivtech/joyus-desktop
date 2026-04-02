@@ -139,13 +139,13 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01, WP02, WP03
 **Estimated prompt size**: ~500 lines
 
-- [ ] T017: Implement hook merge — for each managed hook in manifest, append a matcher group to the appropriate event type array in settings.hooks
-- [ ] T018: Implement hook removal — filter out matcher groups where matcher starts with `joyus:` and ID is not in current manifest
-- [ ] T019: Implement MCP server merge — for each managed MCP in manifest, set the `joyus:<id>` key in settings.mcpServers
-- [ ] T020: Implement MCP server removal — delete `joyus:`-prefixed keys not in current manifest
-- [ ] T021: Implement global vs project target routing — route entries to the correct settings file based on manifest `target` field
-- [ ] T022: Implement full reconcile() pipeline: fetch/receive manifest → read settings → read registry → compute diff → backup → merge hooks → merge MCPs → write settings → update registry → return result
-- [ ] T023: Tests for reconciler — hook append preserves user hooks, hook removal is selective, MCP merge/removal, global vs project routing, full pipeline with rollback on write failure, empty manifest = full removal
+- [x] T017: Implement hook merge — for each managed hook in manifest, append a matcher group to the appropriate event type array in settings.hooks
+- [x] T018: Implement hook removal — filter out matcher groups where matcher starts with `joyus:` and ID is not in current manifest
+- [x] T019: Implement MCP server merge — for each managed MCP in manifest, set the `joyus:<id>` key in settings.mcpServers
+- [x] T020: Implement MCP server removal — delete `joyus:`-prefixed keys not in current manifest
+- [x] T021: Implement global vs project target routing — route entries to the correct settings file based on manifest `target` field
+- [x] T022: Implement full reconcile() pipeline: fetch/receive manifest → read settings → read registry → compute diff → backup → merge hooks → merge MCPs → write settings → update registry → return result
+- [x] T023: Tests for reconciler — hook append preserves user hooks, hook removal is selective, MCP merge/removal, global vs project routing, full pipeline with rollback on write failure, empty manifest = full removal
 
 **Implementation notes**: The reconcile function is the public API. It takes a DistributionManifest and ReconcileConfig, returns ReconcileResult. Internal functions (mergeHooks, removeStaleHooks, mergeMcpServers, removeStaleMcpServers) are pure — they take settings objects and return new settings objects. Side effects (file I/O) only happen in reconcile() itself.
 
@@ -161,10 +161,10 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01 (reads manifest config fields)
 **Estimated prompt size**: ~250 lines
 
-- [ ] T024: Implement tenant config aggregation — merge config objects from all bundles in manifest into a single TenantConfig
-- [ ] T025: Implement tenant config file write to deterministic path (default: `~/.claude/.joyus-config.json`)
-- [ ] T026: Handle config_path override from manifest — use manifest.config_path if provided, else default
-- [ ] T027: Tests for tenant config — aggregation from multiple bundles, file write, path override, empty config
+- [x] T024: Implement tenant config aggregation — merge config objects from all bundles in manifest into a single TenantConfig
+- [x] T025: Implement tenant config file write to deterministic path (default: `~/.claude/.joyus-config.json`)
+- [x] T026: Handle config_path override from manifest — use manifest.config_path if provided, else default
+- [x] T027: Tests for tenant config — aggregation from multiple bundles, file write, path override, empty config
 
 **Implementation notes**: Config aggregation is a shallow merge across bundles. Later bundles override earlier ones for duplicate keys. The written file includes tenant_id and updated_at metadata so hook scripts can verify freshness.
 
@@ -180,12 +180,12 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01 (fetches manifest for version comparison)
 **Estimated prompt size**: ~400 lines
 
-- [ ] T028: Implement config-check poller with configurable interval (default 300_000ms = 5 minutes)
-- [ ] T029: Implement version hash comparison — hash the manifest response, compare to last-seen hash stored in state
-- [ ] T030: Implement change detection — when hash differs, invoke onChangeDetected callback with parsed manifest
-- [ ] T031: Implement graceful degradation — on fetch failure, log warning, increment consecutive failure counter, preserve existing state, retry next interval
-- [ ] T032: Implement poller start/stop lifecycle — start returns a handle with stop(), cleared on stop
-- [ ] T033: Tests for poller — interval fires, unchanged manifest skips callback, changed manifest triggers callback, network failure preserves state, stop clears interval
+- [x] T028: Implement config-check poller with configurable interval (default 300_000ms = 5 minutes)
+- [x] T029: Implement version hash comparison — hash the manifest response, compare to last-seen hash stored in state
+- [x] T030: Implement change detection — when hash differs, invoke onChangeDetected callback with parsed manifest
+- [x] T031: Implement graceful degradation — on fetch failure, log warning, increment consecutive failure counter, preserve existing state, retry next interval
+- [x] T032: Implement poller start/stop lifecycle — start returns a handle with stop(), cleared on stop
+- [x] T033: Tests for poller — interval fires, unchanged manifest skips callback, changed manifest triggers callback, network failure preserves state, stop clears interval
 
 **Implementation notes**: This lives in `apps/desktop-companion/src/sidecar/configCheckPoller.ts`. Uses `setInterval` for simplicity. State (lastVersionHash, consecutiveFailures) is in-memory only — rebuilt on app restart. The callback signature matches the desktop-companion's orchestration needs: receives a DistributionManifest, desktop-companion decides what to do with it.
 
@@ -203,12 +203,23 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP04, WP05, WP06
 **Estimated prompt size**: ~400 lines
 
-- [ ] T034: Wire configCheckPoller into desktop-companion sidecar module (import, configure, start on app init)
-- [ ] T035: Wire sequential orchestration in the onChangeDetected callback: syncSkills() → reconcile() → writeTenantConfig()
-- [ ] T036: Integration test: provide manifest with hooks + MCPs → run full pipeline → verify settings.json contains managed entries, sidecar registry is correct, tenant config file is written
-- [ ] T037: Integration test: revocation flow — start with deployed entries → update manifest to remove bundle → run pipeline → verify all managed entries removed, user entries preserved, registry cleaned
-- [ ] T038: Full CI validation — pnpm typecheck + pnpm coverage passes across all packages with 100% thresholds
+- [x] T034: Wire configCheckPoller into desktop-companion sidecar module (import, configure, start on app init)
+- [x] T035: Wire sequential orchestration in the onChangeDetected callback: syncSkills() → reconcile() → writeTenantConfig()
+- [x] T036: Integration test: provide manifest with hooks + MCPs → run full pipeline → verify settings.json contains managed entries, sidecar registry is correct, tenant config file is written
+- [x] T037: Integration test: revocation flow — start with deployed entries → update manifest to remove bundle → run pipeline → verify all managed entries removed, user entries preserved, registry cleaned
+- [x] T038: Full CI validation — pnpm typecheck + pnpm coverage passes across all packages with 100% thresholds
 
 **Implementation notes**: Integration tests should use the same in-memory/temp-dir patterns as existing desktop-companion tests. The orchestration is deliberately simple: three function calls in sequence with error handling. If syncSkills fails, skip reconcile. If reconcile fails, it handles its own rollback internally.
 
 **Prompt file**: [tasks/WP07-integration-wiring.md](tasks/WP07-integration-wiring.md)
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: in_progress
+- WP02: in_progress
+- WP03: in_progress
+- WP04: approved
+- WP05: approved
+- WP06: approved
+- WP07: approved
+<!-- status-model:end -->

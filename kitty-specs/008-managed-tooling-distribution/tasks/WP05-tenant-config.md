@@ -1,13 +1,17 @@
 ---
 work_package_id: WP05
 title: Tenant Config Module
-lane: planned
+lane: approved
 dependencies: [WP01]
 requirement_refs: [FR-009]
 planning_base_branch: feat/008-managed-tooling-distribution
 merge_target_branch: feat/008-managed-tooling-distribution
 branch_strategy: Planning artifacts for this feature were generated on feat/008-managed-tooling-distribution. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/008-managed-tooling-distribution unless the human explicitly redirects the landing branch.
 subtasks: [T024, T025, T026, T027]
+agent: codex
+shell_pid: '76971'
+review_status: approved
+reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-04-01'
   event: created
@@ -144,3 +148,9 @@ Implement tenant config aggregation and file write. This enables hook scripts to
 - Verify bundle iteration order is deterministic (sorted keys, not insertion order)
 - Verify shallow merge semantics (no deep merge — bundle config values can be objects but they replace, not merge)
 - Verify home path expansion handles both `~` and `~/...` patterns
+
+## Activity Log
+
+- 2026-04-02T03:03:15Z – codex – shell_pid=76971 – lane=doing – Started implementation via workflow command
+- 2026-04-02T03:20:16Z – codex – shell_pid=76971 – lane=for_review – Ready for review: tenant config aggregation, atomic write, path resolution, 100% coverage
+- 2026-04-02T11:52:23Z – codex – shell_pid=76971 – lane=approved – Approved: codex implementation reviewed and accepted

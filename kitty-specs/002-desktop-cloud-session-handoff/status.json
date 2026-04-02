@@ -1,8 +1,8 @@
 {
   "event_count": 8,
   "feature_slug": "002-desktop-cloud-session-handoff",
-  "last_event_id": "01KN70M057E6VXF3VE3B5ZV10N",
-  "materialized_at": "2026-04-02T11:52:51.782402+00:00",
+  "last_event_id": "01KN70KZA7DSTE77MA41W3HBCB",
+  "materialized_at": "2026-04-02T11:52:50.952771+00:00",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -18,56 +18,56 @@
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M04YJ3YESSDVKDTGKPG2",
+      "last_event_id": "01KN70KZ9YJX7W0F6689B0JV5A",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP02": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M050T0GW3ENCXFM3R8D8",
+      "last_event_id": "01KN70KZA0XJGP2JTNW7GD8R9P",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP03": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M05144GZRSWWSF5F3BK1",
+      "last_event_id": "01KN70KZA11T5CS61KQ76WQWSP",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP04": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M052HFP26C4E4820QQHP",
+      "last_event_id": "01KN70KZA2D0A456QZP8TTS8AC",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP05": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M0548VT7J0SXB6AR6KS7",
+      "last_event_id": "01KN70KZA4C74KSE17VKP9Z4SY",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP06": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M055T8QCEPJFQS3KJDWD",
+      "last_event_id": "01KN70KZA51SKK1KCQME0VD7X8",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP07": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M056983HJC49YJ4RMF5G",
+      "last_event_id": "01KN70KZA6P9RP2SQM4YD4YKP0",
       "last_transition_at": "2026-03-10T15:13:40Z"
     },
     "WP08": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KN70M057E6VXF3VE3B5ZV10N",
+      "last_event_id": "01KN70KZA7DSTE77MA41W3HBCB",
       "last_transition_at": "2026-03-10T15:13:40Z"
     }
   }
