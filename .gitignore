@@ -30,6 +30,9 @@ coverage/
 .pnpm-store/
 # Excluded via sparse-checkout
 .omc/
-# Block WP status files (managed in main repo, prevents merge conflicts)
-# Research artifacts in kitty-specs/**/research/ are allowed
-kitty-specs/**/tasks/*.md
+.kittify/runtime/
+.kittify/merge-state.json
+.kittify/events/
+.kittify/dossiers/
+kitty-specs/**/.kittify/dossiers/
+.omx/
