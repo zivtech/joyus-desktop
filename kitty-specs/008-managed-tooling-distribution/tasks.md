@@ -180,12 +180,12 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01 (fetches manifest for version comparison)
 **Estimated prompt size**: ~400 lines
 
-- [ ] T028: Implement config-check poller with configurable interval (default 300_000ms = 5 minutes)
-- [ ] T029: Implement version hash comparison — hash the manifest response, compare to last-seen hash stored in state
-- [ ] T030: Implement change detection — when hash differs, invoke onChangeDetected callback with parsed manifest
-- [ ] T031: Implement graceful degradation — on fetch failure, log warning, increment consecutive failure counter, preserve existing state, retry next interval
-- [ ] T032: Implement poller start/stop lifecycle — start returns a handle with stop(), cleared on stop
-- [ ] T033: Tests for poller — interval fires, unchanged manifest skips callback, changed manifest triggers callback, network failure preserves state, stop clears interval
+- [x] T028: Implement config-check poller with configurable interval (default 300_000ms = 5 minutes)
+- [x] T029: Implement version hash comparison — hash the manifest response, compare to last-seen hash stored in state
+- [x] T030: Implement change detection — when hash differs, invoke onChangeDetected callback with parsed manifest
+- [x] T031: Implement graceful degradation — on fetch failure, log warning, increment consecutive failure counter, preserve existing state, retry next interval
+- [x] T032: Implement poller start/stop lifecycle — start returns a handle with stop(), cleared on stop
+- [x] T033: Tests for poller — interval fires, unchanged manifest skips callback, changed manifest triggers callback, network failure preserves state, stop clears interval
 
 **Implementation notes**: This lives in `apps/desktop-companion/src/sidecar/configCheckPoller.ts`. Uses `setInterval` for simplicity. State (lastVersionHash, consecutiveFailures) is in-memory only — rebuilt on app restart. The callback signature matches the desktop-companion's orchestration needs: receives a DistributionManifest, desktop-companion decides what to do with it.
 
