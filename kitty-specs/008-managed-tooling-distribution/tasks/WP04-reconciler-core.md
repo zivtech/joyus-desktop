@@ -1,13 +1,15 @@
 ---
 work_package_id: WP04
 title: Reconciler Core — Hook & MCP Merge
-lane: planned
+lane: "doing"
 dependencies: [WP01, WP02, WP03]
 requirement_refs: [FR-001, FR-004, FR-005, FR-006, FR-008, FR-016, FR-017, FR-019]
 planning_base_branch: feat/008-managed-tooling-distribution
 merge_target_branch: feat/008-managed-tooling-distribution
 branch_strategy: Planning artifacts for this feature were generated on feat/008-managed-tooling-distribution. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/008-managed-tooling-distribution unless the human explicitly redirects the landing branch.
 subtasks: [T017, T018, T019, T020, T021, T022, T023]
+agent: "codex"
+shell_pid: "76532"
 history:
 - date: '2026-04-01'
   event: created
@@ -256,3 +258,7 @@ Implement the core `reconcile()` function that merges managed hooks and MCP serv
 - Verify empty manifest bundles triggers full removal of managed entries
 - Verify registry repair is triggered when readRegistry returns undefined
 - Verify the reconcile function doesn't depend on WP05 (tenant config) — that's separate
+
+## Activity Log
+
+- 2026-04-02T03:02:33Z – codex – shell_pid=76532 – lane=doing – Started implementation via workflow command
