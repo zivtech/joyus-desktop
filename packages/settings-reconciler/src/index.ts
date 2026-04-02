@@ -17,3 +17,5 @@ export type {
 export * from "./registry";
 
 export * from "./settingsFile";
+
+export * from "./tenantConfig";
