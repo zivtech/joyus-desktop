@@ -13,3 +13,5 @@ export type {
   ManifestBundle,
   DistributionManifest,
 } from "./manifest.js";
+
+export * from "./registry";
