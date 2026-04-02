@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Integration Wiring & Acceptance
-lane: "in_progress"
+lane: "for_review"
 dependencies: [WP04, WP05, WP06]
 requirement_refs: [FR-011, FR-012, FR-018]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -190,3 +190,4 @@ Wire the config-check poller, skill-sync, and settings reconciler together in de
 ## Activity Log
 
 - 2026-04-02T11:22:36Z – unknown – lane=in_progress – Starting implementation via codex
+- 2026-04-02T11:44:27Z – unknown – lane=for_review – Ready for review: integration wiring complete, full CI passes (typecheck + 100% coverage)

@@ -221,5 +221,5 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 - WP04: for_review
 - WP05: for_review
 - WP06: for_review
-- WP07: in_progress
+- WP07: for_review
 <!-- status-model:end -->
