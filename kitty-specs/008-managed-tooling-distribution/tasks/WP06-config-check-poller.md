@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Config-Check Poller Sidecar
-lane: "for_review"
+lane: "approved"
 dependencies: [WP01]
 requirement_refs: [FR-010, FR-020]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -10,6 +10,8 @@ branch_strategy: Planning artifacts for this feature were generated on feat/008-
 subtasks: [T028, T029, T030, T031, T032, T033]
 agent: codex
 shell_pid: '77157'
+reviewed_by: "Alex Urevick-Ackelsberg"
+review_status: "approved"
 history:
 - date: '2026-04-01'
   event: created
@@ -197,3 +199,4 @@ Implement the config-check poll loop in desktop-companion's sidecar that detects
 
 - 2026-04-02T03:03:16Z – codex – shell_pid=77157 – lane=doing – Started implementation via workflow command
 - 2026-04-02T03:25:25Z – codex – shell_pid=77157 – lane=for_review – Ready for review: config-check poller with SHA-256 hashing, graceful degradation, 100% coverage
+- 2026-04-02T11:52:24Z – codex – shell_pid=77157 – lane=approved – Approved: codex implementation reviewed and accepted
