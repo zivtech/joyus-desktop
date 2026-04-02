@@ -19,6 +19,7 @@
     "@joyus/session-agent": "workspace:*",
     "@joyus/session-manager": "workspace:*",
     "@joyus/local-provisioner": "workspace:*",
+    "@joyus/settings-reconciler": "workspace:*",
     "@joyus/environment-monitor": "workspace:*",
     "@tauri-apps/api": "^2.10.1",
     "react": "^19.2.4",
