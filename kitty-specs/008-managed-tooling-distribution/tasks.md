@@ -161,10 +161,10 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: WP01 (reads manifest config fields)
 **Estimated prompt size**: ~250 lines
 
-- [ ] T024: Implement tenant config aggregation — merge config objects from all bundles in manifest into a single TenantConfig
-- [ ] T025: Implement tenant config file write to deterministic path (default: `~/.claude/.joyus-config.json`)
-- [ ] T026: Handle config_path override from manifest — use manifest.config_path if provided, else default
-- [ ] T027: Tests for tenant config — aggregation from multiple bundles, file write, path override, empty config
+- [x] T024: Implement tenant config aggregation — merge config objects from all bundles in manifest into a single TenantConfig
+- [x] T025: Implement tenant config file write to deterministic path (default: `~/.claude/.joyus-config.json`)
+- [x] T026: Handle config_path override from manifest — use manifest.config_path if provided, else default
+- [x] T027: Tests for tenant config — aggregation from multiple bundles, file write, path override, empty config
 
 **Implementation notes**: Config aggregation is a shallow merge across bundles. Later bundles override earlier ones for duplicate keys. The written file includes tenant_id and updated_at metadata so hook scripts can verify freshness.
 
