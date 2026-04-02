@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-04-02T02:40:24.920231+00:00",
+  "feature_number": "003",
+  "feature_slug": "003-skill-mcp-distribution",
+  "friendly_name": "skill mcp distribution",
+  "mission": "research",
+  "slug": "003-skill-mcp-distribution",
+  "target_branch": "main"
+}

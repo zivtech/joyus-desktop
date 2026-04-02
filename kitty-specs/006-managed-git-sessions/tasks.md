@@ -44,7 +44,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T007: `scanIntegrity()` startup scan
 - [ ] T008: Unit tests for all WP01 modules
 
-**Prompt**: [WP01-session-manager-store-worktree.md](tasks/WP01-session-manager-store-worktree.md)
+**Prompt**: [WP01-session-manager-store-worktree.md](tasks/WP01-session-manager-store-worktree.md
 **Implement**: `spec-kitty implement WP01`
 
 ---
@@ -63,7 +63,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T019: `NoOpDriftConfirmer` v1 stub
 - [ ] T020: Unit tests + 15-scenario corpus (10 "should fire", 5 "should not fire")
 
-**Prompt**: [WP03-drift-detector-heuristics.md](tasks/WP03-drift-detector-heuristics.md)
+**Prompt**: [WP03-drift-detector-heuristics.md](tasks/WP03-drift-detector-heuristics.md
 **Implement**: `spec-kitty implement WP03`
 
 ---
@@ -85,7 +85,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T013: `SessionManager` remaining API — resume, delete, hasUncommittedChanges, getMode, setMode, initialize
 - [ ] T014: Unit tests for WP02 modules
 
-**Prompt**: [WP02-session-manager-file-detection.md](tasks/WP02-session-manager-file-detection.md)
+**Prompt**: [WP02-session-manager-file-detection.md](tasks/WP02-session-manager-file-detection.md
 **Implement**: `spec-kitty implement WP02 --base WP01`
 
 ---
@@ -106,7 +106,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T026: SIGTERM/SIGINT shutdown handlers — `stopPolling` for all active sessions
 - [ ] T027: Unit tests for sessionWiring.ts
 
-**Prompt**: [WP04-sidecar-wiring.md](tasks/WP04-sidecar-wiring.md)
+**Prompt**: [WP04-sidecar-wiring.md](tasks/WP04-sidecar-wiring.md
 **Implement**: `spec-kitty implement WP04 --base WP03`
 
 ---
@@ -130,7 +130,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T034: Subscribe to `state.driftSignal` Tauri events; render `DriftBanner` on signal
 - [ ] T035: "Open in GitHub Desktop" action + not-installed fallback
 
-**Prompt**: [WP05-sessions-ui-page.md](tasks/WP05-sessions-ui-page.md)
+**Prompt**: [WP05-sessions-ui-page.md](tasks/WP05-sessions-ui-page.md
 **Implement**: `spec-kitty implement WP05 --base WP04`
 
 ---
@@ -149,7 +149,7 @@ WP03 (drift) ──────────────────────�
 - [ ] T040: Concurrent session isolation — two sessions, same repo, distinct worktrees (FR-016)
 - [ ] T041: Mode-switch boundary + stale threshold live-update scenarios
 
-**Prompt**: [WP06-integration-tests.md](tasks/WP06-integration-tests.md)
+**Prompt**: [WP06-integration-tests.md](tasks/WP06-integration-tests.md
 **Implement**: `spec-kitty implement WP06 --base WP05`
 
 ---
@@ -171,5 +171,13 @@ WP03 (drift) ──────────────────────�
 - [ ] T047: SC-008 batch cleanup with injected mid-batch failure
 - [ ] T048: `docs/operations/runbook-006.md` — 2 alerts, 2 incidents, pre-pilot checklist
 
-**Prompt**: [WP07-acceptance-tests-runbook.md](tasks/WP07-acceptance-tests-runbook.md)
+**Prompt**: [WP07-acceptance-tests-runbook.md](tasks/WP07-acceptance-tests-runbook.md
 **Implement**: `spec-kitty implement WP07 --base WP06`
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: in_progress
+- WP02: in_progress
+- WP03: in_progress
+- WP07: for_review
+<!-- status-model:end -->
