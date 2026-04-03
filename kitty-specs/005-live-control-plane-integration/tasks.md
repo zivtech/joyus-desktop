@@ -155,6 +155,31 @@ Alert definitions, incident runbook, and acceptance tests covering SC-001 throug
 
 ---
 
+## Phase F: Claude Channels (Amendment — 2026-03-31)
+
+### WP08 — Control Plane Channel Server
+**Prompt**: `tasks/WP08-channel-server.md` *(to be created)*
+**Priority**: P2 | **Dependencies**: WP05, Spec 014 Gateway Event Bus | **Est. ~500 lines**
+
+*Source: [joyus-ai-internal Claude Channels Impact Analysis §4.5](https://github.com/zivtech/joyus-ai-internal/blob/main/planning/claude-channels-impact-analysis.md) — Issue: [#36](https://github.com/zivtech/joyus-ai-internal/issues/36)*
+
+A separate MCP server process that bridges the Gateway Event Bus to the admin's Claude Code session via Claude Channels. Declares `capabilities.experimental['claude/channel']`, maintains a persistent WebSocket to the gateway, and re-emits events as `notifications/claude/channel` MCP notifications.
+
+**Subtasks**:
+- [ ] T039: Scaffold Channel Server MCP process with `@modelcontextprotocol/sdk` and `experimental/claude/channel` capability
+- [ ] T040: Implement authenticated WebSocket connection to Gateway Event Bus (reuse mTLS from WP01)
+- [ ] T041: Implement event subscription and tenant-scoped filtering
+- [ ] T042: Implement `notifications/claude/channel` emission for received gateway events
+- [ ] T043: Implement `review_decide` MCP tool — calls `POST /api/v1/gateway/decisions`
+- [ ] T044: Implement `alert_acknowledge` and `event_dismiss` MCP tools
+- [ ] T045: Graceful degradation — Channel Server is optional; companion works without it (US-CS-4)
+- [ ] T046: Write unit tests for all Channel Server components
+
+**Parallel opportunities**: Can run after WP05, independent of WP06/WP07. Blocked on Spec 014 Gateway Event Bus existing in joyus-ai.
+**Risks**: Claude Channels API is research preview — `notifications/claude/channel` contract may change. Channel Server must be isolated behind an adapter to absorb API changes. `--dangerously-load-development-channels` flag required until Channels stabilizes.
+
+---
+
 ## Summary
 
 | WP | Title | Subtasks | Est. Lines | Dependencies | Phase |
@@ -166,9 +191,11 @@ Alert definitions, incident runbook, and acceptance tests covering SC-001 throug
 | 05 | Companion Wiring | 6 | ~380 | WP02, WP03, WP04 | C |
 | 06 | Integration Test Suite | 7 | ~440 | WP05 | D |
 | 07 | Pilot Readiness Gate | 4 | ~300 | WP06 | E |
+| 08 | Control Plane Channel Server | 8 | ~500 | WP05, Spec 014 GEB | F |
 
-**Total**: 38 subtasks | **Peak parallelism**: WP02+WP03+WP04 (Layer B)
+**Total**: 46 subtasks | **Peak parallelism**: WP02+WP03+WP04 (Layer B)
 **MVP scope**: WP01 → WP02 → WP05 (minimum for replay-safe live policy decisions)
+**Channels scope**: WP08 (after WP05 + Spec 014 Gateway Event Bus)
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
