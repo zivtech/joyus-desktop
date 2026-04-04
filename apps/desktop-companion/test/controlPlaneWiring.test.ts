@@ -14,6 +14,7 @@ vi.mock("@joyus/policy-client", async (importOriginal) => {
     openReplayCache: vi.fn(),
     createTokenRefreshService: vi.fn(),
     createAsyncEventEmitter: vi.fn(),
+    requestPolicyDecision: vi.fn(),
   };
 });
 
@@ -162,7 +163,20 @@ describe("createWiredComponents", () => {
     expect(() => createWiredComponents()).toThrow("JOYUS_API_TOKEN");
   });
 
-  it("requestDecision stub rejects with 'not wired' error", async () => {
+  it("requestDecision calls requestPolicyDecision with correct args", async () => {
+    const requestPolicyDecisionMock =
+      policyClient.requestPolicyDecision as unknown as Mock;
+
+    const fakeResponse = {
+      decision: "allow" as const,
+      reason: "ok",
+      token: "t",
+      token_expires_at: new Date(Date.now() + 60_000).toISOString(),
+      jti: "j",
+      risk_level: "low" as const,
+    };
+    requestPolicyDecisionMock.mockResolvedValue(fakeResponse);
+
     createWiredComponents();
 
     type TokenRefreshDepsCapture = {
@@ -176,9 +190,8 @@ describe("createWiredComponents", () => {
     expect(firstCall).toBeDefined();
     const capturedDeps = firstCall![0];
 
-    await expect(capturedDeps.requestDecision("test-key")).rejects.toThrow(
-      "not wired"
-    );
+    const result = await capturedDeps.requestDecision("file.read");
+    expect(result).toBe(fakeResponse);
   });
 });
 

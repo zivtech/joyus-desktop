@@ -4,6 +4,8 @@ import {
   openReplayCache,
   createTokenRefreshService,
   createAsyncEventEmitter,
+  requestPolicyDecision,
+  buildPolicyDecideRequest,
 } from "@joyus/policy-client";
 import type {
   FetchLike,
@@ -39,15 +41,24 @@ export function createWiredComponents(): WiredComponents {
   );
   replayCache.prune();
 
-  // Token refresh — requestDecision is a placeholder; callers wire real decision
-  // logic by calling schedule() after each policy decision and checking getInFlight()
-  // before re-requesting. The requestDecision callback fires only when a proactive
-  // timer expires without the caller having provided an updated response.
+  // Token refresh — wired to the control plane so proactive refresh actually
+  // fetches a fresh policy decision when a timer expires without the caller
+  // having provided an updated response.
   const tokenRefresh = createTokenRefreshService({
-    requestDecision: (_actionKey: string) => {
-      return Promise.reject(
-        new Error("Token refresh requestDecision is not wired")
-      );
+    requestDecision: (actionKey: string) => {
+      const tenantId = process.env["JOYUS_TENANT_ID"] ?? "";
+      const sessionId = process.env["JOYUS_SESSION_ID"] ?? "";
+      const request = buildPolicyDecideRequest({
+        actionName: actionKey,
+        riskLevel: "low",
+        tenantId,
+        sessionId,
+      });
+      return requestPolicyDecision(fetchClient, {
+        baseUrl: config.baseUrl,
+        bearerToken: config.bearerToken,
+        request,
+      });
     },
   });
 

@@ -3,10 +3,13 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Governance } from "./pages/Governance";
+import { Servers } from "./pages/Servers";
 import { Sessions } from "./pages/Sessions";
-import { Usage } from "./pages/Usage";
+import { Skills } from "./pages/Skills";
 import { Settings } from "./pages/Settings";
+import { Sites } from "./pages/Sites";
 import { Onboarding } from "./pages/Onboarding";
+import { Usage } from "./pages/Usage";
 
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
@@ -17,27 +20,25 @@ async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>{title}</h1>
-      <p style={{ color: "#6b7280", marginTop: "0.5rem" }}>Coming soon.</p>
-    </div>
-  );
+interface AppRoutesProps {
+  initialOnboardingComplete?: boolean;
 }
 
-function AppRoutes() {
+function AppRoutes({ initialOnboardingComplete = false }: AppRoutesProps) {
   const navigate = useNavigate();
-  const [checked, setChecked] = useState(false);
+  const [checked, setChecked] = useState(initialOnboardingComplete);
 
   useEffect(() => {
+    if (initialOnboardingComplete) {
+      return;
+    }
     void safeInvoke<string>("get_config", { key: "onboarding_complete" }).then((value) => {
       if (value !== "true") {
         navigate("/onboarding", { replace: true });
       }
       setChecked(true);
     });
-  }, [navigate]);
+  }, [initialOnboardingComplete, navigate]);
 
   if (!checked) {
     return null;
@@ -47,9 +48,10 @@ function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
-        <Route path="/servers" element={<Placeholder title="Servers" />} />
-        <Route path="/skills" element={<Placeholder title="Skills" />} />
+        <Route path="/servers" element={<Servers />} />
+        <Route path="/skills" element={<Skills />} />
         <Route path="/sessions" element={<Sessions />} />
+        <Route path="/sites" element={<Sites />} />
         <Route path="/governance" element={<Governance />} />
         <Route path="/usage" element={<Usage />} />
         <Route path="/settings" element={<Settings />} />
@@ -59,10 +61,15 @@ function AppRoutes() {
   );
 }
 
-export function App() {
+interface AppProps {
+  initialEntries?: string[];
+  initialOnboardingComplete?: boolean;
+}
+
+export function App({ initialEntries = ["/"], initialOnboardingComplete = false }: AppProps = {}) {
   return (
-    <MemoryRouter initialEntries={["/"]} initialIndex={0}>
-      <AppRoutes />
+    <MemoryRouter initialEntries={initialEntries} initialIndex={0}>
+      <AppRoutes initialOnboardingComplete={initialOnboardingComplete} />
     </MemoryRouter>
   );
 }

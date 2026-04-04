@@ -16,6 +16,10 @@ interface Toast {
 
 let toastId = 0;
 
+export function buildServerActionArgs(server: Pick<ServerInfo, "name">): { name: string } {
+  return { name: server.name };
+}
+
 async function safeInvoke(cmd: string, args: Record<string, unknown>): Promise<void> {
   const { invoke } = await import("@tauri-apps/api/core");
   await invoke(cmd, args);
@@ -108,7 +112,7 @@ export function ServerCard({ server }: ServerCardProps) {
     if (isBusy) return;
     setPendingOp(op);
     setOptimisticStatus(optimistic);
-    safeInvoke(cmd, { id: server.id })
+    safeInvoke(cmd, buildServerActionArgs(server))
       .then(() => {
         showToast(`${op.charAt(0).toUpperCase() + op.slice(1)} succeeded`, "success");
       })

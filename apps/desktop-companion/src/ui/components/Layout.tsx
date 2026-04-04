@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: "/servers", label: "Servers", icon: "⬡" },
   { to: "/skills", label: "Skills", icon: "◈" },
   { to: "/sessions", label: "Tasks", icon: "◫" },
+  { to: "/sites", label: "Sites", icon: "⊕" },
   { to: "/governance", label: "Governance", icon: "⛨" },
   { to: "/usage", label: "Usage", icon: "◷" },
   { to: "/settings", label: "Settings", icon: "⚙" },

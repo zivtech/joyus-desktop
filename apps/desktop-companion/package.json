@@ -7,8 +7,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "build:frontend": "vite build",
     "build:sidecar": "node scripts/bundle-sidecar.mjs",
-    "download:node": "node scripts/download-node.mjs"
+    "download:node": "node scripts/download-node.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@joyus/desktop-sync": "workspace:*",

@@ -50,6 +50,12 @@ importers:
       '@joyus/session-manager':
         specifier: workspace:*
         version: link:../../packages/session-manager
+      '@joyus/settings-reconciler':
+        specifier: workspace:*
+        version: link:../../packages/settings-reconciler
+      '@joyus/skill-sync':
+        specifier: workspace:*
+        version: link:../../packages/skill-sync
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1
@@ -101,6 +107,8 @@ importers:
   packages/session-agent: {}
 
   packages/session-manager: {}
+
+  packages/settings-reconciler: {}
 
   packages/skill-sync: {}
 

@@ -6,7 +6,8 @@
   "copyright": "© 2024 Joyus Inc.",
   "category": "DeveloperTool",
   "build": {
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "pnpm --filter @joyus/desktop-companion run build:frontend",
+    "frontendDist": "../dist-ui"
   },
   "bundle": {
     "active": true,
@@ -30,7 +31,8 @@
       "digestAlgorithm": "sha256",
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerScript": "nsis/installer.nsi"
       }
     }
   },
@@ -39,7 +41,7 @@
       "endpoints": [
         "https://releases.joyus.dev/desktop-companion/update/{{target}}/{{arch}}/{{current_version}}"
       ],
-      "pubkey": "<TAURI_UPDATE_PUBLIC_KEY>"
+      "pubkey": "$TAURI_UPDATER_PUBKEY"
     }
   }
 }

@@ -1,5 +1,6 @@
 use serde_json::Value;
-use tauri::{command, State};
+use tauri::{command, AppHandle, State};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::sidecar::SidecarState;
 
@@ -84,9 +85,56 @@ pub async fn set_config(state: State<'_, SidecarState>, key: String, value: Stri
 }
 
 #[command]
-pub async fn toggle_autostart(enabled: bool) -> Result<(), String> {
+pub async fn toggle_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let autolaunch = app.autolaunch();
+    if enabled {
+        autolaunch.enable().map_err(|e| format!("Autostart error: {e}"))?;
+    } else {
+        autolaunch.disable().map_err(|e| format!("Autostart error: {e}"))?;
+    }
     log::info!("Autostart toggled: {}", enabled);
     Ok(())
+}
+
+#[command]
+pub async fn get_autostart_status(app: AppHandle) -> Result<Value, String> {
+    let autolaunch = app.autolaunch();
+    let enabled = autolaunch
+        .is_enabled()
+        .map_err(|e| format!("Autostart error: {e}"))?;
+    Ok(serde_json::json!({ "enabled": enabled }))
+}
+
+// ─── Site commands ───────────────────────────────────────────────────────────
+
+#[command]
+pub async fn site_list_local(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("sites.listLocal", Value::Object(Default::default())).await
+}
+
+#[command]
+pub async fn site_list_remote(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("sites.listRemote", Value::Object(Default::default())).await
+}
+
+#[command]
+pub async fn site_start(state: State<'_, SidecarState>, site_id: String) -> Result<Value, String> {
+    state.send_request("sites.start", serde_json::json!({ "siteId": site_id })).await
+}
+
+#[command]
+pub async fn site_stop(state: State<'_, SidecarState>, site_id: String) -> Result<Value, String> {
+    state.send_request("sites.stop", serde_json::json!({ "siteId": site_id })).await
+}
+
+#[command]
+pub async fn site_restart(state: State<'_, SidecarState>, site_id: String) -> Result<Value, String> {
+    state.send_request("sites.restart", serde_json::json!({ "siteId": site_id })).await
+}
+
+#[command]
+pub async fn site_provision(state: State<'_, SidecarState>, repo_url: String) -> Result<Value, String> {
+    state.send_request("sites.provision", serde_json::json!({ "repoUrl": repo_url })).await
 }
 
 /// Stop all MCP server processes, remove managed .mcp.json entries, and optionally
