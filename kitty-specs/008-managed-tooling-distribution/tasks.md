@@ -76,12 +76,12 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: None
 **Estimated prompt size**: ~400 lines
 
-- [ ] T001: Scaffold packages/settings-reconciler (package.json, tsconfig.json, src/, test/)
-- [ ] T002: Define manifest types (DistributionManifest, ManifestBundle, ManifestHook, ManifestMcpServer, HookEventType, SettingsTarget)
-- [ ] T003: Implement manifest validation (schema_version, joyus: prefix, required fields, type guards)
-- [ ] T004: Implement manifest fetching from control plane URL (with fetch injection)
-- [ ] T005: Export public API from index.ts
-- [ ] T006: Tests for manifest module — validation edge cases, fetch success/failure, invalid JSON
+- [x] T001: Scaffold packages/settings-reconciler (package.json, tsconfig.json, src/, test/)
+- [x] T002: Define manifest types (DistributionManifest, ManifestBundle, ManifestHook, ManifestMcpServer, HookEventType, SettingsTarget)
+- [x] T003: Implement manifest validation (schema_version, joyus: prefix, required fields, type guards)
+- [x] T004: Implement manifest fetching from control plane URL (with fetch injection)
+- [x] T005: Export public API from index.ts
+- [x] T006: Tests for manifest module — validation edge cases, fetch success/failure, invalid JSON
 
 **Implementation notes**: Follow existing package patterns (see skill-sync for reference). Use readonly types and strict validation. The manifest types from `contracts/distribution-manifest.ts` are the design source.
 
@@ -97,11 +97,11 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: None (uses own types, no manifest dependency)
 **Estimated prompt size**: ~350 lines
 
-- [ ] T007: Define registry types (ManagedRegistry, RegistryEntry)
-- [ ] T008: Implement registry read with graceful handling of ENOENT, corrupted JSON, empty file
-- [ ] T009: Implement registry write (atomic: write-to-temp-then-rename)
-- [ ] T010: Implement registry repair — scan settings.json for joyus:-prefixed entries, rebuild registry
-- [ ] T011: Tests for registry — read/write, missing file, corrupted file, repair from prefix scan
+- [x] T007: Define registry types (ManagedRegistry, RegistryEntry)
+- [x] T008: Implement registry read with graceful handling of ENOENT, corrupted JSON, empty file
+- [x] T009: Implement registry write (atomic: write-to-temp-then-rename)
+- [x] T010: Implement registry repair — scan settings.json for joyus:-prefixed entries, rebuild registry
+- [x] T011: Tests for registry — read/write, missing file, corrupted file, repair from prefix scan
 
 **Implementation notes**: Registry repair needs to understand both hook format (joyus: in matcher) and MCP format (joyus: as key prefix). The repair function takes a settings.json path as input.
 
@@ -117,11 +117,11 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 **Dependencies**: None
 **Estimated prompt size**: ~350 lines
 
-- [ ] T012: Implement settings.json read — handle missing (return empty), corrupted JSON (backup + return empty), empty file (return empty)
-- [ ] T013: Implement atomic write — write to `.tmp` in same directory, then `fs.rename()`
-- [ ] T014: Implement backup creation before reconciliation — copy current file to backup dir, rotate old backups (max configurable, default 5)
-- [ ] T015: Implement rollback — restore from most recent backup on failure
-- [ ] T016: Tests for all operations — happy path, missing file, corrupted file, backup rotation, rollback after failure
+- [x] T012: Implement settings.json read — handle missing (return empty), corrupted JSON (backup + return empty), empty file (return empty)
+- [x] T013: Implement atomic write — write to `.tmp` in same directory, then `fs.rename()`
+- [x] T014: Implement backup creation before reconciliation — copy current file to backup dir, rotate old backups (max configurable, default 5)
+- [x] T015: Implement rollback — restore from most recent backup on failure
+- [x] T016: Tests for all operations — happy path, missing file, corrupted file, backup rotation, rollback after failure
 
 **Implementation notes**: Use the same backup infrastructure pattern as skill-sync (stampNow for backup dir names, sorted oldest-first for rotation). Atomic rename is POSIX-safe for same-volume operations.
 
@@ -215,11 +215,11 @@ WP07 depends on WP04 + WP05 + WP06 (wires everything together).
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: in_progress
-- WP02: in_progress
-- WP03: in_progress
-- WP04: approved
-- WP05: approved
-- WP06: approved
-- WP07: approved
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
 <!-- status-model:end -->

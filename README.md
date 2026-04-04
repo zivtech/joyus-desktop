@@ -65,7 +65,7 @@ The feature specs under `kitty-specs/` are the best status snapshot for the repo
 | 005 | Live control plane integration | Complete |
 | 006 | Managed git sessions | Complete |
 | 007 | Local and remote site manager | In progress |
-| 008 | Managed tooling distribution | In progress |
+| 008 | Managed tooling distribution | Complete |
 
 ## Current Features
 
