@@ -176,8 +176,11 @@ WP03 (drift) ──────────────────────�
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: in_progress
-- WP02: in_progress
-- WP03: in_progress
-- WP07: for_review
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
 <!-- status-model:end -->

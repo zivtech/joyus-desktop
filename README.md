@@ -63,8 +63,8 @@ The feature specs under `kitty-specs/` are the best status snapshot for the repo
 | 003 | Skill and MCP distribution | Complete |
 | 004 | Desktop application shell | Complete |
 | 005 | Live control plane integration | Complete |
-| 006 | Managed git sessions | In progress |
-| 007 | Local and remote site manager | Accepted and planned |
+| 006 | Managed git sessions | Complete |
+| 007 | Local and remote site manager | In progress |
 | 008 | Managed tooling distribution | In progress |
 
 ## Current Features
