@@ -1,8 +1,10 @@
 {
-  "event_count": 11,
-  "feature_slug": "006-managed-git-sessions",
-  "last_event_id": "01KN70KZBP7FN4FFV2DWTJY1M2",
-  "materialized_at": "2026-04-04T19:30:00.000000+00:00",
+  "event_count": 20,
+  "last_event_id": "01KPR4E9Q0ZMJ68RP2XP5Q1YDD",
+  "materialized_at": "2026-04-21T13:42:26.261710+00:00",
+  "mission_number": "006",
+  "mission_slug": "006-managed-git-sessions",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,57 +13,58 @@
     "done": 7,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "audit",
+      "actor": "migration",
       "force_count": 2,
       "lane": "done",
-      "last_event_id": "01KN70KZBGP48AVMDC312SJARS",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9PZ5ZD8KEMX7F3K99V8",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP02": {
-      "actor": "audit",
+      "actor": "migration",
       "force_count": 2,
       "lane": "done",
-      "last_event_id": "01KN70KZBH0SNVC78Z9SN9T028",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9PZ5ZD8KEMX7F3K99V9",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP03": {
-      "actor": "audit",
+      "actor": "migration",
       "force_count": 2,
       "lane": "done",
-      "last_event_id": "01KN70KZBJ9P48SDBC0C043EVS",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9PZ5ZD8KEMX7F3K99VA",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP04": {
-      "actor": "audit",
-      "force_count": 1,
+      "actor": "migration",
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KN70KZBJ9P48SDBC0C043EVS",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9Q0ZMJ68RP2XP5Q1YD4",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP05": {
-      "actor": "audit",
-      "force_count": 1,
+      "actor": "migration",
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KN70KZBJ9P48SDBC0C043EVS",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9Q0ZMJ68RP2XP5Q1YD8",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP06": {
-      "actor": "audit",
-      "force_count": 1,
+      "actor": "migration",
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KN70KZBJ9P48SDBC0C043EVS",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9Q0ZMJ68RP2XP5Q1YDC",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     },
     "WP07": {
-      "actor": "audit",
+      "actor": "migration",
       "force_count": 2,
       "lane": "done",
-      "last_event_id": "01KN70KZBP7FN4FFV2DWTJY1M2",
-      "last_transition_at": "2026-04-04T19:30:00.000000+00:00"
+      "last_event_id": "01KPR4E9Q0ZMJ68RP2XP5Q1YDD",
+      "last_transition_at": "2026-04-21T13:42:26.261710+00:00"
     }
   }
 }

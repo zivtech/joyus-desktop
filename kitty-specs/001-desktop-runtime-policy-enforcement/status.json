@@ -1,8 +1,10 @@
 {
   "event_count": 4,
-  "feature_slug": "001-desktop-runtime-policy-enforcement",
   "last_event_id": "01KN70KZ9W7ECA4RKSXGXAAFCC",
-  "materialized_at": "2026-04-02T11:52:50.870202+00:00",
+  "materialized_at": "2026-03-05T19:13:01Z",
+  "mission_number": "001",
+  "mission_slug": "001-desktop-runtime-policy-enforcement",
+  "mission_type": "research",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +13,7 @@
     "done": 4,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
