@@ -1,21 +1,23 @@
 ---
 work_package_id: WP05
 title: Tenant Config Module
-lane: approved
 dependencies: [WP01]
 requirement_refs: [FR-009]
 planning_base_branch: feat/008-managed-tooling-distribution
 merge_target_branch: feat/008-managed-tooling-distribution
 branch_strategy: Planning artifacts for this feature were generated on feat/008-managed-tooling-distribution. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/008-managed-tooling-distribution unless the human explicitly redirects the landing branch.
 subtasks: [T024, T025, T026, T027]
-agent: codex
-shell_pid: '76971'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-04-01'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG6
+owned_files:
+- src/tenantConfig.ts
+- test/tenantConfig.test.ts
+wp_code: WP05
 ---
 
 # WP05: Tenant Config Module

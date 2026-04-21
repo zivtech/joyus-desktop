@@ -1,17 +1,23 @@
 ---
 work_package_id: WP01
 title: Tauri Project Scaffold
-lane: done
 dependencies: []
 subtasks: [T001, T002, T003, T004, T005]
-agent: claude-opus-reviewer
-shell_pid: '74680'
-review_status: has_feedback
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/**/*.ts
+- src/**/*.tsx
+- src/lib.rs
+- src/main.rs
+- src/ui/App.tsx
+- src/ui/main.tsx
+wp_code: WP01
 ---
 
 # WP01 — Tauri Project Scaffold

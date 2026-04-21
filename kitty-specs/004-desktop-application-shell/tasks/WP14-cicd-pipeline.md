@@ -1,17 +1,18 @@
 ---
 work_package_id: WP14
 title: CI/CD Pipeline
-lane: done
 dependencies: []
 subtasks: [T058, T059, T060, T061, T062]
-agent: agent-wp14
-shell_pid: '93253'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/**
+wp_code: WP14
 ---
 
 # WP14 — CI/CD Pipeline

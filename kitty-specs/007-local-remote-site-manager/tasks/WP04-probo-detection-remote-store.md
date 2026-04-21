@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Probo Detection & Remote Environment Store
-lane: planned
 dependencies: []
 requirement_refs: [FR-007]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,18 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- kitty-specs/007-local-remote-site-manager/contracts/environment-monitor.ts
+- kitty-specs/007-local-remote-site-manager/data-model.md
+- src/index.ts
+- src/proboDetector.ts
+- src/remoteEnvironmentStore.ts
+- test/proboDetector.test.ts
+- test/remoteEnvironmentStore.test.ts
+wp_code: WP04
 ---
 
 # WP04: Probo Detection & Remote Environment Store

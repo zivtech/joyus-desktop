@@ -5,5 +5,6 @@
   "friendly_name": "skill mcp distribution",
   "mission": "research",
   "slug": "003-skill-mcp-distribution",
-  "target_branch": "main"
+  "target_branch": "main",
+  "mission_id": "01KPR4E967F61H0B7K24440QG1"
 }

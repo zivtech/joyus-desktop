@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Governance & Telemetry Integration
-lane: done
 dependencies: []
 subtasks:
 - T048
@@ -11,16 +10,24 @@ subtasks:
 - T052
 - T069
 phase: Phase 2 - Desktop Companion
-assignee: ''
-agent: claude-opus
-shell_pid: '83765'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/verification/wp09-governance-verification.md
+- docs/verification/wp09-telemetry-verification.md
+- kitty-specs/001-desktop-runtime-policy-enforcement/**
+- src/__tests__/governance-integration.test.ts
+- src/__tests__/telemetry-integration.test.ts
+- src/governance-integration.ts
+- src/governance.ts
+- src/telemetry-integration.ts
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 - Governance & Telemetry Integration

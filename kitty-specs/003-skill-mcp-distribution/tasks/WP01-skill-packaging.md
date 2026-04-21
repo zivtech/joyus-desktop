@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Skill Packaging & Bundling
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -10,16 +9,19 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Cowork Distribution
-assignee: ''
-agent: claude-opus-reviewer
-shell_pid: '31830'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: docs/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/admin-guides/bundle-assignments.md
+- docs/skill-audit.md
+- docs/verification/wp01-smoke-test.md
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 - Skill Packaging & Bundling

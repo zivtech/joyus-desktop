@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Handoff Orchestrator
-lane: done
 dependencies: [WP01, WP02, WP03, WP04, WP05, WP06]
 subtasks:
 - T031
@@ -11,17 +10,19 @@ subtasks:
 - T035
 - T036
 phase: Phase 5 - Integration
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- src/handoffOrchestrator.test.ts
+- src/handoffOrchestrator.ts
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Handoff Orchestrator

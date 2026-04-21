@@ -1,16 +1,20 @@
 ---
 work_package_id: WP01
 title: Control Plane HTTP Client
-lane: done
 dependencies: []
 subtasks: [T001, T002, T003, T004, T005]
-agent: claude
-shell_pid: '21096'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- src/controlPlaneClient.ts
+- src/controlPlaneContracts.ts
+- src/index.ts
+- test/controlPlaneClient.test.ts
+wp_code: WP01
 ---
 
 # WP01 — Control Plane HTTP Client

@@ -1,16 +1,19 @@
 ---
 work_package_id: WP02
 title: Replay Cache
-lane: done
 dependencies: []
 subtasks: [T006, T007, T008, T009, T010]
-agent: claude
-shell_pid: '21512'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- src/index.ts
+- src/replayCache.ts
+- test/replayCache.test.ts
+wp_code: WP02
 ---
 
 # WP02 — Replay Cache

@@ -1,12 +1,25 @@
 ---
 work_package_id: WP06
 title: Integration Test Suite
-lane: planned
 dependencies: []
 subtasks: [T036, T037, T038, T039, T040, T041]
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- docs/README.md
+- src/*.ts
+- src/a.ts
+- src/b.ts
+- src/components/Button.tsx
+- src/components/Modal.tsx
+- src/index.ts
+- test/integration/**
+- test/replayCache.test.ts
+wp_code: WP06
 ---
 
 # WP06 — Integration Test Suite

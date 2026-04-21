@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Activity Log
-lane: planned
 dependencies: [WP04]
 requirement_refs: [FR-018]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,13 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- src/activityLog.ts
+- test/activityLog.test.ts
+wp_code: WP05
 ---
 
 # WP05: Activity Log

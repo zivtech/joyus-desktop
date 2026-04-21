@@ -1,19 +1,20 @@
 ---
 work_package_id: WP06
 title: Integration Test Suite
-lane: done
 dependencies: []
 base_branch: 005-live-control-plane-integration-WP05
 base_commit: f1bc883a26d59b5633bfa90df9cfd78da3c5d077
 created_at: '2026-03-19T12:08:54.085829+00:00'
 subtasks: [T028, T029, T030, T031, T032, T033, T034]
-agent: claude
-shell_pid: '46256'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: test/integration/control-plane-wiring.test.ts/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- test/integration/control-plane-wiring.test.ts
+wp_code: WP06
 ---
 
 # WP06 — Integration Test Suite

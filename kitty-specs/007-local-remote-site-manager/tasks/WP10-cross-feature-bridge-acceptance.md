@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Cross-Feature Event Bridge & Acceptance
-lane: planned
 dependencies:
 - WP03
 - WP09
@@ -14,6 +13,16 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- src/deploymentStatusPoller.ts
+- src/environmentMonitor.ts
+- src/index.ts
+- src/unifiedSiteList.ts
+- test/integration.test.ts
+wp_code: WP10
 ---
 
 # WP10: Cross-Feature Event Bridge & Acceptance

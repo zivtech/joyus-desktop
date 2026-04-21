@@ -1,17 +1,20 @@
 ---
 work_package_id: WP07
 title: System Tray & Platform Integration
-lane: done
 dependencies: []
 subtasks: [T031, T032, T033, T034]
-agent: agent-wp07
-shell_pid: '66406'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/commands.rs
+- src/main.rs
+- src/tray.rs
+wp_code: WP07
 ---
 
 # WP07 — System Tray & Platform Integration

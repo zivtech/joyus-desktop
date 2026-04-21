@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Cloud Snapshot Verification & Session Reconstruction
-lane: done
 dependencies: [WP01, WP04]
 subtasks:
 - T037
@@ -9,17 +8,19 @@ subtasks:
 - T039
 - T040
 phase: Phase 6 - Verification
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- src/handoffVerification.test.ts
+- src/handoffVerification.ts
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Cloud Snapshot Verification & Session Reconstruction

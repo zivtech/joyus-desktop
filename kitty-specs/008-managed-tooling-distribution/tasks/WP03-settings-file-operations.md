@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Settings File Operations
-lane: in_progress
 dependencies: []
 requirement_refs: [FR-012, FR-014, FR-015]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -12,6 +11,14 @@ history:
 - date: '2026-04-01'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG6
+owned_files:
+- src/settingsFile.ts
+- src/sync.ts
+- test/settingsFile.test.ts
+wp_code: WP03
 ---
 
 # WP03: Settings File Operations

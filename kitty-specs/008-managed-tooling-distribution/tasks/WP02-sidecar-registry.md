@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Sidecar Registry Module
-lane: in_progress
 dependencies: []
 requirement_refs: [FR-007, FR-013]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -12,6 +11,14 @@ history:
 - date: '2026-04-01'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG6
+owned_files:
+- src/metadata.ts
+- src/registry.ts
+- test/registry.test.ts
+wp_code: WP02
 ---
 
 # WP02: Sidecar Registry Module

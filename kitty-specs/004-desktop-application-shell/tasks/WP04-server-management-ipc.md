@@ -1,17 +1,20 @@
 ---
 work_package_id: WP04
 title: Server Management IPC
-lane: done
 dependencies: []
 subtasks: [T017, T018, T019, T020]
-agent: agent-wp04
-shell_pid: '66406'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/sidecar/chrome-detect.ts
+- src/sidecar/services.ts
+- test/sidecar/server-management.test.ts
+wp_code: WP04
 ---
 
 # WP04 — Server Management IPC

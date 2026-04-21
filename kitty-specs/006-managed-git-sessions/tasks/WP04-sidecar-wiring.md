@@ -1,12 +1,22 @@
 ---
 work_package_id: WP04
 title: Sidecar Wiring
-lane: planned
 dependencies: []
 subtasks: [T021, T022, T023, T024, T025, T026, T027]
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- src/controlPlaneWiring.ts
+- src/sidecar/ipc-handler.ts
+- src/sidecar/main.ts
+- src/sidecar/services.ts
+- src/sidecar/sessionWiring.ts
+- test/sessionWiring.test.ts
+wp_code: WP04
 ---
 
 # WP04 — Sidecar Wiring

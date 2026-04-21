@@ -5,5 +5,6 @@
   "friendly_name": "desktop runtime policy enforcement",
   "mission": "research",
   "slug": "001-desktop-runtime-policy-enforcement",
-  "target_branch": "main"
+  "target_branch": "main",
+  "mission_id": "01KPR4E966V9S8Q9N5DG5R4DK0"
 }

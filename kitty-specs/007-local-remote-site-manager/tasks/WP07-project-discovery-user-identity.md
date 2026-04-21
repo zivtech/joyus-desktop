@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Project Discovery & User Identity
-lane: planned
 dependencies: [WP04]
 requirement_refs: [FR-010, FR-017]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,15 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- src/projectDiscovery.ts
+- src/userIdentity.ts
+- test/projectDiscovery.test.ts
+- test/userIdentity.test.ts
+wp_code: WP07
 ---
 
 # WP07: Project Discovery & User Identity

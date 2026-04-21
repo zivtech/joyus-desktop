@@ -1,16 +1,20 @@
 ---
 work_package_id: WP03
 title: Token Refresh Service
-lane: done
 dependencies: []
 subtasks: [T011, T012, T013, T014, T015]
-agent: claude
-shell_pid: '21900'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- src/controlPlaneContracts.ts
+- src/index.ts
+- src/tokenRefresh.ts
+- test/tokenRefresh.test.ts
+wp_code: WP03
 ---
 
 # WP03 — Token Refresh Service

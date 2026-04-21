@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Handoff State Machine & Types
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -9,17 +8,23 @@ subtasks:
 - T003
 - T004
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude-opus
-shell_pid: '36405'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- kitty-specs/002-desktop-cloud-session-handoff/research/data-model.md
+- src/handoffStateMachine.test.ts
+- src/handoffStateMachine.ts
+- src/handoffTypes.test.ts
+- src/handoffTypes.ts
+- src/index.ts
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Handoff State Machine & Types

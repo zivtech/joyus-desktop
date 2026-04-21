@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: First-Party MCP Connector Setup
-lane: done
 dependencies: []
 subtasks:
 - T006
@@ -12,16 +11,18 @@ subtasks:
 - T011
 - T012
 phase: Phase 1 - Cowork Distribution
-assignee: ''
-agent: codex
-shell_pid: '62606'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: docs/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/user-guides/mcp-connector-oauth-guide.md
+- docs/verification/wp02-connector-verification.md
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 - First-Party MCP Connector Setup

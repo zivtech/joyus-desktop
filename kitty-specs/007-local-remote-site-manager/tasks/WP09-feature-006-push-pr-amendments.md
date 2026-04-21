@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Feature 006 Push/PR Amendments
-lane: planned
 dependencies: [WP03, WP08]
 requirement_refs: [FR-019, FR-022]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,21 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- kitty-specs/006-managed-git-sessions/spec.md
+- src/gitPusher.ts
+- src/prCreator.ts
+- src/sessionCloser.ts
+- src/taskBranchStore.ts
+- src/worktreeManager.ts
+- test/gitPusher.test.ts
+- test/prCreator.test.ts
+- test/sessionCloser.test.ts
+- test/taskBranchStore.test.ts
+wp_code: WP09
 ---
 
 # WP09: Feature 006 Push/PR Amendments

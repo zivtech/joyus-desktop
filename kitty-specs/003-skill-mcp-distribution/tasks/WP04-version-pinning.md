@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Version Pinning & Admin Controls
-lane: done
 dependencies: []
 subtasks:
 - T019
@@ -10,16 +9,20 @@ subtasks:
 - T022
 - T023
 phase: Phase 1 - Cowork Distribution
-assignee: ''
-agent: codex
-shell_pid: '39444'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/admin-guides/version-pinning.md
+- docs/admin-guides/versioning-convention.md
+- docs/verification/wp04-version-pin-verification.md
+- src/sync.ts
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 - Version Pinning & Admin Controls

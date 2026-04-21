@@ -1,16 +1,31 @@
 ---
 work_package_id: WP01
 title: 'session-manager: Store & Worktree Operations'
-lane: in_progress
 dependencies: []
 base_branch: main
 base_commit: c93ca06c8b87d6f6c0a31b1168de96e1c9216dbf
 created_at: '2026-03-20T01:26:31.973491+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006, T007, T008]
-shell_pid: '41754'
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- kitty-specs/006-managed-git-sessions/contracts/session-manager.ts
+- kitty-specs/006-managed-git-sessions/data-model.md
+- src/index.ts
+- src/missionInferrer.ts
+- src/replayCache.ts
+- src/taskBranchStore.ts
+- src/types.ts
+- src/worktreeManager.ts
+- test/missionInferrer.test.ts
+- test/replayCache.test.ts
+- test/taskBranchStore.test.ts
+- test/worktreeManager.test.ts
+wp_code: WP01
 ---
 
 # WP01 — session-manager: Store & Worktree Operations

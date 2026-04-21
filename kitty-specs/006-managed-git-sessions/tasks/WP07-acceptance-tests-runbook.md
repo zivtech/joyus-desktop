@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Acceptance Tests & Runbook
-lane: for_review
 dependencies: []
 subtasks: [T042, T043, T044, T045, T046, T047, T048]
 history:
@@ -10,6 +9,16 @@ history:
 - date: '2026-03-20'
   event: implemented
   note: All 7 artifacts delivered. 39 acceptance tests passing, 100% coverage, typecheck clean.
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- docs/operations/runbook-006.md
+- kitty-specs/006-managed-git-sessions/spec.md
+- test/acceptance/**
+- test/my/**
+- test/my-project/**
+wp_code: WP07
 ---
 
 # WP07 — Acceptance Tests & Runbook

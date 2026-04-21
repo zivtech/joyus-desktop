@@ -1,17 +1,21 @@
 ---
 work_package_id: WP11
 title: Onboarding Wizard
-lane: done
 dependencies: []
 subtasks: [T045, T046, T047, T048]
-agent: agent-wp11
-shell_pid: '52414'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/commands.rs
+- src/ui/App.tsx
+- src/ui/components/OnboardingStep.tsx
+- src/ui/pages/Onboarding.tsx
+wp_code: WP11
 ---
 
 # WP11 — Onboarding Wizard

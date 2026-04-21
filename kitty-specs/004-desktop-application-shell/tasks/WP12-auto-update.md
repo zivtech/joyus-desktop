@@ -1,17 +1,22 @@
 ---
 work_package_id: WP12
 title: Auto-Update
-lane: done
 dependencies: []
 subtasks: [T049, T050, T051, T052]
-agent: agent-wp12
-shell_pid: '66406'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- kitty-specs/004-desktop-application-shell/quickstart.md
+- src/main.rs
+- src/ui/App.tsx
+- src/ui/components/UpdateBanner.tsx
+- src/updater.rs
+wp_code: WP12
 ---
 
 # WP12 — Auto-Update

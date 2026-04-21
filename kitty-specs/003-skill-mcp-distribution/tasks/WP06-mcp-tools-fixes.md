@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Fix zivtech-mcp-tools Critical Issues
-lane: done
 dependencies: []
 subtasks:
 - T031
@@ -14,16 +13,21 @@ subtasks:
 - T038
 - T066
 phase: Phase 2 - Desktop Companion
-assignee: ''
-agent: claude-opus
-shell_pid: '79561'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- src/**/*/**
+- src/__tests__/**
+- src/governance.ts
+- src/index.ts
+- src/telemetry.ts
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 - Fix zivtech-mcp-tools Critical Issues

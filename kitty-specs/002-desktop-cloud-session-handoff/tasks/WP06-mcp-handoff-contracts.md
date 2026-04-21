@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: MCP Handoff Contracts
-lane: done
 dependencies: [WP01]
 subtasks:
 - T026
@@ -10,17 +9,20 @@ subtasks:
 - T029
 - T030
 phase: Phase 4 - Transport
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- src/controlPlaneContracts.ts
+- src/handoffContracts.test.ts
+- src/handoffContracts.ts
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – MCP Handoff Contracts

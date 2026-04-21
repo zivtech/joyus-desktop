@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Snapshot Assembly
-lane: done
 dependencies: [WP01]
 base_branch: 002-desktop-cloud-session-handoff-WP01
 base_commit: a9a6bf7926cf3f8037515271481ea2cf3184a8fb
@@ -13,17 +12,20 @@ subtasks:
 - T008
 - T009
 phase: Phase 2 - Core Capabilities
-assignee: ''
-agent: ''
-shell_pid: '84427'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- src/handoffTypes.ts
+- src/snapshotAssembly.test.ts
+- src/snapshotAssembly.ts
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Snapshot Assembly

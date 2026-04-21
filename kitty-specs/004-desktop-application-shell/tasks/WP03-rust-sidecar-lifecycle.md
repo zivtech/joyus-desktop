@@ -1,17 +1,20 @@
 ---
 work_package_id: WP03
 title: Rust Sidecar Lifecycle & Event Bridge
-lane: done
 dependencies: []
 subtasks: [T012, T013, T014, T015, T016]
-agent: claude-opus
-shell_pid: '46136'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/commands.rs
+- src/main.rs
+- src/sidecar.rs
+wp_code: WP03
 ---
 
 # WP03 — Rust Sidecar Lifecycle & Event Bridge

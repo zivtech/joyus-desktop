@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Local Site Store & Manager
-lane: planned
 dependencies: [WP01, WP02]
 requirement_refs: [FR-003, FR-005, FR-014]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,16 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- kitty-specs/007-local-remote-site-manager/data-model.md
+- src/localSiteManager.ts
+- src/localSiteStore.ts
+- test/localSiteManager.test.ts
+- test/localSiteStore.test.ts
+wp_code: WP03
 ---
 
 # WP03: Local Site Store & Manager

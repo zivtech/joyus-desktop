@@ -1,17 +1,28 @@
 ---
 work_package_id: WP08
 title: Dashboard Layout & IPC Hooks
-lane: done
 dependencies: []
 subtasks: [T035, T036, T037, T038]
-agent: claude-opus
-shell_pid: '73262'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/ui/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/ui/App.tsx
+- src/ui/components/Layout.tsx
+- src/ui/components/ServerCard.tsx
+- src/ui/components/SkillList.tsx
+- src/ui/components/StatusBadge.tsx
+- src/ui/hooks/useGovernance.ts
+- src/ui/hooks/useServerStatus.ts
+- src/ui/hooks/useSyncStatus.ts
+- src/ui/hooks/useTauriEvent.ts
+- src/ui/pages/Dashboard.tsx
+- src/ui/styles/**
+wp_code: WP08
 ---
 
 # WP08 — Dashboard Layout & IPC Hooks

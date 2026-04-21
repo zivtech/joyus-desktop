@@ -5,7 +5,14 @@
 spec_kitty:
   version: 2.1.3
   initialized_at: '2026-03-09T21:37:47.163305'
-  last_upgraded_at: '2026-04-02T07:52:51.509717'
+  last_upgraded_at: '2026-04-21T13:42:26.490282+00:00'
+  project_uuid: 01KPR4E960ANH2N4AMJ225V8GM
+  schema_version: 3
+  schema_capabilities:
+  - canonical_context
+  - event_log_authority
+  - ownership_manifest
+  - thin_shims
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -15,9 +22,7 @@ migrations:
   - id: 0.13.8_target_branch
     applied_at: '2026-04-02T07:52:50.731397'
     result: success
-    notes: Added target_branch=main to 005-live-control-plane-integration; Added target_branch=main
-      to 006-managed-git-sessions; Added target_branch=main to 002-desktop-cloud-session-handoff;
-      Added target_branch=main to 004-desktop-application-shell
+    notes: Added target_branch=main to 005-live-control-plane-integration; Added target_branch=main to 006-managed-git-sessions; Added target_branch=main to 002-desktop-cloud-session-handoff; Added target_branch=main to 004-desktop-application-shell
   - id: 0.14.0_centralized_feature_detection
     applied_at: '2026-04-02T07:52:50.735155'
     result: skipped
@@ -25,50 +30,27 @@ migrations:
   - id: 2.0.0a5_remove_wp_status_gitignore_rule
     applied_at: '2026-04-02T07:52:50.736645'
     result: success
-    notes: 'Removed 3 stale WP status ignore entries from .gitignore; Line 33: Removed
-      ''# Block WP status files (managed in main repo, prevents merge conflicts)'';
-      Line 34: Removed ''# Research artifacts in kitty-specs/**/research/ are allowed'';
-      Line 35: Removed ''kitty-specs/**/tasks/*.md'''
-  - id: 2.0.0_constitution_directory
+    notes: 'Removed 3 stale WP status ignore entries from .gitignore; Line 33: Removed ''# Block WP status files (managed in main repo, prevents merge conflicts)''; Line 34: Removed ''# Research artifacts in kitty-specs/**/research/ are allowed''; Line 35: Removed ''kitty-specs/**/tasks/*.md'''
+  - id: 2.0.0_charter_directory
     applied_at: '2026-04-02T07:52:50.740879'
     result: success
-    notes: 'Moved .kittify/memory/constitution.md -> .kittify/constitution/constitution.md;
-      Initial extraction: 3 YAML files created'
+    notes: 'Moved .kittify/memory/constitution.md -> .kittify/constitution/constitution.md; Initial extraction: 3 YAML files created'
   - id: 2.0.0_historical_status_migration
     applied_at: '2026-04-02T07:52:50.807039'
     result: success
-    notes: '001-desktop-runtime-policy-enforcement: migrated (4 WPs, 4 events); 002-desktop-cloud-session-handoff:
-      migrated (8 WPs, 8 events); 003-skill-mcp-distribution: migrated (11 WPs, 11
-      events); 004-desktop-application-shell: migrated (15 WPs, 15 events); 005-live-control-plane-integration:
-      migrated (7 WPs, 7 events); 006-managed-git-sessions: migrated (4 WPs, 4 events)'
+    notes: '001-desktop-runtime-policy-enforcement: migrated (4 WPs, 4 events); 002-desktop-cloud-session-handoff: migrated (8 WPs, 8 events); 003-skill-mcp-distribution: migrated (11 WPs, 11 events); 004-desktop-application-shell: migrated (15 WPs, 15 events); 005-live-control-plane-integration: migrated (7 WPs, 7 events); 006-managed-git-sessions: migrated (4 WPs, 4 events)'
   - id: 2.0.0_retire_git_hooks
     applied_at: '2026-04-02T07:52:50.809131'
     result: success
-    notes: 'Removed 3 managed git hook(s); Removed managed hook: pre-commit; Removed
-      managed hook: pre-commit-agent-check; Removed managed hook: pre-commit-encoding-check'
+    notes: 'Removed 3 managed git hook(s); Removed managed hook: pre-commit; Removed managed hook: pre-commit-agent-check; Removed managed hook: pre-commit-encoding-check'
   - id: 2.0.1_fix_generated_command_templates
     applied_at: '2026-04-02T07:52:50.815185'
     result: success
-    notes: 'Updated: .claude/commands/spec-kitty.accept.md; Updated: .claude/commands/spec-kitty.analyze.md;
-      Updated: .claude/commands/spec-kitty.checklist.md; Updated: .claude/commands/spec-kitty.merge.md;
-      Updated: .claude/commands/spec-kitty.plan.md; Updated: .claude/commands/spec-kitty.tasks.md'
+    notes: 'Updated: .claude/commands/spec-kitty.accept.md; Updated: .claude/commands/spec-kitty.analyze.md; Updated: .claude/commands/spec-kitty.checklist.md; Updated: .claude/commands/spec-kitty.merge.md; Updated: .claude/commands/spec-kitty.plan.md; Updated: .claude/commands/spec-kitty.tasks.md'
   - id: 2.0.6_consistency_sweep
     applied_at: '2026-04-02T07:52:51.457311'
     result: success
-    notes: 'migrated 0 identical and 55 customized legacy runtime asset(s); cleaned
-      7 worktree(s) with legacy command/script assets; 001-desktop-runtime-policy-enforcement:
-      wrote baseline meta.json; 001-desktop-runtime-policy-enforcement: normalized
-      4 work package files; 002-desktop-cloud-session-handoff: wrote baseline meta.json;
-      002-desktop-cloud-session-handoff: normalized 8 work package files; 003-skill-mcp-distribution:
-      wrote baseline meta.json; 003-skill-mcp-distribution: normalized 11 work package
-      files; 004-desktop-application-shell: wrote baseline meta.json; 004-desktop-application-shell:
-      normalized 15 work package files; 005-live-control-plane-integration: wrote
-      baseline meta.json; 005-live-control-plane-integration: normalized 6 work package
-      files; 006-managed-git-sessions: wrote baseline meta.json; 006-managed-git-sessions:
-      normalized 3 work package files; 006-managed-git-sessions: rewrote 7 legacy
-      prompt reference(s); 007-local-remote-site-manager: wrote baseline meta.json;
-      008-managed-tooling-distribution: wrote baseline meta.json; 008-managed-tooling-distribution:
-      normalized 7 work package files'
+    notes: 'migrated 0 identical and 55 customized legacy runtime asset(s); cleaned 7 worktree(s) with legacy command/script assets; 001-desktop-runtime-policy-enforcement: wrote baseline meta.json; 001-desktop-runtime-policy-enforcement: normalized 4 work package files; 002-desktop-cloud-session-handoff: wrote baseline meta.json; 002-desktop-cloud-session-handoff: normalized 8 work package files; 003-skill-mcp-distribution: wrote baseline meta.json; 003-skill-mcp-distribution: normalized 11 work package files; 004-desktop-application-shell: wrote baseline meta.json; 004-desktop-application-shell: normalized 15 work package files; 005-live-control-plane-integration: wrote baseline meta.json; 005-live-control-plane-integration: normalized 6 work package files; 006-managed-git-sessions: wrote baseline meta.json; 006-managed-git-sessions: normalized 3 work package files; 006-managed-git-sessions: rewrote 7 legacy prompt reference(s); 007-local-remote-site-manager: wrote baseline meta.json; 008-managed-tooling-distribution: wrote baseline meta.json; 008-managed-tooling-distribution: normalized 7 work package files'
   - id: 2.0.7_fix_stale_overrides
     applied_at: '2026-04-02T07:52:51.462010'
     result: skipped
@@ -76,8 +58,7 @@ migrations:
   - id: 2.0.9_state_gitignore
     applied_at: '2026-04-02T07:52:51.464115'
     result: success
-    notes: 'Added runtime state entries to .gitignore: .kittify/runtime/, .kittify/merge-state.json,
-      .kittify/events/, .kittify/dossiers/, kitty-specs/**/.kittify/dossiers/'
+    notes: 'Added runtime state entries to .gitignore: .kittify/runtime/, .kittify/merge-state.json, .kittify/events/, .kittify/dossiers/, kitty-specs/**/.kittify/dossiers/'
   - id: 2.0.11_install_skills
     applied_at: '2026-04-02T07:52:51.479429'
     result: success
@@ -85,13 +66,12 @@ migrations:
   - id: 2.0.11_remove_clarify_command
     applied_at: '2026-04-02T07:52:51.482987'
     result: success
-    notes: 'Removed: .claude/commands/spec-kitty.clarify.md; Removed: .codex/prompts/spec-kitty.clarify.md;
-      Removed 2 clarify command artifacts'
+    notes: 'Removed: .claude/commands/spec-kitty.clarify.md; Removed: .codex/prompts/spec-kitty.clarify.md; Removed 2 clarify command artifacts'
   - id: 2.1.1_repair_skill_pack
     applied_at: '2026-04-02T07:52:51.488924'
     result: skipped
     notes: Not applicable
-  - id: 2.1.2_fix_constitution_doctrine_skill
+  - id: 2.1.2_fix_charter_doctrine_skill
     applied_at: '2026-04-02T07:52:51.491085'
     result: skipped
     notes: Not applicable
@@ -119,3 +99,11 @@ migrations:
     applied_at: '2026-04-02T07:52:51.507184'
     result: skipped
     notes: Not applicable
+  - id: 2.1.4_enforce_command_file_state
+    applied_at: '2026-04-21T09:42:25.656751'
+    result: success
+    notes: 'Wrote prompt: .claude/commands/spec-kitty.analyze.md; Wrote prompt: .claude/commands/spec-kitty.charter.md; Wrote prompt: .claude/commands/spec-kitty.checklist.md; Wrote prompt: .claude/commands/spec-kitty.plan.md; Wrote prompt: .claude/commands/spec-kitty.research.md; Wrote prompt: .claude/commands/spec-kitty.specify.md; Wrote prompt: .claude/commands/spec-kitty.tasks.md; Wrote prompt: .claude/commands/spec-kitty.tasks-outline.md; Wrote prompt: .claude/commands/spec-kitty.tasks-packages.md; Wrote shim: .claude/commands/spec-kitty.accept.md; Wrote shim: .claude/commands/spec-kitty.dashboard.md; Wrote shim: .claude/commands/spec-kitty.implement.md; Wrote shim: .claude/commands/spec-kitty.merge.md; Wrote shim: .claude/commands/spec-kitty.review.md; Wrote shim: .claude/commands/spec-kitty.status.md; Wrote shim: .claude/commands/spec-kitty.tasks-finalize.md'
+  - id: 2.2.0_profile_context_deployment
+    applied_at: '2026-04-21T09:42:25.662679'
+    result: success
+    notes: Deployed .claude/commands/spec-kitty.profile-context.md

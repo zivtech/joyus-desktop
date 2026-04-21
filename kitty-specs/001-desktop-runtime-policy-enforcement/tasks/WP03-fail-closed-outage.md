@@ -1,18 +1,12 @@
 ---
 work_package_id: WP03
 title: Fail-Closed Outage Policy
-lane: done
 dependencies: []
 subtasks:
 - T006
 - T007
 - T008
 phase: Phase 1 - Core Enforcement
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-05T00:00:00Z'
   lane: planned
@@ -22,6 +16,12 @@ history:
   lane: done
   agent: codex
   action: Outage fail-closed matrix completed and verified (external medium/high + internal high).
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK0
+owned_files:
+- src/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 - Fail-Closed Outage Policy

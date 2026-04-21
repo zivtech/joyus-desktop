@@ -1,16 +1,26 @@
 ---
 work_package_id: WP02
 title: 'session-manager: File Modification Detection'
-lane: in_progress
 dependencies: []
 base_branch: 006-managed-git-sessions-WP01
 base_commit: d062bb6fbf0bf2427c64defa0942a67f03ee0782
 created_at: '2026-03-20T01:34:57.735165+00:00'
 subtasks: [T009, T010, T011, T012, T013, T014]
-shell_pid: '71029'
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- kitty-specs/006-managed-git-sessions/contracts/session-manager.ts
+- src/fileModificationDetector.ts
+- src/index.ts
+- src/sessionManager.ts
+- src/sidecar/services.ts
+- test/fileModificationDetector.test.ts
+- test/sessionManager.test.ts
+wp_code: WP02
 ---
 
 # WP02 — session-manager: File Modification Detection

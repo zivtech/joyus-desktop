@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Resumable Upload Client (tus)
-lane: done
 dependencies: [WP01, WP04]
 subtasks:
 - T020
@@ -11,17 +10,19 @@ subtasks:
 - T024
 - T025
 phase: Phase 4 - Transport
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-10T15:13:40Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK1
+owned_files:
+- src/handoffUpload.test.ts
+- src/handoffUpload.ts
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Resumable Upload Client (tus)

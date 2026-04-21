@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Phase 1 Verification & Rollout
-lane: done
 dependencies: []
 subtasks:
 - T053
@@ -13,16 +12,21 @@ subtasks:
 - T059
 - T060
 phase: Phase 1 - Cowork Distribution
-assignee: ''
-agent: claude-opus
-shell_pid: '84232'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: docs/verification/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/verification/wp10-e2e-cowork-onboarding.md
+- docs/verification/wp10-e2e-developer-onboarding.md
+- docs/verification/wp10-no-desktop-required.md
+- docs/verification/wp10-telemetry-report.md
+- docs/verification/wp10-version-propagation.md
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 - Phase 1 Verification & Rollout

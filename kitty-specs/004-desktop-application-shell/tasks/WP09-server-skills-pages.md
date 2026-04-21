@@ -1,17 +1,20 @@
 ---
 work_package_id: WP09
 title: Server & Skills Pages
-lane: done
 dependencies: []
 subtasks: [T039, T040, T041]
-agent: agent-wp09
-shell_pid: '52414'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/ui/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/ui/components/ServerCard.tsx
+- src/ui/pages/Servers.tsx
+- src/ui/pages/Skills.tsx
+wp_code: WP09
 ---
 
 # WP09 — Server & Skills Dashboard Pages

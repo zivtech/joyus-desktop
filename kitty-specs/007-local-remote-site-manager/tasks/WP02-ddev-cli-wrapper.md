@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: DDEV CLI Wrapper
-lane: planned
 dependencies: [WP01]
 requirement_refs: [FR-006, FR-011, FR-012]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,14 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- kitty-specs/007-local-remote-site-manager/research.md
+- src/ddevCli.ts
+- test/ddevCli.test.ts
+wp_code: WP02
 ---
 
 # WP02: DDEV CLI Wrapper

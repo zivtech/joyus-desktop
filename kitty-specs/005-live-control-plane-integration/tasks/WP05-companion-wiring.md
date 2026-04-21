@@ -1,19 +1,24 @@
 ---
 work_package_id: WP05
 title: Companion Wiring
-lane: done
 dependencies: []
 base_branch: 005-live-control-plane-integration-WP04
 base_commit: 5d2d2a59c3310ed4e0eb74bbd7c7e2da9b13f0ac
 created_at: '2026-03-19T11:54:44.033999+00:00'
 subtasks: [T022, T023, T024, T025, T026, T027]
-agent: claude
-shell_pid: '43259'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- src/authorization.ts
+- src/controlPlaneWiring.ts
+- src/handoffAuthorization.ts
+- src/handoffVerification.ts
+- test/controlPlaneWiring.test.ts
+wp_code: WP05
 ---
 
 # WP05 — Companion Wiring

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Environment Monitor Orchestrator
-lane: planned
 dependencies: [WP05, WP06, WP07]
 requirement_refs: [FR-008, FR-009, FR-013]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,13 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- src/environmentMonitor.ts
+- test/environmentMonitor.test.ts
+wp_code: WP08
 ---
 
 # WP08: Environment Monitor Orchestrator

@@ -1,0 +1,12 @@
+{
+  "wp_id": "WP02",
+  "feature_slug": "006-managed-git-sessions",
+  "worktree_path": ".worktrees/006-managed-git-sessions-WP02",
+  "branch_name": "006-managed-git-sessions-WP02",
+  "base_branch": "006-managed-git-sessions-WP01",
+  "base_commit": "d062bb6fbf0bf2427c64defa0942a67f03ee0782",
+  "dependencies": [],
+  "created_at": "2026-03-20T01:34:57.735165+00:00",
+  "created_by": "implement-command",
+  "vcs_backend": "git"
+}

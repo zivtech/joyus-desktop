@@ -1,17 +1,20 @@
 ---
 work_package_id: WP02
 title: Node.js Sidecar Bootstrap
-lane: done
 dependencies: []
 subtasks: [T006, T007, T008, T009, T010, T011]
-agent: claude-opus
-shell_pid: '97983'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: src/sidecar/
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/sidecar/ipc-handler.ts
+- src/sidecar/main.ts
+- src/sidecar/services.ts
+wp_code: WP02
 ---
 
 # WP02 — Node.js Sidecar Bootstrap

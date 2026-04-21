@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Desktop MCP Provisioning
-lane: done
 dependencies: []
 subtasks:
 - T039
@@ -11,16 +10,25 @@ subtasks:
 - T043
 - T067
 phase: Phase 2 - Desktop Companion
-assignee: ''
-agent: claude-opus
-shell_pid: '82804'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/verification/wp07-mcp-provisioning-verification.md
+- src/__tests__/**
+- src/claude-code-integration.ts
+- src/index.ts
+- src/lifecycle.ts
+- src/manifest.ts
+- src/process-manager.ts
+- src/types.ts
+- src/updater-integration.ts
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 - Desktop MCP Provisioning

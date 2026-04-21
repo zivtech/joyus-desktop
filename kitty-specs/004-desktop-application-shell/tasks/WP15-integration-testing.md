@@ -1,17 +1,22 @@
 ---
 work_package_id: WP15
 title: Integration Testing & Polish
-lane: done
 dependencies: []
 subtasks: [T063, T064, T065, T066, T067]
-agent: agent-wp15
-shell_pid: '93253'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- docs/verification/desktop-app-smoke-test.md
+- test/integration/onboarding-flow.test.ts
+- test/integration/performance.test.ts
+- test/integration/realtime-updates.test.ts
+- test/integration/sidecar-lifecycle.test.ts
+wp_code: WP15
 ---
 
 # WP15 — Integration Testing & Polish

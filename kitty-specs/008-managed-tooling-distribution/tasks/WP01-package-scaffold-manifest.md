@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Package Scaffold & Manifest Module
-lane: in_progress
 dependencies: []
 requirement_refs: [FR-002, FR-003, FR-006, FR-016]
 planning_base_branch: feat/008-managed-tooling-distribution
@@ -12,6 +11,16 @@ history:
 - date: '2026-04-01'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG6
+owned_files:
+- kitty-specs/008-managed-tooling-distribution/contracts/distribution-manifest.ts
+- src/distributionConfig.ts
+- src/index.ts
+- src/manifest.ts
+- test/manifest.test.ts
+wp_code: WP01
 ---
 
 # WP01: Package Scaffold & Manifest Module

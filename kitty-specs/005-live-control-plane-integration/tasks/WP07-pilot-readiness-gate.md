@@ -1,19 +1,21 @@
 ---
 work_package_id: WP07
 title: Pilot Readiness Gate
-lane: done
 dependencies: []
 base_branch: 005-live-control-plane-integration-WP06
 base_commit: 13795c3808c625c0dd492ff75063300584576c26
 created_at: '2026-03-19T12:19:04.956670+00:00'
 subtasks: [T035, T036, T037, T038]
-agent: claude
-shell_pid: '48414'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- docs/operations/incident-runbook-005.md
+- test/integration/pilot-acceptance.test.ts
+wp_code: WP07
 ---
 
 # WP07 — Pilot Readiness Gate

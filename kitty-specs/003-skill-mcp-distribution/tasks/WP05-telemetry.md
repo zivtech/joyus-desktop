@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Telemetry Foundation
-lane: done
 dependencies: []
 subtasks:
 - T024
@@ -12,16 +11,22 @@ subtasks:
 - T029
 - T030
 phase: Phase 1 - Cowork Distribution
-assignee: ''
-agent: claude-opus-reviewer
-shell_pid: '44343'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/telemetry/aggregation-architecture.md
+- docs/telemetry/cowork-collection.md
+- docs/verification/wp05-telemetry-verification.md
+- src/cli-collector.ts
+- src/reports/usage-report.ts
+- src/schema.ts
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 - Telemetry Foundation

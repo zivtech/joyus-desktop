@@ -1,19 +1,23 @@
 ---
 work_package_id: WP04
 title: Async Event Emitter
-lane: done
 dependencies: []
 base_branch: 005-live-control-plane-integration-WP01
 base_commit: b28b769970e629fafee1594e0df98c38b40815c2
 created_at: '2026-03-19T10:43:27.398574+00:00'
 subtasks: [T016, T017, T018, T019, T020, T021]
-agent: claude
-shell_pid: '70195'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-18'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG3
+owned_files:
+- src/controlPlaneContracts.ts
+- src/eventEmitter.ts
+- src/index.ts
+- test/eventEmitter.test.ts
+wp_code: WP04
 ---
 
 # WP04 — Async Event Emitter

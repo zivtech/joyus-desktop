@@ -1,18 +1,12 @@
 ---
 work_package_id: WP01
 title: Authorization Matrix Hardening
-lane: done
 dependencies: []
 subtasks:
 - T001
 - T002
 - T003
 phase: Phase 1 - Core Enforcement
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-05T00:00:00Z'
   lane: planned
@@ -22,6 +16,12 @@ history:
   lane: done
   agent: codex
   action: Implementation complete; deterministic authorization matrix and exhaustive tests verified.
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KPR4E966V9S8Q9N5DG5R4DK0
+owned_files:
+- src/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 - Authorization Matrix Hardening

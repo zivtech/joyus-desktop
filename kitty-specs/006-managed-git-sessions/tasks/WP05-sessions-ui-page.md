@@ -1,12 +1,26 @@
 ---
 work_package_id: WP05
 title: Sessions UI Page
-lane: planned
 dependencies: []
 subtasks: [T028, T029, T030, T031, T032, T033, T034, T035]
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- src/main.rs
+- src/ui/App.tsx
+- src/ui/components/DriftBanner.tsx
+- src/ui/components/Layout.tsx
+- src/ui/components/TaskBranchCard.tsx
+- src/ui/hooks/useGovernance.ts
+- src/ui/hooks/useTauriEvent.ts
+- src/ui/pages/Dashboard.tsx
+- src/ui/pages/Sessions.tsx
+- test/ui/Sessions.test.tsx
+wp_code: WP05
 ---
 
 # WP05 — Sessions UI Page

@@ -1,17 +1,23 @@
 ---
 work_package_id: WP06
 title: Usage Data Collection & Storage
-lane: done
 dependencies: []
 subtasks: [T026, T027, T028, T029, T030]
-agent: agent-wp06
-shell_pid: '66406'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/commands.rs
+- src/main.rs
+- src/sidecar.rs
+- src/sidecar/services.ts
+- src/sidecar/usage-collector.ts
+- test/sidecar/usage-onboarding.test.ts
+wp_code: WP06
 ---
 
 # WP06 — Usage Data Collection & Storage

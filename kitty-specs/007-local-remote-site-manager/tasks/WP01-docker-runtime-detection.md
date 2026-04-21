@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Docker Runtime Detection
-lane: planned
 dependencies: []
 requirement_refs: [FR-001, FR-002]
 planning_base_branch: claude/channels-spec-005-amendment
@@ -12,6 +11,18 @@ history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG5
+owned_files:
+- kitty-specs/007-local-remote-site-manager/contracts/local-provisioner.ts
+- kitty-specs/007-local-remote-site-manager/research.md
+- src/dockerClient.ts
+- src/index.ts
+- src/runtimeDetector.ts
+- test/dockerClient.test.ts
+- test/runtimeDetector.test.ts
+wp_code: WP01
 ---
 
 # WP01: Docker Runtime Detection

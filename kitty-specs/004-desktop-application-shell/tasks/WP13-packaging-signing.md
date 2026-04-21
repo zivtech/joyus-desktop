@@ -1,17 +1,20 @@
 ---
 work_package_id: WP13
 title: Packaging, Signing & Icons
-lane: done
 dependencies: []
 subtasks: [T053, T054, T055, T056, T057]
-agent: claude-opus
-shell_pid: '92423'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- docs/signing/macos-signing.md
+- docs/signing/windows-signing.md
+- src/ui/pages/Settings.tsx
+wp_code: WP13
 ---
 
 # WP13 — Packaging, Signing & Icons

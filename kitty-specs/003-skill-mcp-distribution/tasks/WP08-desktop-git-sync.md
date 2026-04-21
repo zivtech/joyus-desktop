@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Desktop Git Sync Integration
-lane: done
 dependencies: []
 subtasks:
 - T044
@@ -10,16 +9,20 @@ subtasks:
 - T047
 - T068
 phase: Phase 2 - Desktop Companion
-assignee: ''
-agent: claude-opus
-shell_pid: '83295'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - timestamp: '2026-03-10T00:00:00Z'
   lane: planned
   agent: ''
   action: Prompt generated
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG1
+owned_files:
+- docs/verification/wp08-desktop-sync-verification.md
+- src/__tests__/skill-sync-integration.test.ts
+- src/main/skill-sync.ts
+- src/skill-sync-integration.ts
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 - Desktop Git Sync Integration

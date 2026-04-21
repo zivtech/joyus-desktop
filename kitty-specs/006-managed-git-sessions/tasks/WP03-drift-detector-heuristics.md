@@ -1,16 +1,29 @@
 ---
 work_package_id: WP03
 title: 'drift-detector: Heuristics Engine'
-lane: in_progress
 dependencies: []
 base_branch: main
 base_commit: 4fc309aa8db96ca8f07f1a6b3e8bd48af2b9e099
 created_at: '2026-03-20T01:26:45.256156+00:00'
 subtasks: [T015, T016, T017, T018, T019, T020]
-shell_pid: '44222'
 history:
 - date: '2026-03-19'
   event: created
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG4
+owned_files:
+- kitty-specs/006-managed-git-sessions/contracts/drift-detector.ts
+- kitty-specs/006-managed-git-sessions/data-model.md
+- src/components/Button.tsx
+- src/driftDetector.ts
+- src/heuristicsEngine.ts
+- src/index.ts
+- src/topicDomainInferrer.ts
+- test/driftDetector.test.ts
+- test/heuristicsEngine.test.ts
+- test/topicDomainInferrer.test.ts
+wp_code: WP03
 ---
 
 # WP03 — drift-detector: Heuristics Engine

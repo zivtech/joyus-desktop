@@ -26,13 +26,13 @@ coverage/
 .amazonq/
 .github/copilot/
 .kittify/.dashboard
-.kittify/workspaces/
 .pnpm-store/
 # Excluded via sparse-checkout
 .omc/
 .kittify/runtime/
-.kittify/merge-state.json
 .kittify/events/
 .kittify/dossiers/
 kitty-specs/**/.kittify/dossiers/
 .omx/
+.kittify/derived/
+.kittify/.migration-backup/

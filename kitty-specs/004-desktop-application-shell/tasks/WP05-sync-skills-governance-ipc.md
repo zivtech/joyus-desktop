@@ -1,17 +1,21 @@
 ---
 work_package_id: WP05
 title: Sync, Skills & Governance IPC
-lane: done
 dependencies: []
 subtasks: [T021, T022, T023, T024, T025]
-agent: agent-wp05
-shell_pid: '66406'
-review_status: approved
-reviewed_by: Alex Urevick-Ackelsberg
 history:
 - date: '2026-03-14'
   event: created
   note: Generated from spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KPR4E967F61H0B7K24440QG2
+owned_files:
+- src/sidecar/main.ts
+- src/sidecar/services.ts
+- src/sidecar/skill-scanner.ts
+- test/sidecar/sync-governance.test.ts
+wp_code: WP05
 ---
 
 # WP05 — Sync, Skills & Governance IPC
