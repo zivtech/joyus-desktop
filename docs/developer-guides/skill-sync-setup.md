@@ -33,13 +33,13 @@ export SKILL_SYNC_CACHE_DIR="$HOME/.claude/.skill-sync-cache"
 2. Run initial sync:
 
 ```bash
-pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync
+pnpm exec tsx /Users/AlexUA_1/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync
 ```
 
 3. Verify sync status:
 
 ```bash
-pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --status
+pnpm exec tsx /Users/AlexUA_1/claude/joyus-desktop/packages/skill-sync/src/cli.ts --status
 ```
 
 4. Register Claude Code startup hook (example):
@@ -48,7 +48,7 @@ pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts 
 {
   "hooks": {
     "session_start": {
-      "command": "pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync --quiet",
+      "command": "pnpm exec tsx /Users/AlexUA_1/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync --quiet",
       "timeout_ms": 10000,
       "async": true
     }
@@ -109,5 +109,5 @@ Fix: check source repo layout and ensure skill files are committed under repo ro
 
 ## Hook Artifacts
 
-- Hook template: [claude-code-hooks.skill-sync.json](/Users/AlexUA/claude/joyus-desktop/config/hooks/claude-code-hooks.skill-sync.json)
-- Hook installer: [install-hook.mjs](/Users/AlexUA/claude/joyus-desktop/scripts/skill-sync/install-hook.mjs)
+- Hook template: [claude-code-hooks.skill-sync.json](/Users/AlexUA_1/claude/joyus-desktop/config/hooks/claude-code-hooks.skill-sync.json)
+- Hook installer: [install-hook.mjs](/Users/AlexUA_1/claude/joyus-desktop/scripts/skill-sync/install-hook.mjs)

@@ -13,7 +13,7 @@
 
 ## Checklist (Per Tester)
 
-- [ ] Setup completed using guide only ([skill-sync-setup.md](/Users/AlexUA/claude/joyus-desktop/docs/developer-guides/skill-sync-setup.md)).
+- [ ] Setup completed using guide only ([skill-sync-setup.md](/Users/AlexUA_1/claude/joyus-desktop/docs/developer-guides/skill-sync-setup.md)).
 - [ ] Initial sync pulled pinned version successfully.
 - [ ] Skills appeared in Claude Code session.
 - [ ] Skill invocation worked.
@@ -34,7 +34,7 @@ This writes a timestamped report under:
 
 Script reference:
 
-- [run-tester-checklist.mjs](/Users/AlexUA/claude/joyus-desktop/scripts/skill-sync/run-tester-checklist.mjs)
+- [run-tester-checklist.mjs](/Users/AlexUA_1/claude/joyus-desktop/scripts/skill-sync/run-tester-checklist.mjs)
 
 ## Results
 

@@ -14,7 +14,7 @@ This updates `~/.claude/hooks.json` and creates a timestamped backup if the file
 
 Use this template and merge into your hook config:
 
-- [claude-code-hooks.skill-sync.json](/Users/AlexUA/claude/joyus-desktop/config/hooks/claude-code-hooks.skill-sync.json)
+- [claude-code-hooks.skill-sync.json](/Users/AlexUA_1/claude/joyus-desktop/config/hooks/claude-code-hooks.skill-sync.json)
 
 ## Verify Hook
 
@@ -22,7 +22,7 @@ Use this template and merge into your hook config:
 2. Run:
 
 ```bash
-pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --status
+pnpm exec tsx /Users/AlexUA_1/claude/joyus-desktop/packages/skill-sync/src/cli.ts --status
 ```
 
 3. Confirm `lastAttempt`/`lastSync` updated in metadata.

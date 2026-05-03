@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 function parseArgs(argv) {
   const options = {
     hookPath: join(homedir(), ".claude", "hooks.json"),
-    command: "pnpm exec tsx /Users/AlexUA/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync --quiet",
+    command: "pnpm exec tsx /Users/AlexUA_1/claude/joyus-desktop/packages/skill-sync/src/cli.ts --sync --quiet",
     dryRun: false
   };
 
