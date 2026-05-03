@@ -11,6 +11,6 @@
     "exactOptionalPropertyTypes": true,
     "declaration": true,
     "sourceMap": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   }
 }

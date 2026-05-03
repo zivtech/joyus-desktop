@@ -294,7 +294,15 @@ describe("getSummary", () => {
 
   it("returns dailyCounts grouped by date, sorted asc", () => {
     const ipc = makeIpc();
-    const dates = ["2026-03-10T12:00:00.000Z", "2026-03-10T13:00:00.000Z", "2026-03-12T00:00:00.000Z"];
+    const day1 = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const day3 = new Date(Date.now());
+    const day1Str = day1.toISOString().slice(0, 10);
+    const day3Str = day3.toISOString().slice(0, 10);
+    const dates = [
+      new Date(day1.getFullYear(), day1.getMonth(), day1.getDate(), 12).toISOString(),
+      new Date(day1.getFullYear(), day1.getMonth(), day1.getDate(), 13).toISOString(),
+      day3.toISOString(),
+    ];
     let idx = 0;
     const nowFn = vi.fn(() => dates[idx++] ?? dates[2]!);
     const collector = createUsageCollector(ipc, makeDeps({ nowFn }));
@@ -305,8 +313,8 @@ describe("getSummary", () => {
 
     const summary = collector.getSummary(30);
     expect(summary.dailyCounts).toEqual([
-      { date: "2026-03-10", count: 2 },
-      { date: "2026-03-12", count: 1 },
+      { date: day1Str, count: 2 },
+      { date: day3Str, count: 1 },
     ]);
   });
 
