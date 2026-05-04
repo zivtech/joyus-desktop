@@ -232,6 +232,122 @@ describe("listAll", () => {
   });
 });
 
+describe("findByRepoPath", () => {
+  let store: TaskBranchStore;
+  let dbPath: string;
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    store = openTaskBranchStore(dbPath);
+  });
+
+  afterEach(() => {
+    try {
+      store.close();
+    } catch {
+      // already closed
+    }
+    cleanupPath(dbPath);
+  });
+
+  it("returns branches matching the repo path", () => {
+    store.create(makeInput({ repoPath: "/repo/a", sessionId: "s1" }));
+    store.create(makeInput({ repoPath: "/repo/a", sessionId: "s2" }));
+    store.create(makeInput({ repoPath: "/repo/b", sessionId: "s3" }));
+
+    const results = store.findByRepoPath("/repo/a");
+    expect(results).toHaveLength(2);
+    expect(results.every((r) => r.repoPath === "/repo/a")).toBe(true);
+  });
+
+  it("returns empty array when no branches match", () => {
+    store.create(makeInput({ repoPath: "/repo/x", sessionId: "s1" }));
+    expect(store.findByRepoPath("/repo/none")).toEqual([]);
+  });
+
+  it("excludes soft-deleted branches", () => {
+    const created = store.create(makeInput({ repoPath: "/repo/del", sessionId: "s1" }));
+    store.softDelete(created.id);
+    expect(store.findByRepoPath("/repo/del")).toEqual([]);
+  });
+
+  it("orders by last_activity_at DESC", () => {
+    const older = store.create(makeInput({ repoPath: "/repo/ord", sessionId: "older" }));
+    const newer = store.create(makeInput({ repoPath: "/repo/ord", sessionId: "newer" }));
+    store.updateActivity({ taskBranchId: newer.id, lastActivityAt: Date.now() + 10000 });
+
+    const results = store.findByRepoPath("/repo/ord");
+    expect(results).toHaveLength(2);
+    expect(results.at(0)?.sessionId).toBe("newer");
+    expect(results.at(1)?.sessionId).toBe("older");
+  });
+});
+
+describe("countsByRepo", () => {
+  let store: TaskBranchStore;
+  let dbPath: string;
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    store = openTaskBranchStore(dbPath);
+  });
+
+  afterEach(() => {
+    try {
+      store.close();
+    } catch {
+      // already closed
+    }
+    cleanupPath(dbPath);
+  });
+
+  it("returns empty object when no branches exist", () => {
+    expect(store.countsByRepo()).toEqual({});
+  });
+
+  it("counts active and total branches per repo", () => {
+    store.create(makeInput({ repoPath: "/repo/a", sessionId: "s1" }));
+    store.create(makeInput({ repoPath: "/repo/a", sessionId: "s2" }));
+    store.create(makeInput({ repoPath: "/repo/b", sessionId: "s3" }));
+
+    const staleA = store.create(makeInput({ repoPath: "/repo/a", sessionId: "s4" }));
+    store.updateStatus(staleA.id, "stale");
+
+    const counts = store.countsByRepo();
+    expect(counts["/repo/a"]).toBeDefined();
+    expect(counts["/repo/a"]!.total).toBe(3);
+    expect(counts["/repo/a"]!.active).toBe(2);
+    expect(counts["/repo/b"]).toBeDefined();
+    expect(counts["/repo/b"]!.total).toBe(1);
+    expect(counts["/repo/b"]!.active).toBe(1);
+  });
+
+  it("excludes soft-deleted branches", () => {
+    const created = store.create(makeInput({ repoPath: "/repo/del", sessionId: "s1" }));
+    store.softDelete(created.id);
+    expect(store.countsByRepo()).toEqual({});
+  });
+
+  it("returns lastActivityAt as the max across branches", () => {
+    const b1 = store.create(makeInput({ repoPath: "/repo/t", sessionId: "s1" }));
+    store.create(makeInput({ repoPath: "/repo/t", sessionId: "s2" }));
+    const futureTs = Date.now() + 50000;
+    store.updateActivity({ taskBranchId: b1.id, lastActivityAt: futureTs });
+
+    const counts = store.countsByRepo();
+    expect(counts["/repo/t"]!.lastActivityAt).toBe(futureTs);
+  });
+
+  it("returns number types (not bigint) for all numeric fields", () => {
+    store.create(makeInput({ repoPath: "/repo/num", sessionId: "s1" }));
+    const counts = store.countsByRepo();
+    const entry = counts["/repo/num"]!;
+    expect(typeof entry.active).toBe("number");
+    expect(typeof entry.total).toBe("number");
+    expect(typeof entry.lastActivityAt).toBe("number");
+  });
+});
+
 describe("updateStatus", () => {
   let store: TaskBranchStore;
   let dbPath: string;

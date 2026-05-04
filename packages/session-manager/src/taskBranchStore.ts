@@ -54,11 +54,19 @@ export interface UpdatePrAssociationInput {
   readonly prTitle: string | undefined;
 }
 
+export interface RepoCountsEntry {
+  readonly active: number;
+  readonly total: number;
+  readonly lastActivityAt: number;
+}
+
 export interface TaskBranchStore {
   create(input: CreateTaskBranchInput): TaskBranch;
   findById(id: string): TaskBranch | undefined;
   findBySessionId(sessionId: string): TaskBranch | undefined;
+  findByRepoPath(repoPath: string): readonly TaskBranch[];
   listAll(): readonly TaskBranch[];
+  countsByRepo(): Record<string, RepoCountsEntry>;
   updateStatus(id: string, status: TaskBranchStatus): void;
   updateActivity(input: UpdateActivityInput): void;
   updatePrAssociation(input: UpdatePrAssociationInput): void;
@@ -70,6 +78,13 @@ export interface TaskBranchStore {
 }
 
 // ─── Internal Types ──────────────────────────────────────────────────────────
+
+interface CountsByRepoRow {
+  repo_path: string;
+  total: number | bigint;
+  active: number | bigint;
+  last_activity_at: number | bigint;
+}
 
 interface StoredRow {
   id: string;
@@ -242,6 +257,14 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
     `SELECT id, worktree_path, repo_path FROM task_branches WHERE status != 'broken' AND deleted_at IS NULL`,
   );
 
+  const findByRepoPathStmt = db.prepare(
+    `SELECT * FROM task_branches WHERE repo_path = ? AND deleted_at IS NULL ORDER BY last_activity_at DESC`,
+  );
+
+  const countsByRepoStmt = db.prepare(
+    `SELECT repo_path, COUNT(*) AS total, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active, MAX(last_activity_at) AS last_activity_at FROM task_branches WHERE deleted_at IS NULL GROUP BY repo_path`,
+  );
+
   const updatePrAssociationStmt = db.prepare(
     `UPDATE task_branches SET pr_number = ?, pr_url = ?, pr_title = ? WHERE id = ?`,
   );
@@ -301,9 +324,27 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
       return mapRowToTaskBranch(row);
     },
 
+    findByRepoPath(repoPath: string): readonly TaskBranch[] {
+      const rows = findByRepoPathStmt.all(repoPath) as unknown as StoredRow[];
+      return rows.map(mapRowToTaskBranch);
+    },
+
     listAll(): readonly TaskBranch[] {
       const rows = listAllStmt.all() as unknown as StoredRow[];
       return rows.map(mapRowToTaskBranch);
+    },
+
+    countsByRepo(): Record<string, RepoCountsEntry> {
+      const rows = countsByRepoStmt.all() as unknown as CountsByRepoRow[];
+      const result: Record<string, RepoCountsEntry> = {};
+      for (const row of rows) {
+        result[row.repo_path] = {
+          active: Number(row.active),
+          total: Number(row.total),
+          lastActivityAt: Number(row.last_activity_at),
+        };
+      }
+      return result;
     },
 
     updateStatus(id: string, status: TaskBranchStatus): void {

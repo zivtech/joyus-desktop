@@ -15,9 +15,12 @@ const mockStore = {
   create: vi.fn(),
   findById: vi.fn(),
   findBySessionId: vi.fn(),
+  findByRepoPath: vi.fn().mockReturnValue([]),
   listAll: vi.fn().mockReturnValue([]),
+  countsByRepo: vi.fn().mockReturnValue({}),
   updateStatus: vi.fn(),
   updateActivity: vi.fn(),
+  updatePrAssociation: vi.fn(),
   softDelete: vi.fn(),
   applyStaleThreshold: vi.fn(),
   detectMerged: vi.fn(),
@@ -444,6 +447,38 @@ describe("registerSessionMethods", () => {
     mockSessionManager.delete.mockRejectedValue(new Error("delete failed"));
     const handler = handlers.get("session.delete")!;
     await expect(handler({ taskBranchId: "b1", force: false })).rejects.toThrow("delete failed");
+  });
+
+  // --- session.listByRepo ---
+
+  it("session.listByRepo: returns branches for given repoPath", async () => {
+    const branches = [{ id: "b1", repoPath: "/repo/a" }];
+    mockStore.findByRepoPath.mockReturnValue(branches);
+    const handler = handlers.get("session.listByRepo")!;
+    const result = await handler({ repoPath: "/repo/a" });
+    expect(mockStore.findByRepoPath).toHaveBeenCalledWith("/repo/a");
+    expect(result).toEqual(branches);
+  });
+
+  it("session.listByRepo: missing repoPath throws", async () => {
+    const handler = handlers.get("session.listByRepo")!;
+    await expect(handler({})).rejects.toThrow("Missing required param: repoPath");
+  });
+
+  it("session.listByRepo: non-object params throws", async () => {
+    const handler = handlers.get("session.listByRepo")!;
+    await expect(handler(null)).rejects.toThrow("Missing required param: repoPath");
+  });
+
+  // --- session.countsByRepo ---
+
+  it("session.countsByRepo: returns aggregated counts", async () => {
+    const counts = { "/repo/a": { active: 2, total: 3, lastActivityAt: 1000 } };
+    mockStore.countsByRepo.mockReturnValue(counts);
+    const handler = handlers.get("session.countsByRepo")!;
+    const result = await handler({});
+    expect(mockStore.countsByRepo).toHaveBeenCalled();
+    expect(result).toEqual(counts);
   });
 });
 

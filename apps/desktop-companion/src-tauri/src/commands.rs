@@ -137,6 +137,18 @@ pub async fn site_provision(state: State<'_, SidecarState>, repo_url: String) ->
     state.send_request("sites.provision", serde_json::json!({ "repoUrl": repo_url })).await
 }
 
+// ─── Session commands ────────────────────────────────────────────────────────
+
+#[command]
+pub async fn session_list_by_repo(state: State<'_, SidecarState>, repo_path: String) -> Result<Value, String> {
+    state.send_request("session.listByRepo", serde_json::json!({ "repoPath": repo_path })).await
+}
+
+#[command]
+pub async fn session_counts_by_repo(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("session.countsByRepo", Value::Object(Default::default())).await
+}
+
 /// Stop all MCP server processes, remove managed .mcp.json entries, and optionally
 /// delete app data (skill-sync cache + app data directory).
 #[command]

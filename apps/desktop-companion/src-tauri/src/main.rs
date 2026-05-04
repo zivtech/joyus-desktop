@@ -79,6 +79,8 @@ fn main() {
             commands::site_stop,
             commands::site_restart,
             commands::site_provision,
+            commands::session_list_by_repo,
+            commands::session_counts_by_repo,
             updater::check_for_update,
             updater::install_update,
             commands::reset_desktop_companion,

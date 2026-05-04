@@ -448,6 +448,16 @@ function extractOptionalRepoPath(params: unknown): string | undefined {
   return undefined;
 }
 
+function extractRequiredRepoPath(params: unknown): string {
+  if (params !== null && typeof params === "object") {
+    const p = params as Record<string, unknown>;
+    if (typeof p["repoPath"] === "string" && p["repoPath"] !== "") {
+      return p["repoPath"];
+    }
+  }
+  throw new Error("Missing required param: repoPath");
+}
+
 export function registerSessionMethods(
   ipc: IpcHandler,
   wiring: SessionWiring,
@@ -523,5 +533,16 @@ export function registerSessionMethods(
     const repoPath = extractOptionalRepoPath(params);
     wiring.sessionManager.setMode(mode, repoPath);
     return { ok: true };
+  });
+
+  // WP-3 — session.listByRepo
+  ipc.registerMethod("session.listByRepo", async (params: unknown) => {
+    const repoPath = extractRequiredRepoPath(params);
+    return wiring.store.findByRepoPath(repoPath);
+  });
+
+  // WP-3 — session.countsByRepo
+  ipc.registerMethod("session.countsByRepo", async () => {
+    return wiring.store.countsByRepo();
   });
 }
