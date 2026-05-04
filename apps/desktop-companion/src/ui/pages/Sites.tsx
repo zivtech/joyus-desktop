@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LocalSiteCard, type LocalSite } from "../components/LocalSiteCard";
 import { RemoteEnvironmentCard, type RemoteEnvironment } from "../components/RemoteEnvironmentCard";
+import { SiteCardExpanded } from "../components/SiteCardExpanded";
+import type { TaskBranch } from "../components/TaskBranchCard";
+import type { DriftSignalPayload } from "../components/DriftBanner";
+import { parseRepoIdentity } from "../utils/repoIdentity.js";
 
 // ─── IPC helpers ─────────────────────────────────────────────────────────────
 
@@ -15,6 +19,69 @@ async function safeInvoke<T>(
     console.error(`[safeInvoke] ${cmd} failed:`, err);
     return undefined;
   }
+}
+
+async function safeListen<T>(
+  event: string,
+  handler: (payload: T) => void,
+): Promise<(() => void) | undefined> {
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    return listen<T>(event, (e) => handler(e.payload));
+  } catch {
+    return undefined;
+  }
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface RepoCountsEntry {
+  readonly active: number;
+  readonly total: number;
+  readonly lastActivityAt: number;
+}
+
+// ─── Aggregate Health Bar ───────────────────────────────────────────────────
+
+const HEALTH_BAR_ITEMS: { status: LocalSite["status"]; color: string; label: string }[] = [
+  { status: "running", color: "#22c55e", label: "Running" },
+  { status: "starting", color: "#f59e0b", label: "Starting" },
+  { status: "stopped", color: "#94a3b8", label: "Stopped" },
+  { status: "error", color: "#ef4444", label: "Error" },
+];
+
+function AggregateHealthBar({ sites }: { sites: readonly LocalSite[] }) {
+  const counts = new Map<LocalSite["status"], number>();
+  for (const site of sites) {
+    counts.set(site.status, (counts.get(site.status) ?? 0) + 1);
+  }
+
+  const items = HEALTH_BAR_ITEMS.filter((item) => (counts.get(item.status) ?? 0) > 0);
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", padding: "0.5rem 0" }}>
+      {items.map((item) => (
+        <span
+          key={item.status}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+        >
+          <span
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              backgroundColor: item.color,
+              display: "inline-block",
+            }}
+          />
+          <span style={{ fontSize: "0.813rem", color: "#374151", fontWeight: 500 }}>
+            {counts.get(item.status)} {item.label}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // ─── Provision Form ──────────────────────────────────────────────────────────
@@ -235,6 +302,20 @@ export function Sites() {
   const [localError, setLocalError] = useState<string | undefined>(undefined);
   const [remoteError, setRemoteError] = useState<string | undefined>(undefined);
 
+  // Branch counts per repo (from session.countsByRepo)
+  const [branchCounts, setBranchCounts] = useState<Record<string, RepoCountsEntry>>({});
+
+  // Accordion state
+  const [expandedSiteId, setExpandedSiteId] = useState<string | undefined>(undefined);
+
+  // Expanded site branches
+  const [expandedBranches, setExpandedBranches] = useState<readonly TaskBranch[] | undefined>(undefined);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [expandedError, setExpandedError] = useState<string | undefined>(undefined);
+
+  // Drift signals
+  const [driftSignals, setDriftSignals] = useState<Map<string, DriftSignalPayload>>(new Map());
+
   const loadLocalSites = useCallback(() => {
     setLocalLoading(true);
     setLocalError(undefined);
@@ -248,8 +329,17 @@ export function Sites() {
     });
   }, []);
 
+  const loadBranchCounts = useCallback(() => {
+    void safeInvoke<Record<string, RepoCountsEntry>>("session_counts_by_repo").then((result) => {
+      if (result !== undefined) {
+        setBranchCounts(result);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     loadLocalSites();
+    loadBranchCounts();
 
     void safeInvoke<RemoteEnvironment[]>("site_list_remote").then((result) => {
       if (result !== undefined) {
@@ -259,7 +349,112 @@ export function Sites() {
       }
       setRemoteLoading(false);
     });
-  }, [loadLocalSites]);
+  }, [loadLocalSites, loadBranchCounts]);
+
+  // Clean up expandedSiteId when the expanded site disappears
+  useEffect(() => {
+    if (expandedSiteId !== undefined && !localSites.some((s) => s.id === expandedSiteId)) {
+      setExpandedSiteId(undefined);
+      setExpandedBranches(undefined);
+      setExpandedError(undefined);
+    }
+  }, [localSites, expandedSiteId]);
+
+  // Drift signal subscription
+  useEffect(() => {
+    let unlistenFn: (() => void) | undefined;
+
+    void safeListen<DriftSignalPayload>("state.driftSignal", (payload) => {
+      if (payload.confidence === "high") {
+        setDriftSignals((prev) => {
+          const next = new Map(prev);
+          next.set(payload.taskBranchId, payload);
+          return next;
+        });
+      }
+    }).then((fn) => {
+      if (fn !== undefined) unlistenFn = fn;
+    });
+
+    return () => {
+      unlistenFn?.();
+    };
+  }, []);
+
+  // 30-second polling for branch counts
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadBranchCounts();
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [loadBranchCounts]);
+
+  function handleToggleExpand(siteId: string, repoPath: string) {
+    if (expandedSiteId === siteId) {
+      setExpandedSiteId(undefined);
+      setExpandedBranches(undefined);
+      setExpandedError(undefined);
+      return;
+    }
+
+    setExpandedSiteId(siteId);
+    setExpandedBranches(undefined);
+    setExpandedError(undefined);
+    setExpandedLoading(true);
+
+    void safeInvoke<TaskBranch[]>("session_list_by_repo", { repoPath }).then((result) => {
+      if (result !== undefined) {
+        setExpandedBranches(result);
+      } else {
+        setExpandedError("Could not load task branches.");
+      }
+      setExpandedLoading(false);
+    });
+  }
+
+  function handleBranchResume(id: string) {
+    void safeInvoke("session_resume", { taskBranchId: id });
+  }
+
+  function handleBranchDelete(id: string) {
+    void safeInvoke("session_delete", { taskBranchId: id }).then(() => {
+      // Re-fetch branches for expanded site and counts
+      const expandedSite = localSites.find((s) => s.id === expandedSiteId);
+      if (expandedSite !== undefined) {
+        void safeInvoke<TaskBranch[]>("session_list_by_repo", { repoPath: expandedSite.repoPath }).then((result) => {
+          if (result !== undefined) setExpandedBranches(result);
+        });
+      }
+      loadBranchCounts();
+    });
+  }
+
+  function handleOpenGitHub(repoPath: string, branchName: string) {
+    const url = `x-github-client://openRepo/${encodeURIComponent(repoPath)}?branch=${encodeURIComponent(branchName)}`;
+    void openUrl(url);
+  }
+
+  function handleDriftDismiss(taskBranchId: string) {
+    setDriftSignals((prev) => {
+      const next = new Map(prev);
+      next.delete(taskBranchId);
+      return next;
+    });
+  }
+
+  function handleDriftNewSession(_taskBranchId: string) {
+    // Drift new session action — handled by parent page
+  }
+
+  function getRemoteEnvsForSite(site: LocalSite): RemoteEnvironment[] {
+    const identity = parseRepoIdentity(site.repoUrl);
+    if (identity === undefined) return [];
+    return remoteSites.filter(
+      (env) => env.repoOwner === identity.owner && env.repoName === identity.name,
+    );
+  }
 
   const totalCount = localSites.length + remoteSites.length;
   const anyLoading = localLoading || remoteLoading;
@@ -278,12 +473,17 @@ export function Sites() {
         )}
       </div>
 
+      {/* Aggregate Health Bar */}
+      {!localLoading && localError === undefined && localSites.length > 0 && (
+        <AggregateHealthBar sites={localSites} />
+      )}
+
       {/* Provision New Site */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         <h2 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 600, color: "#111827" }}>
           New Site
         </h2>
-        <ProvisionForm onProvisioned={loadLocalSites} />
+        <ProvisionForm onProvisioned={() => { loadLocalSites(); loadBranchCounts(); }} />
       </div>
 
       {/* Local Sites */}
@@ -294,9 +494,36 @@ export function Sites() {
         emptyMessage="No local sites. Provision a project to see it here."
         count={localSites.length}
       >
-        {localSites.map((site) => (
-          <LocalSiteCard key={site.id} site={site} onRemoved={loadLocalSites} />
-        ))}
+        {localSites.map((site) => {
+          const counts = branchCounts[site.repoPath];
+          const isExpanded = expandedSiteId === site.id;
+          return (
+            <LocalSiteCard
+              key={site.id}
+              site={site}
+              onRemoved={() => { loadLocalSites(); loadBranchCounts(); }}
+              expanded={isExpanded}
+              onToggleExpand={() => handleToggleExpand(site.id, site.repoPath)}
+              branchCounts={counts !== undefined ? { active: counts.active, total: counts.total } : undefined}
+              lastBranchActivity={counts?.lastActivityAt}
+            >
+              {isExpanded && (
+                <SiteCardExpanded
+                  branches={expandedBranches}
+                  remoteEnvs={getRemoteEnvsForSite(site)}
+                  loading={expandedLoading}
+                  error={expandedError}
+                  driftSignals={driftSignals}
+                  onResume={handleBranchResume}
+                  onDelete={handleBranchDelete}
+                  onOpenGitHub={handleOpenGitHub}
+                  onDriftDismiss={handleDriftDismiss}
+                  onDriftNewSession={handleDriftNewSession}
+                />
+              )}
+            </LocalSiteCard>
+          );
+        })}
       </Section>
 
       {/* Remote Environments */}

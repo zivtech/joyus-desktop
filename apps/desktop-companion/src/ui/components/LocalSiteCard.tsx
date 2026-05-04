@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { BranchCountBadge } from "./BranchCountBadge.js";
+import { SiteActivityIndicator } from "./SiteActivityIndicator.js";
 
 export interface LocalSite {
   readonly id: string;
@@ -37,7 +39,7 @@ async function openUrl(url: string): Promise<void> {
 
 const STATUS_COLORS: Record<LocalSite["status"], string> = {
   running: "#22c55e",
-  stopped: "#6b7280",
+  stopped: "#94a3b8",
   starting: "#f59e0b",
   error: "#ef4444",
 };
@@ -104,9 +106,22 @@ function ActionButton({ label, disabled, pending, onClick, destructive = false }
 interface LocalSiteCardProps {
   site: LocalSite;
   onRemoved: () => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  branchCounts?: { active: number; total: number };
+  lastBranchActivity?: number;
+  children?: React.ReactNode;
 }
 
-export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
+export function LocalSiteCard({
+  site,
+  onRemoved,
+  expanded = false,
+  onToggleExpand,
+  branchCounts,
+  lastBranchActivity,
+  children,
+}: LocalSiteCardProps) {
   const [pendingOp, setPendingOp] = useState<PendingOp>(undefined);
   const [removing, setRemoving] = useState(false);
 
@@ -130,7 +145,11 @@ export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
 
   function handleRemove() {
     if (isBusy) return;
-    if (!window.confirm(`Remove "${site.projectName}"? This cannot be undone.`)) return;
+    const branchCount = branchCounts?.active ?? 0;
+    const msg = branchCount > 0
+      ? `Remove "${site.projectName}"? This site has ${branchCount} active task(s) that will also be removed. This cannot be undone.`
+      : `Remove "${site.projectName}"? This cannot be undone.`;
+    if (!window.confirm(msg)) return;
     setRemoving(true);
     void safeInvoke("site_remove", { siteId: site.id }).finally(() => {
       setRemoving(false);
@@ -147,36 +166,58 @@ export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
       style={{
         border: "1px solid #e5e7eb",
         borderRadius: "8px",
-        padding: "1rem",
+        padding: "0.875rem 1rem",
         background: "#fff",
         display: "flex",
         flexDirection: "column",
-        gap: "0.5rem",
+        gap: "0.375rem",
       }}
     >
-      {/* Name and status */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.938rem", color: "#111827" }}>
+      {/* Header: Name + Status + Branch count */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+        <span
+          id={`site-name-${site.id}`}
+          style={{
+            fontWeight: 600,
+            fontSize: "0.938rem",
+            color: "#111827",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           {site.projectName}
         </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
-          <span
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              backgroundColor: color,
-              display: "inline-block",
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontSize: "0.813rem", color: "#374151" }}>{label}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                backgroundColor: color,
+                display: "inline-block",
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: "0.813rem", color: "#374151" }}>{label}</span>
+          </span>
+          {branchCounts !== undefined && (
+            <BranchCountBadge active={branchCounts.active} total={branchCounts.total} />
+          )}
         </span>
       </div>
 
-      {/* Repo path */}
-      <div style={{ fontSize: "0.813rem", color: "#6b7280", fontFamily: "monospace" }}>
-        {site.repoPath}
+      {/* Repo path + activity indicator */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+        <span style={{ fontSize: "0.813rem", color: "#6b7280", fontFamily: "monospace" }}>
+          {site.repoPath}
+        </span>
+        {lastBranchActivity !== undefined && (
+          <SiteActivityIndicator lastActivityAt={lastBranchActivity} />
+        )}
       </div>
 
       {/* URLs */}
@@ -221,8 +262,8 @@ export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
         </div>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
+      {/* Action buttons + chevron */}
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem", flexWrap: "wrap", alignItems: "center" }}>
         <ActionButton
           label="Start"
           disabled={isRunning || isBusy}
@@ -256,7 +297,39 @@ export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
           onClick={handleRemove}
           destructive
         />
+        {onToggleExpand !== undefined && (
+          <button
+            onClick={onToggleExpand}
+            aria-expanded={expanded}
+            aria-controls={`site-detail-${site.id}`}
+            style={{
+              marginLeft: "auto",
+              background: "transparent",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+              padding: "0.25rem 0.5rem",
+              fontSize: "0.813rem",
+              cursor: "pointer",
+              color: "#374151",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            {expanded ? "▲" : "▼"}
+          </button>
+        )}
       </div>
+
+      {/* Expanded content */}
+      {expanded && children !== undefined && (
+        <div
+          id={`site-detail-${site.id}`}
+          role="region"
+          aria-labelledby={`site-name-${site.id}`}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
