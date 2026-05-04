@@ -39,7 +39,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://releases.joyus.dev/desktop-companion/update/{{target}}/{{arch}}/{{current_version}}"
+        "https://github.com/zivtech/joyus-desktop/releases/latest/download/update-manifest.json"
       ],
       "pubkey": "$TAURI_UPDATER_PUBKEY"
     }

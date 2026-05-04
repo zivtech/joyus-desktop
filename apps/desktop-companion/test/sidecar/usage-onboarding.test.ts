@@ -299,8 +299,8 @@ describe("getSummary", () => {
     const day1Str = day1.toISOString().slice(0, 10);
     const day3Str = day3.toISOString().slice(0, 10);
     const dates = [
-      new Date(day1.getFullYear(), day1.getMonth(), day1.getDate(), 12).toISOString(),
-      new Date(day1.getFullYear(), day1.getMonth(), day1.getDate(), 13).toISOString(),
+      new Date(Date.UTC(day1.getUTCFullYear(), day1.getUTCMonth(), day1.getUTCDate(), 12)).toISOString(),
+      new Date(Date.UTC(day1.getUTCFullYear(), day1.getUTCMonth(), day1.getUTCDate(), 13)).toISOString(),
       day3.toISOString(),
     ];
     let idx = 0;

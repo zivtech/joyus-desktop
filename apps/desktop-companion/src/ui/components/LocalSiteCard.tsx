@@ -26,6 +26,15 @@ async function safeInvoke<T>(
   }
 }
 
+async function openUrl(url: string): Promise<void> {
+  try {
+    const { open } = await import("@tauri-apps/plugin-shell");
+    await open(url);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 const STATUS_COLORS: Record<LocalSite["status"], string> = {
   running: "#22c55e",
   stopped: "#6b7280",
@@ -45,9 +54,16 @@ interface ActionButtonProps {
   disabled: boolean;
   pending: boolean;
   onClick: () => void;
+  destructive?: boolean;
 }
 
-function ActionButton({ label, disabled, pending, onClick }: ActionButtonProps) {
+function ActionButton({ label, disabled, pending, onClick, destructive = false }: ActionButtonProps) {
+  const textColor = disabled
+    ? "#9ca3af"
+    : destructive
+      ? "#dc2626"
+      : "#374151";
+
   return (
     <button
       onClick={onClick}
@@ -58,7 +74,7 @@ function ActionButton({ label, disabled, pending, onClick }: ActionButtonProps) 
         border: "1px solid #d1d5db",
         borderRadius: "4px",
         background: disabled ? "#f3f4f6" : "#fff",
-        color: disabled ? "#9ca3af" : "#374151",
+        color: textColor,
         cursor: disabled ? "not-allowed" : "pointer",
         display: "inline-flex",
         alignItems: "center",
@@ -87,14 +103,16 @@ function ActionButton({ label, disabled, pending, onClick }: ActionButtonProps) 
 
 interface LocalSiteCardProps {
   site: LocalSite;
+  onRemoved: () => void;
 }
 
-export function LocalSiteCard({ site }: LocalSiteCardProps) {
+export function LocalSiteCard({ site, onRemoved }: LocalSiteCardProps) {
   const [pendingOp, setPendingOp] = useState<PendingOp>(undefined);
+  const [removing, setRemoving] = useState(false);
 
   const isRunning = site.status === "running";
   const isStopped = site.status === "stopped" || site.status === "error";
-  const isBusy = pendingOp !== undefined || site.status === "starting";
+  const isBusy = pendingOp !== undefined || site.status === "starting" || removing;
 
   function runAction(op: "start" | "stop" | "restart") {
     if (isBusy) return;
@@ -104,8 +122,25 @@ export function LocalSiteCard({ site }: LocalSiteCardProps) {
     });
   }
 
+  function handleOpen() {
+    const url = site.httpsUrl ?? site.httpUrl;
+    if (url === undefined) return;
+    void openUrl(url);
+  }
+
+  function handleRemove() {
+    if (isBusy) return;
+    if (!window.confirm(`Remove "${site.projectName}"? This cannot be undone.`)) return;
+    setRemoving(true);
+    void safeInvoke("site_remove", { siteId: site.id }).finally(() => {
+      setRemoving(false);
+      onRemoved();
+    });
+  }
+
   const color = STATUS_COLORS[site.status];
   const label = STATUS_LABELS[site.status];
+  const openableUrl = site.httpsUrl ?? site.httpUrl;
 
   return (
     <div
@@ -145,9 +180,9 @@ export function LocalSiteCard({ site }: LocalSiteCardProps) {
       </div>
 
       {/* URLs */}
-      {(site.httpUrl || site.httpsUrl) && (
+      {(site.httpUrl !== undefined || site.httpsUrl !== undefined) && (
         <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.813rem" }}>
-          {site.httpsUrl && (
+          {site.httpsUrl !== undefined && (
             <a
               href={site.httpsUrl}
               target="_blank"
@@ -157,7 +192,7 @@ export function LocalSiteCard({ site }: LocalSiteCardProps) {
               HTTPS
             </a>
           )}
-          {site.httpUrl && (
+          {site.httpUrl !== undefined && (
             <a
               href={site.httpUrl}
               target="_blank"
@@ -187,7 +222,7 @@ export function LocalSiteCard({ site }: LocalSiteCardProps) {
       )}
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
         <ActionButton
           label="Start"
           disabled={isRunning || isBusy}
@@ -205,6 +240,21 @@ export function LocalSiteCard({ site }: LocalSiteCardProps) {
           disabled={!isRunning || (isBusy && pendingOp !== "restart")}
           pending={pendingOp === "restart"}
           onClick={() => { runAction("restart"); }}
+        />
+        {openableUrl !== undefined && (
+          <ActionButton
+            label="Open"
+            disabled={isBusy}
+            pending={false}
+            onClick={handleOpen}
+          />
+        )}
+        <ActionButton
+          label="Remove"
+          disabled={isBusy}
+          pending={removing}
+          onClick={handleRemove}
+          destructive
         />
       </div>
     </div>
