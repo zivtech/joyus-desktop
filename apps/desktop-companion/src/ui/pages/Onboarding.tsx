@@ -433,9 +433,6 @@ export function Onboarding() {
         zIndex: 9999,
       }}
     >
-      {/* CSS keyframe for spinner */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       {/* Logo */}
       <div style={{ marginBottom: "1.5rem", fontSize: "1.75rem", fontWeight: 800, color: "#1a73e8" }}>
         Joyus

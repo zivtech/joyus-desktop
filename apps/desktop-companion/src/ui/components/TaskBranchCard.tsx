@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatRelativeTime } from "../utils/formatTime.js";
 
 export type TaskBranchStatus = "active" | "stale" | "merged" | "broken";
 export type OperatingMode = "managed" | "advisory";
@@ -16,6 +17,9 @@ export interface TaskBranch {
   readonly status: TaskBranchStatus;
   readonly createdAt: number;
   readonly lastActivityAt: number;
+  readonly prNumber: number | undefined;
+  readonly prUrl: string | undefined;
+  readonly prTitle: string | undefined;
 }
 
 interface TaskBranchCardProps {
@@ -41,20 +45,6 @@ const STATUS_LABELS: Record<TaskBranchStatus, string> = {
   broken: "Unavailable",
   merged: "Completed",
 };
-
-function formatRelativeTime(ts: number): string {
-  const diffMs = Date.now() - ts;
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 60) {
-    return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
-  }
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) {
-    return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
-  }
-  const diffDays = Math.floor(diffHr / 24);
-  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-}
 
 export function buildGitHubDesktopUrl(repoPath: string): string {
   return `x-github-client://openRepo/${encodeURIComponent(repoPath)}`;
