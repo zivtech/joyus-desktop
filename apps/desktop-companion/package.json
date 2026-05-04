@@ -10,7 +10,9 @@
     "build:frontend": "vite build",
     "build:sidecar": "node scripts/bundle-sidecar.mjs",
     "download:node": "node scripts/download-node.mjs",
-    "generate:icons": "node scripts/generate-icons.mjs"
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "dev:build": "node scripts/bundle-sidecar.mjs && node scripts/download-node.mjs && cargo tauri build",
+    "dev:mock": "node ../../scripts/mock-control-plane.mjs"
   },
   "dependencies": {
     "@joyus/desktop-sync": "workspace:*",

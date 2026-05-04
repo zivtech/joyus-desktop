@@ -12,7 +12,10 @@
     "skill-sync:hook:install": "node scripts/skill-sync/install-hook.mjs",
     "skill-sync:hook:preview": "node scripts/skill-sync/install-hook.mjs --dry-run",
     "skill-sync:tester": "node scripts/skill-sync/run-tester-checklist.mjs",
-    "skill-sync:verify-pin": "node scripts/skill-sync/verify-pin-propagation.mjs"
+    "skill-sync:verify-pin": "node scripts/skill-sync/verify-pin-propagation.mjs",
+    "mock:control-plane": "node scripts/mock-control-plane.mjs",
+    "desktop:build": "pnpm --filter @joyus/desktop-companion dev:build",
+    "desktop:setup-signing": "bash scripts/setup-signing.sh"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
