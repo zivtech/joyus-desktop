@@ -8,17 +8,21 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-007-local-remote-site-manager
+base_commit: 307403bc9600ddc40ab61fc7e8b139d4e1893df5
+created_at: '2026-05-05T01:44:48.882120+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 - T005
+shell_pid: '18867'
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: 'src/runtimeDetector.ts'
+authoritative_surface: src/runtimeDetector.ts
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:

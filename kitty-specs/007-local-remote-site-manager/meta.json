@@ -4,10 +4,12 @@
   "feature_slug": "007-local-remote-site-manager",
   "friendly_name": "Local & Remote Site Manager",
   "mission": "software-dev",
-  "mission_type": "software-dev",
+  "mission_id": "01KPR4E967F61H0B7K24440QG5",
   "mission_slug": "007-local-remote-site-manager",
+  "mission_type": "software-dev",
   "slug": "007-local-remote-site-manager",
   "source_description": "I need the desktop app to setup, manage, and monitor local sites. Our admins need to be able to use a local site on their machine. If this is too hard then we need to pass the spec back to joyus-ai with a remote hosted site for them to use. (One option is to use probo, which most of our clients have enabled- actually that may be the easiest path, so consider it deeply)",
   "target_branch": "main",
-  "mission_id": "01KPR4E967F61H0B7K24440QG5"
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-05T01:44:48.589182+00:00"
 }
