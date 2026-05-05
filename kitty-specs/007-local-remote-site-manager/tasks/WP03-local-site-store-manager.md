@@ -192,3 +192,7 @@ Implement SQLite persistence for local sites and the `LocalSiteManager` orchestr
 
 - **DDEV config parsing**: `.ddev/config.yaml` format is stable but we need to parse the `name` field. Use a simple regex or line scan rather than adding a YAML parser dependency.
 - **Clone path conflicts**: If the repo was already cloned at the same path, `git clone` will fail. Check for existing directory and reuse if it contains the right remote.
+
+## Activity Log
+
+- 2026-05-05T01:48:06Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
