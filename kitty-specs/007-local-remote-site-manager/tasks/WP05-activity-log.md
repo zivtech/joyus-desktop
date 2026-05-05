@@ -111,3 +111,7 @@ Implement the SQLite-backed activity log for internal users to troubleshoot the 
 ## Risks
 
 - **Shared DB connection**: The activity log receives an existing `DatabaseSync` instance from the remote environment store. Ensure the store creates both tables before handing off the connection.
+
+## Activity Log
+
+- 2026-05-05T01:48:08Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
