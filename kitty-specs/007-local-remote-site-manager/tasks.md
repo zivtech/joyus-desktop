@@ -90,9 +90,9 @@
 **Goal**: Implement the SQLite-backed activity log with append, query, and 30-day pruning.
 
 **Subtasks**:
-- [ ] T023: Implement `activityLog.ts` — SQLite table in same DB as remote environments, append, listRecent, listByRepo, pruneOlderThan
-- [ ] T024: Implement startup pruning — delete entries older than 30 days on first access
-- [ ] T025: Write tests for `activityLog.test.ts` — append, query, pruning, retention boundary
+- [x] T023: Implement `activityLog.ts` — SQLite table in same DB as remote environments, append, listRecent, listByRepo, pruneOlderThan
+- [x] T024: Implement startup pruning — delete entries older than 30 days on first access
+- [x] T025: Write tests for `activityLog.test.ts` — append, query, pruning, retention boundary
 
 ---
 
