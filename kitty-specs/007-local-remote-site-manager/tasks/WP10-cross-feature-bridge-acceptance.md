@@ -217,3 +217,7 @@ Wire session-manager events to environment-monitor, implement the unified site p
 
 - **Event bridge location**: Depends on whether `apps/desktop-companion` is the right orchestration layer. If unclear, use a standalone function exported from environment-monitor.
 - **Test isolation**: Integration tests mock at the CLI boundary (git, gh, ddev) but use real SQLite. Ensure test databases are isolated per test case.
+
+## Activity Log
+
+- 2026-05-05T01:48:11Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
