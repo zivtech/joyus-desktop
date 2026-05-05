@@ -105,12 +105,12 @@
 **Goal**: Implement the GitHub Deployments API poller that discovers Probo environment URLs via `gh api`, maps deployment states, and manages the polling loop.
 
 **Subtasks**:
-- [ ] T026: Implement `deploymentStatusPoller.ts` — `pollForPr()`: get PR head SHA via `gh pr view`, query deployments by SHA, query statuses, extract `environment_url`
-- [ ] T027: Implement deployment state mapping — GitHub states (`queued`, `pending`, `in_progress`, `success`, `failure`, `error`, `inactive`) → `RemoteEnvironmentStatus`
-- [ ] T028: Implement polling loop — 60-second interval with `setInterval`, `startPolling()`, `stopPolling()`
-- [ ] T029: Implement `triggerImmediatePoll()` — event-driven immediate check, bypasses interval
-- [ ] T030: Implement rate limit handling — detect 403/rate-limit headers, back off, show last-known status
-- [ ] T031: Write tests for `deploymentStatusPoller.test.ts` — mock `gh api` output, state mapping, polling lifecycle, rate limit backoff
+- [x] T026: Implement `deploymentStatusPoller.ts` — `pollForPr()`: get PR head SHA via `gh pr view`, query deployments by SHA, query statuses, extract `environment_url`
+- [x] T027: Implement deployment state mapping — GitHub states (`queued`, `pending`, `in_progress`, `success`, `failure`, `error`, `inactive`) → `RemoteEnvironmentStatus`
+- [x] T028: Implement polling loop — 60-second interval with `setInterval`, `startPolling()`, `stopPolling()`
+- [x] T029: Implement `triggerImmediatePoll()` — event-driven immediate check, bypasses interval
+- [x] T030: Implement rate limit handling — detect 403/rate-limit headers, back off, show last-known status
+- [x] T031: Write tests for `deploymentStatusPoller.test.ts` — mock `gh api` output, state mapping, polling lifecycle, rate limit backoff
 
 ---
 
