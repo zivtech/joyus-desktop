@@ -1,23 +1,32 @@
 ---
 work_package_id: WP02
 title: DDEV CLI Wrapper
-dependencies: [WP01]
-requirement_refs: [FR-006, FR-011, FR-012]
-planning_base_branch: claude/channels-spec-005-amendment
-merge_target_branch: claude/channels-spec-005-amendment
-branch_strategy: Planning artifacts for this feature were generated on claude/channels-spec-005-amendment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/channels-spec-005-amendment unless the human explicitly redirects the landing branch.
-subtasks: [T006, T007, T008, T009, T010]
+dependencies:
+- WP01
+requirement_refs:
+- FR-006
+- FR-011
+- FR-012
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: ''
+authoritative_surface: 'src/ddevCli.ts'
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:
-- kitty-specs/007-local-remote-site-manager/research.md
 - src/ddevCli.ts
 - test/ddevCli.test.ts
+tags: []
 wp_code: WP02
 ---
 

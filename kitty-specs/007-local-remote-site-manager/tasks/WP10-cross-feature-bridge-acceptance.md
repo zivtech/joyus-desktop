@@ -4,24 +4,33 @@ title: Cross-Feature Event Bridge & Acceptance
 dependencies:
 - WP03
 - WP09
-requirement_refs: [FR-004, FR-010, FR-011, FR-016]
-planning_base_branch: claude/channels-spec-005-amendment
-merge_target_branch: claude/channels-spec-005-amendment
-branch_strategy: Planning artifacts for this feature were generated on claude/channels-spec-005-amendment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/channels-spec-005-amendment unless the human explicitly redirects the landing branch.
-subtasks: [T050, T051, T052, T053, T054, T055, T056]
+requirement_refs:
+- FR-004
+- FR-010
+- FR-011
+- FR-016
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+subtasks:
+- T050
+- T051
+- T052
+- T053
+- T054
+- T055
+- T056
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: ''
+authoritative_surface: 'src/unifiedSiteList.ts'
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:
-- src/deploymentStatusPoller.ts
-- src/environmentMonitor.ts
-- src/index.ts
 - src/unifiedSiteList.ts
 - test/integration.test.ts
+tags: []
 wp_code: WP10
 ---
 

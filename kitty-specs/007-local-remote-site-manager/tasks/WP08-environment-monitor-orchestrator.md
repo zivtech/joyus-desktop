@@ -1,22 +1,35 @@
 ---
 work_package_id: WP08
 title: Environment Monitor Orchestrator
-dependencies: [WP05, WP06, WP07]
-requirement_refs: [FR-008, FR-009, FR-013]
-planning_base_branch: claude/channels-spec-005-amendment
-merge_target_branch: claude/channels-spec-005-amendment
-branch_strategy: Planning artifacts for this feature were generated on claude/channels-spec-005-amendment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/channels-spec-005-amendment unless the human explicitly redirects the landing branch.
-subtasks: [T038, T039, T040, T041, T042, T043]
+dependencies:
+- WP05
+- WP06
+- WP07
+requirement_refs:
+- FR-008
+- FR-009
+- FR-013
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+subtasks:
+- T038
+- T039
+- T040
+- T041
+- T042
+- T043
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: ''
+authoritative_surface: 'src/environmentMonitor.ts'
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:
 - src/environmentMonitor.ts
 - test/environmentMonitor.test.ts
+tags: []
 wp_code: WP08
 ---
 

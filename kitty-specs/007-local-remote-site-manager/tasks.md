@@ -173,7 +173,7 @@
 ### WP10: Cross-Feature Event Bridge & Acceptance
 **Priority**: P1 — End-to-end integration
 **Prompt**: [tasks/WP10-cross-feature-bridge-acceptance.md](tasks/WP10-cross-feature-bridge-acceptance.md)
-**Dependencies**: WP09
+**Dependencies**: WP03, WP09
 **Estimated prompt size**: ~400 lines
 
 **Goal**: Wire session-manager events to environment-monitor, implement the unified site panel data model, and validate end-to-end flows.

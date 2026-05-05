@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "mission_slug": "007-local-remote-site-manager",
+  "mission_id": "01KPR4E967F61H0B7K24440QG5",
+  "mission_branch": "kitty/mission-007-local-remote-site-manager",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        "kitty-specs/006-managed-git-sessions/spec.md",
+        "kitty-specs/007-local-remote-site-manager/contracts/environment-monitor.ts",
+        "kitty-specs/007-local-remote-site-manager/contracts/local-provisioner.ts",
+        "kitty-specs/007-local-remote-site-manager/data-model.md",
+        "kitty-specs/007-local-remote-site-manager/research.md",
+        "src/activityLog.ts",
+        "src/ddevCli.ts",
+        "src/deploymentStatusPoller.ts",
+        "src/dockerClient.ts",
+        "src/environmentMonitor.ts",
+        "src/gitPusher.ts",
+        "src/index.ts",
+        "src/localSiteManager.ts",
+        "src/localSiteStore.ts",
+        "src/prCreator.ts",
+        "src/proboDetector.ts",
+        "src/projectDiscovery.ts",
+        "src/remoteEnvironmentStore.ts",
+        "src/runtimeDetector.ts",
+        "src/sessionCloser.ts",
+        "src/taskBranchStore.ts",
+        "src/unifiedSiteList.ts",
+        "src/userIdentity.ts",
+        "src/worktreeManager.ts",
+        "test/activityLog.test.ts",
+        "test/ddevCli.test.ts",
+        "test/deploymentStatusPoller.test.ts",
+        "test/dockerClient.test.ts",
+        "test/environmentMonitor.test.ts",
+        "test/gitPusher.test.ts",
+        "test/integration.test.ts",
+        "test/localSiteManager.test.ts",
+        "test/localSiteStore.test.ts",
+        "test/prCreator.test.ts",
+        "test/proboDetector.test.ts",
+        "test/projectDiscovery.test.ts",
+        "test/remoteEnvironmentStore.test.ts",
+        "test/runtimeDetector.test.ts",
+        "test/sessionCloser.test.ts",
+        "test/taskBranchStore.test.ts",
+        "test/userIdentity.test.ts"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-05T01:43:49.673277+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP05"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP03"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP08"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP03"
+      }
+    ],
+    "total_merges": 9,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 9
+    }
+  }
+}

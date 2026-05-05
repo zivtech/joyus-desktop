@@ -1,17 +1,27 @@
 ---
 work_package_id: WP09
 title: Feature 006 Push/PR Amendments
-dependencies: [WP03, WP08]
-requirement_refs: [FR-019, FR-022]
-planning_base_branch: claude/channels-spec-005-amendment
-merge_target_branch: claude/channels-spec-005-amendment
-branch_strategy: Planning artifacts for this feature were generated on claude/channels-spec-005-amendment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/channels-spec-005-amendment unless the human explicitly redirects the landing branch.
-subtasks: [T044, T045, T046, T047, T048, T049]
+dependencies:
+- WP03
+- WP08
+requirement_refs:
+- FR-019
+- FR-022
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+subtasks:
+- T044
+- T045
+- T046
+- T047
+- T048
+- T049
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: ''
+authoritative_surface: 'src/gitPusher.ts'
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:
@@ -25,6 +35,7 @@ owned_files:
 - test/prCreator.test.ts
 - test/sessionCloser.test.ts
 - test/taskBranchStore.test.ts
+tags: []
 wp_code: WP09
 ---
 

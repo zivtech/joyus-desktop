@@ -2,16 +2,23 @@
 work_package_id: WP01
 title: Docker Runtime Detection
 dependencies: []
-requirement_refs: [FR-001, FR-002]
-planning_base_branch: claude/channels-spec-005-amendment
-merge_target_branch: claude/channels-spec-005-amendment
-branch_strategy: Planning artifacts for this feature were generated on claude/channels-spec-005-amendment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/channels-spec-005-amendment unless the human explicitly redirects the landing branch.
-subtasks: [T001, T002, T003, T004, T005]
+requirement_refs:
+- FR-001
+- FR-002
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
 history:
 - date: '2026-04-01'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: ''
+authoritative_surface: 'src/runtimeDetector.ts'
 execution_mode: code_change
 mission_id: 01KPR4E967F61H0B7K24440QG5
 owned_files:
@@ -22,6 +29,7 @@ owned_files:
 - src/runtimeDetector.ts
 - test/dockerClient.test.ts
 - test/runtimeDetector.test.ts
+tags: []
 wp_code: WP01
 ---
 
