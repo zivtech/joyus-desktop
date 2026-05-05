@@ -13,7 +13,7 @@ interface SiteCardExpandedProps {
   readonly loading: boolean;
   readonly error: string | undefined;
   readonly driftSignals: ReadonlyMap<string, DriftSignalPayload>;
-  readonly onResume: (id: string) => void;
+  readonly onResume: (id: string) => void | Promise<void>;
   readonly onDelete: (id: string) => void;
   readonly onOpenGitHub: (repoPath: string, branchName: string) => void;
   readonly onDriftDismiss: (taskBranchId: string) => void;

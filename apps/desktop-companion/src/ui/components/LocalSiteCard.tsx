@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BranchCountBadge } from "./BranchCountBadge.js";
 import { SiteActivityIndicator } from "./SiteActivityIndicator.js";
 
@@ -124,6 +124,19 @@ export function LocalSiteCard({
 }: LocalSiteCardProps) {
   const [pendingOp, setPendingOp] = useState<PendingOp>(undefined);
   const [removing, setRemoving] = useState(false);
+  const chevronRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!expanded || onToggleExpand === undefined) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onToggleExpand!();
+        chevronRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [expanded, onToggleExpand]);
 
   const isRunning = site.status === "running";
   const isStopped = site.status === "stopped" || site.status === "error";
@@ -299,6 +312,7 @@ export function LocalSiteCard({
         />
         {onToggleExpand !== undefined && (
           <button
+            ref={chevronRef}
             onClick={onToggleExpand}
             aria-expanded={expanded}
             aria-controls={`site-detail-${site.id}`}

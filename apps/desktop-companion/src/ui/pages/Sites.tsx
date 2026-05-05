@@ -414,8 +414,16 @@ export function Sites() {
     });
   }
 
-  function handleBranchResume(id: string) {
-    void safeInvoke("session_resume", { taskBranchId: id });
+  async function handleBranchResume(id: string): Promise<void> {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("session_resume", { taskBranchId: id });
+    const expandedSite = localSites.find((s) => s.id === expandedSiteId);
+    if (expandedSite !== undefined) {
+      void safeInvoke<TaskBranch[]>("session_list_by_repo", { repoPath: expandedSite.repoPath }).then((r) => {
+        if (r !== undefined) setExpandedBranches(r);
+      });
+    }
+    loadBranchCounts();
   }
 
   function handleBranchDelete(id: string) {
@@ -433,7 +441,7 @@ export function Sites() {
 
   function handleOpenGitHub(repoPath: string, branchName: string) {
     const url = `x-github-client://openRepo/${encodeURIComponent(repoPath)}?branch=${encodeURIComponent(branchName)}`;
-    void openUrl(url);
+    void safeInvoke("open_url", { url });
   }
 
   function handleDriftDismiss(taskBranchId: string) {

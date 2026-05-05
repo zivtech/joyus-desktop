@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<TaskBranchStatus, string> = {
 interface BranchRowProps {
   readonly branch: TaskBranch;
   readonly driftSignal?: DriftSignalPayload;
-  readonly onResume: (id: string) => void;
+  readonly onResume: (id: string) => void | Promise<void>;
   readonly onDelete: (id: string) => void;
   readonly onOpenGitHub: (repoPath: string, branchName: string) => void;
   readonly onDriftDismiss: (taskBranchId: string) => void;
@@ -37,7 +37,17 @@ export function BranchRow({
   onDriftNewSession,
 }: BranchRowProps) {
   const [pendingDelete, setPendingDelete] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | undefined>(undefined);
   const canResume = branch.status === "active" || branch.status === "stale";
+
+  function handleResume() {
+    setResuming(true);
+    setResumeError(undefined);
+    Promise.resolve(onResume(branch.id))
+      .catch(() => { setResumeError("Could not resume this session."); })
+      .finally(() => { setResuming(false); });
+  }
 
   return (
     <div
@@ -176,18 +186,19 @@ export function BranchRow({
             <>
               {canResume && (
                 <button
-                  onClick={() => onResume(branch.id)}
+                  onClick={handleResume}
+                  disabled={resuming}
                   style={{
-                    background: "#1a73e8",
+                    background: resuming ? "#93c5fd" : "#1a73e8",
                     color: "#fff",
                     border: "none",
                     borderRadius: "4px",
                     padding: "0.1875rem 0.5rem",
                     fontSize: "0.75rem",
-                    cursor: "pointer",
+                    cursor: resuming ? "not-allowed" : "pointer",
                   }}
                 >
-                  Resume
+                  {resuming ? "Resuming…" : "Resume"}
                 </button>
               )}
               <button
@@ -230,6 +241,22 @@ export function BranchRow({
           onDismiss={onDriftDismiss}
           onNewSession={onDriftNewSession}
         />
+      )}
+
+      {/* Resume error */}
+      {resumeError !== undefined && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fca5a5",
+            borderRadius: "4px",
+            padding: "0.25rem 0.5rem",
+            fontSize: "0.75rem",
+            color: "#991b1b",
+          }}
+        >
+          {resumeError}
+        </div>
       )}
     </div>
   );
