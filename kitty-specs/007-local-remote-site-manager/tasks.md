@@ -73,11 +73,11 @@
 **Goal**: Scaffold `packages/environment-monitor` and implement Probo detection + SQLite persistence for remote environments.
 
 **Subtasks**:
-- [ ] T018: Scaffold `packages/environment-monitor` (package.json, tsconfig, index.ts) `[P]`
-- [ ] T019: Implement `proboDetector.ts` — check `.probo.yaml` existence in repo root
-- [ ] T020: Implement `remoteEnvironmentStore.ts` — SQLite schema, CRUD, upsert from deployment, soft delete, status transitions
-- [ ] T021: Write tests for `proboDetector.test.ts` — file exists/not-exists scenarios
-- [ ] T022: Write tests for `remoteEnvironmentStore.test.ts` — CRUD, upsert idempotency, status transitions
+- [x] T018: Scaffold `packages/environment-monitor` (package.json, tsconfig, index.ts) `[P]`
+- [x] T019: Implement `proboDetector.ts` — check `.probo.yaml` existence in repo root
+- [x] T020: Implement `remoteEnvironmentStore.ts` — SQLite schema, CRUD, upsert from deployment, soft delete, status transitions
+- [x] T021: Write tests for `proboDetector.test.ts` — file exists/not-exists scenarios
+- [x] T022: Write tests for `remoteEnvironmentStore.test.ts` — CRUD, upsert idempotency, status transitions
 
 ---
 
