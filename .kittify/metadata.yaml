@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.1.1
+  version: 3.1.6
   initialized_at: '2026-03-09T21:37:47.163305'
-  last_upgraded_at: '2026-04-21T09:42:26.880654'
+  last_upgraded_at: '2026-05-04T21:39:36.909919'
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -172,3 +172,38 @@ migrations:
       004-desktop-application-shell: normalised status.json; 005-live-control-plane-integration:
       normalised status.json; 006-managed-git-sessions: normalised status.json; 008-managed-tooling-distribution:
       normalised status.json'
+  - id: 3.1.2_globalize_commands
+    applied_at: '2026-05-04T21:39:36.902870'
+    result: success
+    notes: 'Could not remove .claude/commands/spec-kitty.accept.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.accept.md'';
+      Could not remove .claude/commands/spec-kitty.analyze.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.analyze.md'';
+      Could not remove .claude/commands/spec-kitty.charter.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.charter.md'';
+      Could not remove .claude/commands/spec-kitty.checklist.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.checklist.md'';
+      Could not remove .claude/commands/spec-kitty.dashboard.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.dashboard.md'';
+      Could not remove .claude/commands/spec-kitty.implement.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.implement.md'';
+      Could not remove .claude/commands/spec-kitty.merge.md: [Errno 1] Operation not
+      permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.merge.md'';
+      Could not remove .claude/commands/spec-kitty.plan.md: [Errno 1] Operation not
+      permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.plan.md'';
+      Could not remove .claude/commands/spec-kitty.research.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.research.md'';
+      Could not remove .claude/commands/spec-kitty.review.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.review.md'';
+      Could not remove .claude/commands/spec-kitty.specify.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.specify.md'';
+      Could not remove .claude/commands/spec-kitty.status.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.status.md'';
+      Could not remove .claude/commands/spec-kitty.tasks-finalize.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.tasks-finalize.md'';
+      Could not remove .claude/commands/spec-kitty.tasks-outline.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.tasks-outline.md'';
+      Could not remove .claude/commands/spec-kitty.tasks-packages.md: [Errno 1] Operation
+      not permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.tasks-packages.md'';
+      Could not remove .claude/commands/spec-kitty.tasks.md: [Errno 1] Operation not
+      permitted: ''/Users/AlexUA_1/claude/joyus-desktop/.claude/commands/spec-kitty.tasks.md'''
