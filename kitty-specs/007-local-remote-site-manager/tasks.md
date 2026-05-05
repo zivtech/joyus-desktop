@@ -161,12 +161,12 @@
 **Goal**: Implement the Feature 006 amendments (FR-018–FR-023) in `packages/session-manager`: push-to-remote, draft PR creation, auto-commit, PR association on TaskBranch.
 
 **Subtasks**:
-- [ ] T044: Add PR association fields to TaskBranch schema — `pr_number`, `pr_url`, `pr_status`, `preview_environment_url` columns, schema migration
-- [ ] T045: Implement `gitPusher.ts` in session-manager — push task branch to configured remote via `execGit`, handle network failures with retry queue
-- [ ] T046: Implement `prCreator.ts` in session-manager — `gh pr create --draft` via execFile, detect existing PR, update PR association on TaskBranch
-- [ ] T047: Implement auto-commit behavior (FR-023) — silent commit for desktop GUI context, "save your work" prompt for CLI context, configurable preference
-- [ ] T048: Implement event emission — emit `push-complete` and `pr-created` events that environment-monitor can consume
-- [ ] T049: Write tests for push, PR creation, auto-commit, and event emission
+- [x] T044: Add PR association fields to TaskBranch schema — `pr_number`, `pr_url`, `pr_status`, `preview_environment_url` columns, schema migration
+- [x] T045: Implement `gitPusher.ts` in session-manager — push task branch to configured remote via `execGit`, handle network failures with retry queue
+- [x] T046: Implement `prCreator.ts` in session-manager — `gh pr create --draft` via execFile, detect existing PR, update PR association on TaskBranch
+- [x] T047: Implement auto-commit behavior (FR-023) — silent commit for desktop GUI context, "save your work" prompt for CLI context, configurable preference
+- [x] T048: Implement event emission — emit `push-complete` and `pr-created` events that environment-monitor can consume
+- [x] T049: Write tests for push, PR creation, auto-commit, and event emission
 
 ---
 
