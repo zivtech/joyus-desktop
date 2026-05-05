@@ -178,3 +178,7 @@ Implement the GitHub Deployments API poller that discovers Probo environment URL
 
 - **Probo environment name**: Probo may use a non-standard `environment` field (e.g., `"probo-build-42"` vs `"preview"`). The poller should accept any environment name, not filter by a specific string.
 - **`gh` CLI not installed**: If `gh` is not in PATH, all polls will fail. The poller should detect this once on startup and surface a clear error.
+
+## Activity Log
+
+- 2026-05-05T01:48:08Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing

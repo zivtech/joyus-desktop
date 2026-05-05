@@ -1,7 +1,7 @@
 {
-  "event_count": 17,
-  "last_event_id": "01KQTX4E3NAAD9J0PFP5PRGVQN",
-  "materialized_at": "2026-05-05T01:48:08.181812+00:00",
+  "event_count": 18,
+  "last_event_id": "01KQTX4ERBR4RXXD0QQKVBRGBZ",
+  "materialized_at": "2026-05-05T01:48:08.843612+00:00",
   "mission_number": "7",
   "mission_slug": "007-local-remote-site-manager",
   "mission_type": "software-dev",
@@ -10,11 +10,11 @@
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 5,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-05T01:48:08.181812+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQTWWHN1S6PASHEPE9ECNCFT",
-      "last_transition_at": "2026-05-05T01:43:49.665701+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQTX4ERBR4RXXD0QQKVBRGBZ",
+      "last_transition_at": "2026-05-05T01:48:08.843612+00:00"
     },
     "WP07": {
       "actor": "finalize-tasks",
