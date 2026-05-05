@@ -123,12 +123,12 @@
 **Goal**: Implement chained project discovery (GitHub orgs + admin list + manual URL) and user identity determination (internal vs. client).
 
 **Subtasks**:
-- [ ] T032: Implement `userIdentity.ts` — `gh api /user/orgs --jq '.[].login'` to check for `zivtech` membership; Google domain check for `@zivtech.com`
-- [ ] T033: Implement `projectDiscovery.ts` — `discoverFromGitHubOrg()` via `gh api /orgs/{org}/repos`, `addManual()`, deduplication by repo URL
-- [ ] T034: Implement admin-curated list stub — placeholder for joyus-ai platform API (returns empty until API exists)
-- [ ] T035: Implement `discoverAll()` — combine all sources, deduplicate, enrich with `hasProbo`/`hasDdev` flags
-- [ ] T036: Write tests for `userIdentity.test.ts` — mock gh CLI, org membership, edge cases
-- [ ] T037: Write tests for `projectDiscovery.test.ts` — mock gh CLI, deduplication, manual add
+- [x] T032: Implement `userIdentity.ts` — `gh api /user/orgs --jq '.[].login'` to check for `zivtech` membership; Google domain check for `@zivtech.com`
+- [x] T033: Implement `projectDiscovery.ts` — `discoverFromGitHubOrg()` via `gh api /orgs/{org}/repos`, `addManual()`, deduplication by repo URL
+- [x] T034: Implement admin-curated list stub — placeholder for joyus-ai platform API (returns empty until API exists)
+- [x] T035: Implement `discoverAll()` — combine all sources, deduplicate, enrich with `hasProbo`/`hasDdev` flags
+- [x] T036: Write tests for `userIdentity.test.ts` — mock gh CLI, org membership, edge cases
+- [x] T037: Write tests for `projectDiscovery.test.ts` — mock gh CLI, deduplication, manual add
 
 ---
 
