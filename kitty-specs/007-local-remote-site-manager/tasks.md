@@ -19,10 +19,10 @@
 
 **Subtasks**:
 - [x] T001: Scaffold `packages/local-provisioner` (package.json, tsconfig, index.ts) `[P]`
-- [ ] T002: Implement `dockerClient.ts` — HTTP over Unix socket/named pipe, `/_ping`, `/info`, `/containers/json`, `/containers/{id}/stats?stream=false`
-- [ ] T003: Implement `runtimeDetector.ts` — ordered socket probing (DOCKER_HOST → ~/.docker → ~/.orbstack → /var/run), DDEV version check via `ddev version -j`
-- [ ] T004: Write tests for `dockerClient.test.ts` — mock HTTP responses for all endpoints
-- [ ] T005: Write tests for `runtimeDetector.test.ts` — mock socket access + ddev CLI
+- [x] T002: Implement `dockerClient.ts` — HTTP over Unix socket/named pipe, `/_ping`, `/info`, `/containers/json`, `/containers/{id}/stats?stream=false`
+- [x] T003: Implement `runtimeDetector.ts` — ordered socket probing (DOCKER_HOST → ~/.docker → ~/.orbstack → /var/run), DDEV version check via `ddev version -j`
+- [x] T004: Write tests for `dockerClient.test.ts` — mock HTTP responses for all endpoints
+- [x] T005: Write tests for `runtimeDetector.test.ts` — mock socket access + ddev CLI
 
 ---
 
