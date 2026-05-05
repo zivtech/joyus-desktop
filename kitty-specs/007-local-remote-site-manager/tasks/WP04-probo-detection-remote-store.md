@@ -141,3 +141,7 @@ Scaffold `packages/environment-monitor` and implement Probo detection + SQLite p
 ## Risks
 
 - **SQLite in-memory for tests**: Ensure `DatabaseSync` supports `:memory:` path (it does in Node 22+; verify in this project's Node version)
+
+## Activity Log
+
+- 2026-05-05T01:48:07Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
