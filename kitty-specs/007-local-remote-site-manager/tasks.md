@@ -141,12 +141,12 @@
 **Goal**: Implement the `EnvironmentMonitor` orchestrator that handles PR events, manages polling lifecycle, surfaces environments, and logs activity.
 
 **Subtasks**:
-- [ ] T038: Implement `environmentMonitor.ts` — `onPrCreated()`: create/update RemoteEnvironment, trigger immediate poll, log activity
-- [ ] T039: Implement `requestHostedEnvironment()` — stub for joyus-ai API (placeholder returns "provisioning" status)
-- [ ] T040: Implement `start()`/`stop()` — start/stop the deployment status poller, run initial sync on start
-- [ ] T041: Implement environment lifecycle management — update store when poller returns new statuses, transition expired environments, log state changes
-- [ ] T042: Implement `listAll()` and `listByRepo()` — query store, return sorted by last activity
-- [ ] T043: Write tests for `environmentMonitor.test.ts` — PR event flow, polling lifecycle, status transitions, activity logging
+- [x] T038: Implement `environmentMonitor.ts` — `onPrCreated()`: create/update RemoteEnvironment, trigger immediate poll, log activity
+- [x] T039: Implement `requestHostedEnvironment()` — stub for joyus-ai API (placeholder returns "provisioning" status)
+- [x] T040: Implement `start()`/`stop()` — start/stop the deployment status poller, run initial sync on start
+- [x] T041: Implement environment lifecycle management — update store when poller returns new statuses, transition expired environments, log state changes
+- [x] T042: Implement `listAll()` and `listByRepo()` — query store, return sorted by last activity
+- [x] T043: Write tests for `environmentMonitor.test.ts` — PR event flow, polling lifecycle, status transitions, activity logging
 
 ---
 
