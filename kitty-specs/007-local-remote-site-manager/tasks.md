@@ -179,13 +179,13 @@
 **Goal**: Wire session-manager events to environment-monitor, implement the unified site panel data model, and validate end-to-end flows.
 
 **Subtasks**:
-- [ ] T050: Implement event bridge — session-manager `pr-created` event → environment-monitor `onPrCreated()`, wire in app orchestration layer
-- [ ] T051: Implement unified site list — combine `localSiteManager.listAll()` + `environmentMonitor.listAll()` into `ManagedSite[]` view model for the panel
-- [ ] T052: Implement user-type filtering — internal users see local + remote; client users see remote only
-- [ ] T053: Implement offline handling — local sites work offline, remote status cached with "last checked" timestamp
-- [ ] T054: Write end-to-end integration tests — session close → push → PR → Probo poll → environment appears
-- [ ] T055: Write edge case tests — port conflicts, network failures, rate limiting, missing .probo.yaml, missing .ddev config
-- [ ] T056: Export public API from both packages via index.ts
+- [x] T050: Implement event bridge — session-manager `pr-created` event → environment-monitor `onPrCreated()`, wire in app orchestration layer
+- [x] T051: Implement unified site list — combine `localSiteManager.listAll()` + `environmentMonitor.listAll()` into `ManagedSite[]` view model for the panel
+- [x] T052: Implement user-type filtering — internal users see local + remote; client users see remote only
+- [x] T053: Implement offline handling — local sites work offline, remote status cached with "last checked" timestamp
+- [x] T054: Write end-to-end integration tests — session close → push → PR → Probo poll → environment appears
+- [x] T055: Write edge case tests — port conflicts, network failures, rate limiting, missing .probo.yaml, missing .ddev config
+- [x] T056: Export public API from both packages via index.ts
 
 ---
 
