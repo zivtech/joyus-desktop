@@ -225,3 +225,7 @@ Implement the Feature 006 amendments (FR-018–FR-023) in `packages/session-mana
 - **Schema migration**: SQLite ALTER TABLE is limited. Test migration on a database with existing data to ensure no data loss.
 - **Remote URL parsing**: GitHub remote URLs can be HTTPS or SSH format. Handle both: `https://github.com/owner/repo.git` and `git@github.com:owner/repo.git`.
 - **Existing test coverage**: This WP modifies `taskBranchStore.ts` which has 100% coverage. Ensure existing tests still pass after schema changes.
+
+## Activity Log
+
+- 2026-05-05T01:48:11Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
