@@ -52,13 +52,13 @@
 **Goal**: Implement SQLite persistence for local sites and the orchestrator that provisions, starts, stops, and removes DDEV sites.
 
 **Subtasks**:
-- [ ] T011: Implement `localSiteStore.ts` — SQLite schema, CRUD operations, soft delete, status updates (following `taskBranchStore.ts` patterns)
-- [ ] T012: Implement `localSiteManager.ts` — `provision()`: clone repo → detect .ddev config → `ddev start` → persist site → return URL
-- [ ] T013: Implement lifecycle methods — `start()`, `stop()`, `restart()`, `remove()` with DDEV CLI delegation
-- [ ] T014: Implement `syncAll()` — refresh all site statuses from `ddev list -j` output
-- [ ] T015: Implement `getResourceUsage()` — Docker container stats for running sites
-- [ ] T016: Write tests for `localSiteStore.test.ts` — CRUD, soft delete, status transitions
-- [ ] T017: Write tests for `localSiteManager.test.ts` — provision flow, lifecycle, sync, error scenarios
+- [x] T011: Implement `localSiteStore.ts` — SQLite schema, CRUD operations, soft delete, status updates (following `taskBranchStore.ts` patterns)
+- [x] T012: Implement `localSiteManager.ts` — `provision()`: clone repo → detect .ddev config → `ddev start` → persist site → return URL
+- [x] T013: Implement lifecycle methods — `start()`, `stop()`, `restart()`, `remove()` with DDEV CLI delegation
+- [x] T014: Implement `syncAll()` — refresh all site statuses from `ddev list -j` output
+- [x] T015: Implement `getResourceUsage()` — Docker container stats for running sites
+- [x] T016: Write tests for `localSiteStore.test.ts` — CRUD, soft delete, status transitions
+- [x] T017: Write tests for `localSiteManager.test.ts` — provision flow, lifecycle, sync, error scenarios
 
 ---
 
