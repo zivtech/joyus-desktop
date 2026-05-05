@@ -161,3 +161,7 @@ Implement chained project discovery (GitHub orgs + admin-curated list + manual U
 
 - **GitHub org API permissions**: `gh api /user/orgs` may not return private org memberships unless the token has `read:org` scope. Document this as a setup requirement.
 - **Pagination**: Large orgs (>100 repos) need pagination. Use `gh api --paginate` flag if available, or manual `page` parameter.
+
+## Activity Log
+
+- 2026-05-05T01:48:09Z – unknown – Pre-existing implementation on main — code verified, 360 tests passing
