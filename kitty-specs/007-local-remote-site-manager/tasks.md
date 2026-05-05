@@ -35,11 +35,11 @@
 **Goal**: Implement the DDEV CLI wrapper that executes commands, parses JSON output envelopes, and classifies errors into plain-language messages.
 
 **Subtasks**:
-- [ ] T006: Implement `ddevCli.ts` — wrapper for `ddev start/stop/restart/delete/describe/list/version` with `-j` flag, envelope parsing (`{ msg, level, raw }`)
-- [ ] T007: Implement error classification — match stderr patterns to plain-language messages (port conflict, missing docker, missing config, project not found)
-- [ ] T008: Implement resource snapshot extraction — parse `docker stats` via Docker Engine API for running DDEV containers
-- [ ] T009: Write tests for `ddevCli.test.ts` — mock execFile for each command, test JSON parsing, test error classification
-- [ ] T010: Write tests for resource snapshot — mock Docker stats API responses
+- [x] T006: Implement `ddevCli.ts` — wrapper for `ddev start/stop/restart/delete/describe/list/version` with `-j` flag, envelope parsing (`{ msg, level, raw }`)
+- [x] T007: Implement error classification — match stderr patterns to plain-language messages (port conflict, missing docker, missing config, project not found)
+- [x] T008: Implement resource snapshot extraction — parse `docker stats` via Docker Engine API for running DDEV containers
+- [x] T009: Write tests for `ddevCli.test.ts` — mock execFile for each command, test JSON parsing, test error classification
+- [x] T010: Write tests for resource snapshot — mock Docker stats API responses
 
 ---
 
