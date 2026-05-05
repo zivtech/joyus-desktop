@@ -17,7 +17,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '18867'
+shell_pid: "20000"
+agent: "claude"
 history:
 - date: '2026-04-01'
   action: created
@@ -182,3 +183,7 @@ Scaffold the `packages/local-provisioner` package and implement the Docker Engin
 
 - **Windows named pipe**: `node:http` may not support named pipes directly on all Node versions. Verify during implementation; if blocked, implement a raw `net.createConnection` adapter.
 - **Socket permissions**: macOS socket access may require user to be in the `docker` group. The detector should report permission errors as "Docker installed but inaccessible" rather than "not installed".
+
+## Activity Log
+
+- 2026-05-05T01:44:54Z – claude – shell_pid=20000 – Assigned agent via action command
