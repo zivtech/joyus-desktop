@@ -75,7 +75,7 @@ beforeAll(async () => {
   // Spawn the mock server on a dedicated port
   serverProcess = spawn(
     process.execPath,
-    [MOCK_SCRIPT, "--port", String(PORT)],
+    ["--import", "tsx/esm", MOCK_SCRIPT, "--port", String(PORT)],
     { stdio: ["ignore", "pipe", "pipe"] }
   );
 
