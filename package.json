@@ -14,6 +14,7 @@
     "skill-sync:tester": "node scripts/skill-sync/run-tester-checklist.mjs",
     "skill-sync:verify-pin": "node scripts/skill-sync/verify-pin-propagation.mjs",
     "mock:control-plane": "tsx scripts/mock-control-plane.mjs",
+    "dogfood:smoke": "tsx scripts/dogfood-smoke.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "desktop:build": "pnpm --filter @joyus/desktop-companion dev:build",
     "desktop:setup-signing": "bash scripts/setup-signing.sh"
