@@ -43,9 +43,31 @@ const mediationBearerToken =
   process.env["JOYUS_MEDIATION_BEARER_TOKEN"] ?? process.env["JOYUS_DEV_JWT_TOKEN"] ?? "";
 const smokeMessage =
   process.env["JOYUS_SMOKE_MESSAGE"] ?? "multi tenant architecture accessibility citations";
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+const GENERATION_FETCH_TIMEOUT_MS = 30_000;
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {
@@ -66,7 +88,7 @@ async function postMcp<T>(method: string, params: Record<string, unknown> = {}):
     throw new Error("JOYUS_API_TOKEN or JOYUS_MCP_BEARER_TOKEN is required for MCP smoke");
   }
 
-  const response = await fetch(`${controlPlaneBaseUrl}/mcp`, {
+  const response = await fetchWithTimeout(`${controlPlaneBaseUrl}/mcp`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${controlPlaneToken}`,
@@ -90,7 +112,11 @@ async function postMcp<T>(method: string, params: Record<string, unknown> = {}):
   return payload.result as T;
 }
 
-async function postMediation<T>(path: string, body: unknown): Promise<T> {
+async function postMediation<T>(
+  path: string,
+  body: unknown,
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+): Promise<T> {
   if (!mediationApiKey) {
     throw new Error("JOYUS_MEDIATION_API_KEY or API_KEY is required for mediation smoke");
   }
@@ -100,15 +126,19 @@ async function postMediation<T>(path: string, body: unknown): Promise<T> {
     );
   }
 
-  const response = await fetch(`${mediationBaseUrl}${path}`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": mediationApiKey,
-      authorization: `Bearer ${mediationBearerToken}`,
+  const response = await fetchWithTimeout(
+    `${mediationBaseUrl}${path}`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": mediationApiKey,
+        authorization: `Bearer ${mediationBearerToken}`,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    timeoutMs,
+  );
   const payload = await readJsonResponse(response);
   if (!response.ok) {
     throw new Error(`${path} failed with HTTP ${response.status}: ${JSON.stringify(payload)}`);
@@ -132,7 +162,7 @@ async function checkMcp(): Promise<void> {
 }
 
 async function checkMediation(): Promise<void> {
-  const health = await fetch(`${mediationBaseUrl}/api/mediation/health`, {
+  const health = await fetchWithTimeout(`${mediationBaseUrl}/api/mediation/health`, {
     headers: {
       "x-api-key": mediationApiKey,
       authorization: `Bearer ${mediationBearerToken}`,
@@ -151,6 +181,7 @@ async function checkMediation(): Promise<void> {
   const result = await postMediation<MessageResponse>(
     `/api/mediation/sessions/${sessionId}/messages`,
     { message: smokeMessage, maxSources: 5 },
+    GENERATION_FETCH_TIMEOUT_MS,
   );
 
   const sourcesUsed = result.metadata?.sourcesUsed ?? 0;
