@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-05-10T23:13:44.069791+00:00",
+  "friendly_name": "recon operator",
+  "mission_id": "01KRA2P11PNXGNMMJQYQYP34M8",
+  "mission_number": null,
+  "mission_slug": "recon-operator-01KRA2P1",
+  "mission_type": "software-dev",
+  "slug": "recon-operator-01KRA2P1",
+  "target_branch": "main"
+}
