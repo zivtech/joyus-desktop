@@ -23,8 +23,8 @@
 | T013 | Implement get_engagement_status command | WP03 | |
 | T014 | Implement cancel_engagement command | WP03 | |
 | T015 | Add create_engagement proxy and register commands | WP03 | |
-| T016 | Append completion signaling section to Recon skill | WP04 | [P] |
-| T017 | Add Phase 0 prereq check to Recon skill | WP04 | |
+| T016 | Append completion signaling section to Recon skill | WP04 | [D] |
+| T017 | Add Phase 0 prereq check to Recon skill | WP04 | | [D] |
 | T018 | Create ReconSetup.tsx wizard page structure | WP05 | |
 | T019 | Implement Claude Code detection (Step 1) | WP05 | |
 | T020 | Create CredentialForm.tsx component | WP05 | |
@@ -142,8 +142,8 @@ Phase 3:
 **Execution**: manual
 **Estimated prompt size**: ~150 lines
 
-- [ ] T016 Append completion signaling section to Recon skill
-- [ ] T017 Add Phase 0 prereq check to Recon skill
+- [x] T016 Append completion signaling section to Recon skill
+- [x] T017 Add Phase 0 prereq check to Recon skill
 
 ### WP05 — Setup Wizard Frontend
 **Prompt**: [`tasks/WP05-setup-wizard-frontend.md`](tasks/WP05-setup-wizard-frontend.md)
