@@ -1,108 +1,276 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Recon Operator
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Mission**: `recon-operator-01KRA2P1` | **Date**: 2026-05-10 | **Spec**: [spec.md](spec.md)
+**Input**: Readiness plan at `joyus-ai-internal/planning/recon-operator-readiness-plan-v2.md`, codebase research at [research.md](research.md)
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Enable a non-technical operator (Aaron) to run Joyus Recon engagements from Desktop without a terminal. Desktop provisions credentials, launches the analysis tool as a background child process, streams progress to the UI, detects completion, scans output for sensitive content, and gates export. Three phases over 6 weeks: MVP dogfood, secure credential storage, signed distribution with UAT.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: TypeScript strict ES2022 ESM (sidecar + frontend), Rust (Tauri 2 commands), React 19 (frontend)
+**Primary Dependencies**: `@tauri-apps/api` ^2.10.1, `react` ^19.2.4, `react-router-dom` ^7.13.1, `keyring` 3 (Rust, Phase 2)
+**Storage**: Filesystem (engagement directories, Phase 1 credential file), macOS Keychain (Phase 2 credentials)
+**Testing**: vitest with v8 coverage (TypeScript packages), cargo test (Rust)
+**Target Platform**: macOS (constraint C-001), minimum 10.15, Apple Silicon + Intel (universal binary)
+**Project Type**: Tauri 2 desktop app — pnpm monorepo with Rust core + Node sidecar + React frontend
+**Performance Goals**: Completion detection ≤ 5s after process exit (NFR-003), preflight check ≤ 5s (NFR-004)
+**Constraints**: Single operator per machine (C-002), analysis CLI pre-installed (C-003), per-engagement cost cap $25 (C-005)
+**Scale/Scope**: 1 operator, ~2–5 engagements per week, engagement output ~50 files per run
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**UI Pattern**: Inline CSS with `style={{...}}` objects, card-based layout, `#e5e7eb` borders, `#1a73e8` primary, `#22c55e` success, `#ef4444` error
+**IPC Pattern**: `safeInvoke<T>(cmd, args)` / `safeListen<T>(event, handler)` — both defined locally per page via lazy dynamic import of `@tauri-apps/api`
+**Sidecar Pattern**: `registerXxxMethods(ipc: IpcHandler, ...deps)` per module, called from `registerAllMethods()` in `services.ts`
+**Router**: `MemoryRouter`, main pages under `<Layout>`, full-screen flows outside Layout
+
+**Verified CLI Invocation** (2026-05-10, Claude Code 2.1.138):
+```
+claude -p "/joyus-recon --rfp \"{clientName}\""
+  --permission-mode dontAsk
+  --output-format stream-json
+  --max-budget-usd 25
+```
 
 ## Charter Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on charter file]
+Charter loaded from `/Users/AlexUA_1/claude/joyus-desktop/.kittify/charter/charter.md`.
+
+- **DIRECTIVE_003** (Decision Documentation): Five ADR-style decisions documented in [research.md](research.md) covering command routing, credential injection, completion detection, frontend architecture, and scan script distribution. Each includes rationale and alternatives considered.
+- **DIRECTIVE_010** (Specification Fidelity): Plan traces to spec requirements (FR-001–FR-016, NFR-001–NFR-007, C-001–C-006). Each phase gate maps to specific FR satisfaction.
+
+**Post-Phase-1 re-check**: No new conflicts. All design decisions are consistent with charter directives.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/recon-operator-01KRA2P1/
+├── spec.md              # Feature specification (16 FRs, 7 NFRs, 6 constraints)
+├── plan.md              # This file
+├── research.md          # 5 architectural decisions with rationale
+├── data-model.md        # 6 entities, engagement directory structure
+├── checklists/
+│   └── requirements.md  # Spec quality checklist (all pass)
+└── tasks.md             # Work packages (generated by /spec-kitty.tasks)
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code (affected areas in repository)
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
+apps/desktop-companion/
 ├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+│   ├── sidecar/
+│   │   ├── recon.ts          # NEW — recon.create, recon.scan, recon.export handlers
+│   │   ├── credentials.ts    # NEW — credentials.save, credentials.list, credentials.verify
+│   │   └── services.ts       # MODIFY — register new handler modules
+│   └── ui/
+│       ├── pages/
+│       │   ├── ReconSetup.tsx     # NEW — setup wizard (3 steps)
+│       │   └── ReconDashboard.tsx # NEW — engagement management + status
+│       ├── components/
+│       │   ├── CredentialForm.tsx    # NEW — credential entry + verification
+│       │   ├── EngagementStatus.tsx  # NEW — progress + completion display
+│       │   └── ReadinessMatrix.tsx   # NEW — preflight check panel (Phase 3)
+│       ├── hooks/
+│       │   └── useRecon.ts          # NEW — recon state management hook
+│       └── App.tsx                  # MODIFY — add /recon routes
+├── src-tauri/
+│   ├── src/
+│   │   ├── recon.rs       # NEW — launch_recon, get_engagement_status, cancel_engagement
+│   │   ├── keychain.rs    # NEW (Phase 2) — store/retrieve/delete/list credentials
+│   │   ├── commands.rs    # MODIFY — add create_engagement proxy + keychain commands
+│   │   └── lib.rs         # MODIFY — register new modules and commands
+│   ├── Cargo.toml         # MODIFY (Phase 2) — add keyring dependency
+│   ├── tauri.conf.json    # MODIFY — add scan script to resources, signing (Phase 3)
+│   └── entitlements.plist # NEW (Phase 3) — Keychain + Node sidecar entitlements
+├── resources/
+│   └── scan-sensitive-output.mjs  # NEW — copied from joyus-recon
+├── config/
+│   └── distribution-config.json   # MODIFY (Phase 2) — add recon-operator-bundle
+└── .github/
+    └── workflows/
+        └── build-desktop.yml      # NEW/MODIFY (Phase 3) — signed build workflow
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+## Architecture
 
-## Complexity Tracking
+### Command Routing
 
-*Fill ONLY if Charter Check has violations that must be justified*
+| Operation | Layer | Pattern | Timeout |
+|-----------|-------|---------|---------|
+| recon.create | Sidecar | IPC handler in `recon.ts` | Default (30s) |
+| recon.scan | Sidecar | IPC handler in `recon.ts` | Default (30s) |
+| recon.export | Sidecar | IPC handler in `recon.ts` | Default (30s) |
+| credentials.save/list/verify | Sidecar | IPC handler in `credentials.ts` | Default (30s) |
+| launch_recon | Rust | Direct `tokio::process::Command` | None (long-running) |
+| get_engagement_status | Rust | Direct command (PID check + sentinel read) | N/A |
+| cancel_engagement | Rust | Direct command (SIGTERM to PID) | N/A |
+| keychain_store/retrieve/delete/list | Rust | Direct command (`keyring-rs`) | N/A |
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+### Engagement Lifecycle
+
+```
+[Operator clicks "Start"]
+       │
+       ▼
+recon.create (sidecar)
+  → creates ~/Documents/joyus-recon-engagements/{slug}/
+  → copies template files
+  → returns {engagementDir, engagementId}
+       │
+       ▼
+launch_recon (Rust)
+  → reads credentials (flat file or Keychain)
+  → spawns: claude -p "/joyus-recon --rfp ..." --permission-mode dontAsk
+  → injects credentials as env vars
+  → captures stdout, emits Tauri events for progress
+  → stores PID in shared state
+  → returns {pid, launchTime} immediately
+       │
+       ▼
+[UI polls get_engagement_status every 10s]
+  → checks PID alive
+  → if exited: reads exit code + .recon-complete sentinel
+  → returns {status, exitCode, sentinel metadata}
+       │
+       ▼
+[On completion]
+  → recon.scan (sidecar) — runs scan-sensitive-output.mjs
+  → returns {passed, findings[]}
+       │
+       ▼
+[If passed or overridden]
+  → recon.export (sidecar) — creates zip excluding sensitive files
+  → returns {zipPath, size}
+```
+
+### Credential Lifecycle
+
+```
+Phase 1:
+  credentials.save → write to credentials.env (atomic, 0600)
+  launch_recon → read credentials.env → inject as env vars
+
+Phase 2:
+  keychain_store → macOS Keychain via keyring-rs
+  launch_recon → retrieve from Keychain → inject as Command::env()
+  Migration: read flat file → store in Keychain → delete flat file
+```
+
+## Phasing
+
+### Phase 1: Minimum Viable Dogfood (Weeks 1–2)
+
+**Satisfies**: FR-001 through FR-010, NFR-001 through NFR-005, C-001 through C-006
+
+**Deliverables**:
+- Sidecar handlers: `recon.create`, `recon.scan`, `recon.export`, `credentials.*`
+- Rust commands: `launch_recon`, `get_engagement_status`, `cancel_engagement`, `create_engagement`
+- React pages: `ReconSetup.tsx` (wizard), `ReconDashboard.tsx` (engagement management)
+- Bundled resource: `scan-sensitive-output.mjs`
+- Manual skill edit: completion sentinel in `~/.claude/skills/joyus-recon.md`
+- Integration smoke test + setup runbook
+
+**Gate**: Aaron launches engagement from Desktop UI, sees it running, exports gated results.
+
+### Phase 2: Secure Credentials & Auto-Updates (Weeks 3–4)
+
+**Satisfies**: FR-011 through FR-013, NFR-006
+
+**Deliverables**:
+- Rust module: `keychain.rs` with Keychain CRUD
+- Modified: `launch_recon` reads from Keychain instead of flat file
+- Config: `recon-operator-bundle` in `distribution-config.json`
+- Sidecar: version consistency check before launch
+
+**Gate**: Credentials in Keychain only. Skill auto-synced. Zero files on disk during execution.
+
+### Phase 3: Signed Distribution & Polish (Weeks 5–6)
+
+**Satisfies**: FR-014 through FR-016, NFR-007
+
+**Deliverables**:
+- Tauri config: signing identity, entitlements
+- CI/CD: build + sign + notarize workflow
+- React: `ReadinessMatrix.tsx`, error recovery UX (timeout, crash, scan override)
+- Manual: Aaron UAT (unassisted full flow)
+
+**Gate**: Signed DMG installs without warnings. Aaron completes unassisted engagement.
+
+## Dependency Graph
+
+```
+Phase 1 (parallel start):
+  Credential CRUD ─────────────────────────┐
+  Completion sentinel (manual, independent) │
+  Scan gate (independent) ─────────────────┤
+  Engagement launch flow ──────────────────┤
+                                           ▼
+  Setup wizard UI ──────────────── depends on credential CRUD
+                                           │
+  Integration smoke ────── depends on ALL Phase 1 WPs
+                                           │
+Phase 2:                                   ▼
+  Keychain module ──────── depends on Phase 1 gate
+  Skill-sync bundle ────── independent          │
+                                           ▼
+  Credential injection ──── depends on Keychain
+  Version consistency ────── depends on skill-sync
+                                           │
+Phase 3:                                   ▼
+  Code signing ──────────── independent (external dep)
+  Readiness matrix ──────── depends on Keychain + skill-sync
+  Error recovery ────────── depends on Phase 1 gate
+                                           │
+  Aaron UAT ─────────────── depends on ALL Phase 3 WPs
+```
+
+**Critical path**: Engagement launch → Setup wizard → Integration smoke → Phase 1 gate → Keychain → Credential injection → Phase 2 gate → Aaron UAT
+
+## Pre-Mortem
+
+| Scenario | Severity | Mitigation |
+|----------|----------|------------|
+| Analysis CLI not installed on operator machine | FATAL (day 1) | Setup wizard detects; admin assists installation |
+| Unsigned DMG blocked by Gatekeeper | FATAL (unassisted) | Phase 1: `xattr` workaround; Phase 3: signing |
+| Skill version drift causes wrong results | MAJOR | Phase 2: skill-sync with version pinning |
+| API costs exceed expectations ($50+/run) | MAJOR | `--max-budget-usd 25` cap; balance alert |
+| Scan false positives on legitimate content | MINOR | Override with audit log; Phase 3: allowlist |
+| CLI changes invocation interface | MAJOR | Process exit as primary signal; version check |
+
+## Assumptions
+
+| # | Assumption | Confidence | Validate Before |
+|---|-----------|-----------|----------------|
+| A1 | Operator has personal Mac, not shared | Reasonable | Phase 1 start |
+| A2 | CLI supports non-interactive skill invocation | **Verified** | N/A |
+| A3 | Skill can write completion sentinel | **Verified** | N/A |
+| A4 | keyring-rs works without signing (with prompts) | Reasonable | Phase 2 start |
+| A5 | API balance sufficient for dogfood | **Fragile** | Phase 1 start |
+| A6 | DMG works on operator's macOS version | Reasonable | Phase 1 start |
+
+## Effort Summary
+
+| Phase | Effort | Duration |
+|-------|--------|----------|
+| Phase 1: MVP Dogfood | ~12–18 days | Weeks 1–2 |
+| Phase 2: Keychain + Sync | ~8–12 days | Weeks 3–4 |
+| Phase 3: Signing + UAT | ~10–14 days | Weeks 5–6 |
+| **Total** | **~30–40 days** | **6 weeks** |
+
+**Target**: Aaron's first dogfood run, week of June 16, 2026.
+
+## Branch Contract
+
+- **Current branch at plan start**: `main`
+- **Planning/base branch**: `main`
+- **Merge target**: `main`
+- **Branch matches target**: true
+
+## Next Step
+
+Run `/spec-kitty.tasks --mission recon-operator-01KRA2P1` to generate work packages.
