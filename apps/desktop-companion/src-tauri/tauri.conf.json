@@ -20,7 +20,7 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/node"],
-    "resources": ["binaries/sidecar-main.mjs"],
+    "resources": ["binaries/sidecar-main.mjs", "resources/scan-sensitive-output.mjs"],
     "macOS": {
       "minimumSystemVersion": "10.15",
       "signingIdentity": null,
