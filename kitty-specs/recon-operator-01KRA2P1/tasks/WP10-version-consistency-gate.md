@@ -7,7 +7,7 @@ requirement_refs:
 - FR-013
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts generated on main. During implementation, this WP may branch from a dependency-specific base. Completed changes must merge back into main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T040
 - T041
@@ -16,11 +16,11 @@ history:
 - date: '2026-05-10'
   event: created
   note: Generated via /spec-kitty.tasks
-authoritative_surface: apps/desktop-companion/src/sidecar/recon.ts
+authoritative_surface: apps/desktop-companion/src/sidecar/version-gate.ts
 execution_mode: code_change
 mission_id: 01KRA2P11PNXGNMMJQYQYP34M8
 owned_files:
-- apps/desktop-companion/src/sidecar/recon.ts
+- apps/desktop-companion/src/sidecar/version-gate.ts
 tags: []
 wp_code: WP10
 ---

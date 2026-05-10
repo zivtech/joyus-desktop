@@ -6,7 +6,7 @@ requirement_refs:
 - FR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts generated on main. During implementation, this WP may branch from a dependency-specific base. Completed changes must merge back into main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
@@ -14,10 +14,11 @@ history:
 - date: '2026-05-10'
   event: created
   note: Generated via /spec-kitty.tasks
-authoritative_surface: ''
-execution_mode: manual
+authoritative_surface: kitty-specs/recon-operator-01KRA2P1/tasks/WP04-completion-sentinel.md
+execution_mode: planning_artifact
 mission_id: 01KRA2P11PNXGNMMJQYQYP34M8
-owned_files: []
+owned_files:
+- kitty-specs/recon-operator-01KRA2P1/tasks/WP04-completion-sentinel.md
 tags: []
 wp_code: WP04
 ---
