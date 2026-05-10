@@ -1,10 +1,12 @@
 {
   "created_at": "2026-05-10T23:13:44.069791+00:00",
-  "friendly_name": "recon operator",
+  "friendly_name": "Recon Operator",
   "mission_id": "01KRA2P11PNXGNMMJQYQYP34M8",
   "mission_number": null,
   "mission_slug": "recon-operator-01KRA2P1",
   "mission_type": "software-dev",
   "slug": "recon-operator-01KRA2P1",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Delegation-model Desktop feature enabling a non-technical operator (Aaron) to launch Joyus Recon engagements from Desktop without a terminal. Desktop provisions credentials, launches the analysis tool as a background process, monitors completion via filesystem sentinel, and gates output export through sensitive-content scanning. Three phases: MVP dogfood (flat-file credentials), Keychain + skill-sync, signed distribution + UAT."
 }
