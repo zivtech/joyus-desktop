@@ -5,7 +5,10 @@ dependencies:
 - WP11
 - WP12
 - WP13
-requirement_refs: []
+requirement_refs:
+- FR-014
+- FR-015
+- FR-016
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts generated on main. During implementation, this WP may branch from a dependency-specific base. Completed changes must merge back into main.

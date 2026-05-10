@@ -8,7 +8,13 @@ dependencies:
 - WP04
 - WP05
 - WP06
-requirement_refs: []
+requirement_refs:
+- FR-001
+- FR-006
+- FR-007
+- FR-008
+- FR-009
+- FR-010
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts generated on main. During implementation, this WP may branch from a dependency-specific base. Completed changes must merge back into main.
