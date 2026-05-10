@@ -8,11 +8,11 @@
 
 | ID | Description | WP | Parallel |
 |----|------------|-----|----------|
-| T001 | Create recon.ts sidecar module scaffold | WP01 | [P] |
-| T002 | Implement recon.create handler | WP01 | |
-| T003 | Implement recon.scan handler | WP01 | |
-| T004 | Implement recon.export handler | WP01 | |
-| T005 | Bundle scan-sensitive-output.mjs in resources | WP01 | |
+| T001 | Create recon.ts sidecar module scaffold | WP01 | [P] | [D] |
+| T002 | Implement recon.create handler | WP01 | | [D] |
+| T003 | Implement recon.scan handler | WP01 | | [D] |
+| T004 | Implement recon.export handler | WP01 | | [D] |
+| T005 | Bundle scan-sensitive-output.mjs in resources | WP01 | | [D] |
 | T006 | Create credentials.ts sidecar module scaffold | WP02 | [P] |
 | T007 | Implement credentials.save handler | WP02 | |
 | T008 | Implement credentials.list handler | WP02 | |
@@ -105,11 +105,11 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~350 lines
 
-- [ ] T001 Create recon.ts sidecar module scaffold
-- [ ] T002 Implement recon.create handler
-- [ ] T003 Implement recon.scan handler
-- [ ] T004 Implement recon.export handler
-- [ ] T005 Bundle scan-sensitive-output.mjs in resources
+- [x] T001 Create recon.ts sidecar module scaffold
+- [x] T002 Implement recon.create handler
+- [x] T003 Implement recon.scan handler
+- [x] T004 Implement recon.export handler
+- [x] T005 Bundle scan-sensitive-output.mjs in resources
 
 ### WP02 — Sidecar Credential Handlers
 **Prompt**: [`tasks/WP02-sidecar-credential-handlers.md`](tasks/WP02-sidecar-credential-handlers.md)
