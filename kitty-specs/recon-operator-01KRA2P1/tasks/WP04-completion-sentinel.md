@@ -10,6 +10,8 @@ branch_strategy: Planning artifacts for this feature were generated on main. Dur
 subtasks:
 - T016
 - T017
+agent: "claude:opus:implementer:implementer"
+shell_pid: "80745"
 history:
 - date: '2026-05-10'
   event: created
@@ -141,3 +143,7 @@ Manual verification steps (document results in a checklist comment on the PR or 
 - Both success and error paths produce a sentinel before the session exits.
 - The sentinel JSON matches the documented schema (both required fields present, timestamp is ISO-8601, no extra top-level keys that would break the Desktop parser).
 - Phase 0 includes a check for the engagement directory and surfaces a clear operator-facing message if it is absent.
+
+## Activity Log
+
+- 2026-05-10T23:50:30Z – claude:opus:implementer:implementer – shell_pid=80745 – Started implementation via action command
