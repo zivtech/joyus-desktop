@@ -1,0 +1,27 @@
+{
+  "wp_id": "WP01",
+  "mission_slug": "recon-operator-01KRA2P1",
+  "worktree_path": ".worktrees/recon-operator-01KRA2P1-lane-a",
+  "branch_name": "kitty/mission-recon-operator-01KRA2P1-lane-a",
+  "base_branch": "kitty/mission-recon-operator-01KRA2P1",
+  "base_commit": "04554fc9ea8a87df8f0060bd25170f25b0e6794d",
+  "dependencies": [],
+  "created_at": "2026-05-10T23:49:55.861238+00:00",
+  "created_by": "implement-command-lane",
+  "vcs_backend": "git",
+  "lane_id": "lane-a",
+  "lane_wp_ids": [
+    "WP01",
+    "WP02",
+    "WP03",
+    "WP05",
+    "WP06",
+    "WP07",
+    "WP08",
+    "WP09",
+    "WP10",
+    "WP12",
+    "WP13"
+  ],
+  "current_wp": "WP01"
+}
