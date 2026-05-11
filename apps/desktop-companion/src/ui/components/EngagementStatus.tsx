@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ScanFailurePanel, TimeoutAlert } from "./ErrorRecovery";
 
 // ─── Tauri helpers ────────────────────────────────────────────────────────────
 
@@ -169,13 +170,6 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
     setExporting(false);
   }
 
-  function handleOverride() {
-    if (window.confirm("Override scan findings and export anyway? (dogfood only)")) {
-      setOverrideConfirmed(true);
-      void handleExport(true);
-    }
-  }
-
   const canExport = scanResult?.pass === true || overrideConfirmed;
 
   return (
@@ -229,43 +223,11 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
               Scan passed — no sensitive content detected.
             </div>
           ) : (
-            <div
-              style={{
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: "6px",
-                padding: "0.625rem 0.875rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <p style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600, color: "#b45309" }}>
-                Scan found potential sensitive content:
-              </p>
-              {(scanResult.findings ?? []).map((f, i) => (
-                <div key={i} style={{ fontSize: "0.75rem", color: "#92400e", fontFamily: "monospace" }}>
-                  {f.file}:{f.line} — {f.pattern}
-                </div>
-              ))}
-              <button
-                onClick={handleOverride}
-                disabled={overrideConfirmed}
-                style={{
-                  alignSelf: "flex-start",
-                  padding: "0.375rem 0.875rem",
-                  background: overrideConfirmed ? "#d1d5db" : "#f59e0b",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  cursor: overrideConfirmed ? "not-allowed" : "pointer",
-                }}
-              >
-                Override (dogfood only)
-              </button>
-            </div>
+            <ScanFailurePanel
+              findings={scanResult.findings ?? []}
+              engagementDir={engagementDir}
+              onAllOverridden={() => { setOverrideConfirmed(true); }}
+            />
           )}
 
           {/* Export */}
@@ -439,6 +401,8 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
   const [startMs] = useState(() => Date.now());
   const [elapsedLabel, setElapsedLabel] = useState("0m 0s");
   const [cancelling, setCancelling] = useState(false);
+  const [showTimeout, setShowTimeout] = useState(false);
+  const [timeoutDismissedUntil, setTimeoutDismissedUntil] = useState<number>(0);
 
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -452,6 +416,18 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
     }, 1000);
     return () => clearInterval(timer);
   }, [isTerminal, startMs]);
+
+  // ── Timeout detection (2 hours = 7200 seconds) ────────────────────────────
+  useEffect(() => {
+    if (isTerminal) return;
+    const timer = setInterval(() => {
+      const elapsedSec = (Date.now() - startMs) / 1000;
+      if (elapsedSec > 7200 && status === "running" && Date.now() > timeoutDismissedUntil) {
+        setShowTimeout(true);
+      }
+    }, 30000); // Check every 30s
+    return () => clearInterval(timer);
+  }, [isTerminal, startMs, status, timeoutDismissedUntil]);
 
   // ── Real-time streaming ────────────────────────────────────────────────────
   useEffect(() => {
@@ -560,6 +536,19 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
           <span>Phase: <strong style={{ color: "#374151" }}>{currentPhase}</strong></span>
         )}
       </div>
+
+      {/* Timeout alert */}
+      {showTimeout && status === "running" && (
+        <TimeoutAlert
+          engagementDir={engagementDir}
+          engagementName={engagementId}
+          onMarkFailed={() => { setStatus("error"); setShowTimeout(false); }}
+          onKeepWaiting={(hours) => {
+            setTimeoutDismissedUntil(Date.now() + hours * 3_600_000);
+            setShowTimeout(false);
+          }}
+        />
+      )}
 
       {/* Progress log */}
       <div

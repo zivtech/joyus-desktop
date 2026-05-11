@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EngagementStatus } from "../components/EngagementStatus";
+import { CrashRecoveryBanner } from "../components/ErrorRecovery";
 import { ReadinessMatrix } from "../components/ReadinessMatrix";
 import { useReconSetup } from "../hooks/useRecon";
 
@@ -392,6 +393,9 @@ export function ReconDashboard() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* Crash recovery banners — shown above everything */}
+      <CrashRecoveryBanner />
+
       {/* Readiness Matrix */}
       <ReadinessMatrix onPreflightComplete={setCanLaunch} />
 
