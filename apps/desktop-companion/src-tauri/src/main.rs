@@ -90,6 +90,10 @@ fn main() {
             recon::get_engagement_status,
             recon::cancel_engagement,
             commands::create_engagement,
+            commands::credentials_save,
+            commands::credentials_list,
+            commands::credentials_verify,
+            commands::check_skill_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

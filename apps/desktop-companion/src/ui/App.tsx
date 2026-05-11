@@ -9,6 +9,7 @@ import { Skills } from "./pages/Skills";
 import { Settings } from "./pages/Settings";
 import { Sites } from "./pages/Sites";
 import { Onboarding } from "./pages/Onboarding";
+import { ReconSetup } from "./pages/ReconSetup";
 import { Usage } from "./pages/Usage";
 
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
@@ -55,8 +56,11 @@ function AppRoutes({ initialOnboardingComplete = false }: AppRoutesProps) {
         <Route path="/governance" element={<Governance />} />
         <Route path="/usage" element={<Usage />} />
         <Route path="/settings" element={<Settings />} />
+        {/* WP06: Recon dashboard placeholder */}
+        <Route path="/recon" element={<div>Recon Dashboard (WP06)</div>} />
       </Route>
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/recon/setup" element={<ReconSetup />} />
     </Routes>
   );
 }

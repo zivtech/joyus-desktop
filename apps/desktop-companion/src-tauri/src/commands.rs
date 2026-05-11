@@ -144,6 +144,36 @@ pub async fn create_engagement(state: State<'_, SidecarState>, params: Value) ->
     state.send_request("recon.create", params).await
 }
 
+// ─── Credential proxy commands ───────────────────────────────────────────────
+
+/// Save a single credential key/value pair. Proxies to the sidecar's
+/// `credentials.save` handler.
+#[command]
+pub async fn credentials_save(state: State<'_, SidecarState>, params: Value) -> Result<Value, String> {
+    state.send_request("credentials.save", params).await
+}
+
+/// List all known credential keys with their isSet status. Proxies to the
+/// sidecar's `credentials.list` handler.
+#[command]
+pub async fn credentials_list(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("credentials.list", Value::Object(Default::default())).await
+}
+
+/// Verify all configured credentials against the upstream services. Proxies to
+/// the sidecar's `credentials.verify` handler.
+#[command]
+pub async fn credentials_verify(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("credentials.verify", Value::Object(Default::default())).await
+}
+
+/// Check whether the Recon skill file exists at ~/.claude/skills/joyus-recon.md.
+/// TODO(WP03+): Wire sidecar handler `skills.checkFile` once implemented.
+#[command]
+pub async fn check_skill_file(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("skills.checkFile", Value::Object(Default::default())).await
+}
+
 // ─── Session commands ────────────────────────────────────────────────────────
 
 #[command]
