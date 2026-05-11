@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use joyus_desktop_companion::commands;
+use joyus_desktop_companion::recon::{self, new_recon_state};
 use joyus_desktop_companion::sidecar::{self, SidecarState};
 use joyus_desktop_companion::tray;
 use joyus_desktop_companion::updater;
@@ -34,6 +35,7 @@ fn main() {
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SidecarState::new())
+        .manage(new_recon_state())
         .setup(|app| {
             // Set up system tray
             if let Err(e) = tray::setup_tray(app.handle()) {
@@ -84,6 +86,10 @@ fn main() {
             updater::check_for_update,
             updater::install_update,
             commands::reset_desktop_companion,
+            recon::launch_recon,
+            recon::get_engagement_status,
+            recon::cancel_engagement,
+            commands::create_engagement,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

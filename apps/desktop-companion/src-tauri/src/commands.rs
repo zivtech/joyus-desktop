@@ -137,6 +137,13 @@ pub async fn site_provision(state: State<'_, SidecarState>, repo_url: String) ->
     state.send_request("sites.provision", serde_json::json!({ "repoUrl": repo_url })).await
 }
 
+// ─── Recon proxy commands ────────────────────────────────────────────────────
+
+#[command]
+pub async fn create_engagement(state: State<'_, SidecarState>, params: Value) -> Result<Value, String> {
+    state.send_request("recon.create", params).await
+}
+
 // ─── Session commands ────────────────────────────────────────────────────────
 
 #[command]
