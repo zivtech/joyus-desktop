@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EngagementStatus } from "../components/EngagementStatus";
+import { ReadinessMatrix } from "../components/ReadinessMatrix";
 import { useReconSetup } from "../hooks/useRecon";
 
 // ─── Tauri helpers ────────────────────────────────────────────────────────────
@@ -371,6 +372,7 @@ export function ReconDashboard() {
 
   const [showForm, setShowForm] = useState(false);
   const [activeEngagement, setActiveEngagement] = useState<ActiveEngagement | undefined>(undefined);
+  const [canLaunch, setCanLaunch] = useState(false);
 
   // Route guard: redirect to /recon/setup if not configured
   useEffect(() => {
@@ -390,27 +392,39 @@ export function ReconDashboard() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* Readiness Matrix */}
+      <ReadinessMatrix onPreflightComplete={setCanLaunch} />
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h1 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#111827" }}>
           Recon Engagements
         </h1>
         {!showForm && activeEngagement === undefined && (
-          <button
-            onClick={() => { setShowForm(true); }}
-            style={{
-              padding: "0.5rem 1.25rem",
-              background: "#1a73e8",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            New Engagement
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
+            <button
+              onClick={() => { setShowForm(true); }}
+              disabled={!canLaunch}
+              style={{
+                padding: "0.5rem 1.25rem",
+                background: "#1a73e8",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                opacity: canLaunch ? 1 : 0.5,
+                cursor: canLaunch ? "pointer" : "not-allowed",
+              }}
+            >
+              New Engagement
+            </button>
+            {!canLaunch && (
+              <span style={{ fontSize: "12px", color: "#ef4444" }}>
+                Complete required items above before starting an engagement.
+              </span>
+            )}
+          </div>
         )}
       </div>
 
