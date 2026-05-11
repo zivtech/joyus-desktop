@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use joyus_desktop_companion::commands;
+use joyus_desktop_companion::keychain;
 use joyus_desktop_companion::recon::{self, new_recon_state};
 use joyus_desktop_companion::sidecar::{self, SidecarState};
 use joyus_desktop_companion::tray;
@@ -49,6 +50,16 @@ fn main() {
             }
             // Start background update checker (30s delay, then every 4 hours)
             updater::start_update_checker(app.handle().clone());
+
+            // Migrate credentials from flat file to keychain (one-time, idempotent)
+            {
+                let app_data_dir = dirs::home_dir()
+                    .unwrap_or_default()
+                    .join("Library")
+                    .join("Application Support")
+                    .join("com.joyus.desktop-companion");
+                keychain::migrate_from_flat_file(&app_data_dir);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -96,6 +107,10 @@ fn main() {
             commands::check_skill_file,
             commands::recon_scan,
             commands::recon_export,
+            keychain::keychain_store,
+            keychain::keychain_retrieve,
+            keychain::keychain_delete,
+            keychain::keychain_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

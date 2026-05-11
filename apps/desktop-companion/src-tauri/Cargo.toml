@@ -18,3 +18,4 @@ serde_json = "1"
 tokio = { version = "1", features = ["sync", "time", "io-util", "macros", "process"] }
 log = "0.4"
 dirs = "5"
+keyring = "3"

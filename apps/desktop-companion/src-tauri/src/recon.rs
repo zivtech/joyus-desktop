@@ -79,7 +79,8 @@ pub async fn launch_recon(
     app_handle: tauri::AppHandle,
 ) -> Result<Value, String> {
     let budget = max_budget.unwrap_or(25);
-    let credentials = read_credentials();
+    let keychain_keys = crate::keychain::list_stored_keys();
+    let use_keychain = !keychain_keys.is_empty();
 
     let launch_time = {
         let d = std::time::SystemTime::now()
@@ -106,8 +107,19 @@ pub async fn launch_recon(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::inherit());
 
-    for (key, value) in &credentials {
-        cmd.env(key, value);
+    if use_keychain {
+        log::info!("launching recon with keychain credentials");
+        for key in crate::keychain::ALLOWED_KEYS {
+            if let Ok(Some(val)) = crate::keychain::retrieve_credential(key) {
+                cmd.env(key, val);
+            }
+        }
+    } else {
+        log::info!("launching recon with flat-file credentials (migration pending)");
+        let credentials = read_credentials();
+        for (key, value) in &credentials {
+            cmd.env(key, value);
+        }
     }
 
     let mut child = cmd.spawn().map_err(|e| {
