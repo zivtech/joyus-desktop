@@ -10,6 +10,8 @@ import {
 } from "./usage-collector";
 import { detectChrome, type ChromeDetectDeps } from "./chrome-detect";
 import { scanSkills, type SkillScannerDeps } from "./skill-scanner";
+import { registerReconMethods } from "./recon";
+import { registerCredentialMethods } from "./credentials";
 
 export interface ServiceContainer {
   processManager: ProcessManager;
@@ -185,6 +187,8 @@ export function registerAllMethods(
   registerHealthCheck(ipc, startTime, nowFn);
   registerUsageMethods(ipc, usageCollector);
   registerOnboarding(ipc, container, usageCollector);
+  registerReconMethods(ipc);
+  registerCredentialMethods(ipc);
 }
 
 // ---------------------------------------------------------------------------
