@@ -239,6 +239,10 @@ pub async fn get_engagement_status(
                     meta.get("phases_completed").cloned().unwrap_or(Value::Null);
                 let output_files = meta.get("output_files").cloned().unwrap_or(Value::Null);
                 let error = meta.get("error").cloned().unwrap_or(Value::Null);
+                // WP10: surface the skill version recorded in the sentinel
+                // (snake_case in the sentinel written by the skill, camelCase
+                // in this response to match the existing output shape)
+                let skill_version = meta.get("skill_version").cloned().unwrap_or(Value::Null);
 
                 Ok(serde_json::json!({
                     "status": status,
@@ -246,15 +250,18 @@ pub async fn get_engagement_status(
                     "phasesCompleted": phases_completed,
                     "outputFiles": output_files,
                     "error": error,
+                    "skillVersion": skill_version,
                 }))
             }
             Err(_) => Ok(serde_json::json!({
                 "status": "complete",
+                "skillVersion": null,
                 "note": "sentinel present but not valid JSON",
             })),
         },
         Err(_) => Ok(serde_json::json!({
             "status": "complete",
+            "skillVersion": null,
             "note": "no metadata — sentinel not written",
         })),
     }

@@ -25,6 +25,7 @@ import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { IpcHandler } from "./ipc-handler";
+import { autoSyncIfNeeded, checkVersion } from "./version-gate";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +35,7 @@ interface ReconCreateResult {
   engagementDir: string;
   engagementId: string;
   clientSlug: string;
+  syncPerformed: boolean;
 }
 
 interface ScanFinding {
@@ -160,10 +162,27 @@ async function runScan(engagementDir: string): Promise<ScanResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Version gate sync dep types (WP10 — T040)
+// ---------------------------------------------------------------------------
+
+export interface ReconSyncDeps {
+  getSyncStatus: () => Promise<{ version: string | null; status?: string } | undefined>;
+  triggerSync: () => Promise<unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // Public registration function (T001)
 // ---------------------------------------------------------------------------
 
-export function registerReconMethods(ipc: IpcHandler): void {
+/**
+ * Register all recon IPC methods.
+ *
+ * @param ipc      The IPC handler to register methods on.
+ * @param syncDeps Optional sync callables for the version gate.  When absent
+ *                 the gate is a no-op (fail-open) — e.g. in test environments
+ *                 where sync wiring has not been set up.
+ */
+export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps): void {
   // -------------------------------------------------------------------------
   // T002: recon.create
   // -------------------------------------------------------------------------
@@ -186,6 +205,31 @@ export function registerReconMethods(ipc: IpcHandler): void {
     const clientName = p["clientName"] as string;
     const url = p["url"] as string;
     const accessMode = p["accessMode"] as string;
+
+    // -----------------------------------------------------------------------
+    // WP10 — Version consistency gate (T040/T041)
+    // Run before any directory creation so a version mismatch is caught early.
+    // When syncDeps is absent the gate returns a no-op result (fail-open).
+    // -----------------------------------------------------------------------
+    let syncPerformed = false;
+    if (syncDeps !== undefined) {
+      const { syncPerformed: performed, versionCheck } = await autoSyncIfNeeded(
+        syncDeps.getSyncStatus,
+        syncDeps.triggerSync,
+      );
+      syncPerformed = performed;
+
+      // Block only when the version is definitively known to be wrong — not
+      // when sync is unavailable (stale: true), to preserve offline access.
+      if (!versionCheck.match && versionCheck.stale !== true) {
+        throw new Error(
+          `recon.create: Recon skill version mismatch. ` +
+          `Required: ${versionCheck.pinned ?? "unknown"}, ` +
+          `current: ${versionCheck.current ?? "none"}. ` +
+          `Check network connection and retry.`,
+        );
+      }
+    }
 
     const clientSlug = slugify(clientName);
 
@@ -235,8 +279,18 @@ export function registerReconMethods(ipc: IpcHandler): void {
       );
     }
 
-    const result: ReconCreateResult = { engagementDir, engagementId, clientSlug };
+    const result: ReconCreateResult = { engagementDir, engagementId, clientSlug, syncPerformed };
     return result;
+  });
+
+  // -------------------------------------------------------------------------
+  // WP10 — recon.checkVersion (T041): direct frontend access to version gate
+  // -------------------------------------------------------------------------
+  ipc.registerMethod("recon.checkVersion", async (): Promise<unknown> => {
+    if (syncDeps === undefined) {
+      return { current: null, pinned: null, match: false, stale: true };
+    }
+    return checkVersion(syncDeps.getSyncStatus);
   });
 
   // -------------------------------------------------------------------------
