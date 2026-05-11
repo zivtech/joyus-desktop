@@ -344,16 +344,38 @@ export function registerReconMethods(ipc: IpcHandler): void {
 
     const filePairs = await collectFiles(engagementDir, engagementName);
 
-    // Build a ZIP archive using the ZIP local-file-header format (no external
-    // dependency required — Node provides Buffer and zlib/deflate).
+    // SPEC-DEVIATION: hand-rolled ZIP encoder
+    //
+    // T004 specifies using the `archiver` npm package or Node's `zlib` + `tar`
+    // streams. This implementation instead uses a hand-rolled ZIP encoder built
+    // on Node's built-in `Buffer` and `zlib.deflateRawSync`.
+    //
+    // Rationale for deviation:
+    //   • `archiver` is not currently a dependency of this package, and adding
+    //     it introduces ~60 KB of additional runtime code with transitive deps
+    //     (archiver-utils, zip-stream, readdir-glob, etc.) into the Tauri
+    //     sidecar bundle, which is otherwise dependency-light by design.
+    //   • Node's `zlib` + `tar` (the other spec option) would produce a .tar.gz,
+    //     not a .zip.  The spec return type names the output `zipPath` and the
+    //     acceptance criteria refer to a "zip" archive, implying ZIP format is
+    //     preferred for the deliverable file.
+    //   • The hand-rolled implementation has zero external dependencies and is
+    //     auditable in place.
+    //
+    // Known limitations acknowledged:
+    //   • 32-bit size fields — files >4 GB will silently corrupt. Engagement
+    //     dirs are expected to be well under 100 MB; this limitation is
+    //     acceptable for the current use case.
+    //   • Empty directories are not represented in the archive.
+    //
+    // Test coverage: `recon.test.ts` includes a ZIP extraction test that
+    // invokes `unzip -l` on the produced archive and asserts that included
+    // files are present and excluded files are absent.
     //
     // ZIP format overview:
     //   For each file: local file header + compressed (or stored) data
     //   Central directory: one entry per file
     //   End-of-central-directory record
-    //
-    // We use STORE (no compression, method 0) to keep the implementation
-    // simple and auditable.  Compression can be added later.
     const { deflateRawSync } = await import("node:zlib");
 
     function writeUint16LE(buf: Buffer, offset: number, value: number): void {
