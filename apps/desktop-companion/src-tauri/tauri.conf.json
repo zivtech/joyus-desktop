@@ -23,8 +23,9 @@
     "resources": ["binaries/sidecar-main.mjs"],
     "macOS": {
       "minimumSystemVersion": "10.15",
-      "signingIdentity": null,
-      "entitlements": null
+      "signingIdentity": "Developer ID Application: Zivtech LLC (PLACEHOLDER_TEAM_ID)",
+      "entitlements": "entitlements.plist",
+      "_note": "Replace PLACEHOLDER_TEAM_ID with the actual 10-character Apple Team ID before release"
     },
     "windows": {
       "certificateThumbprint": null,
