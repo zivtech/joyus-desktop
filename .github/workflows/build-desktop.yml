@@ -1,0 +1,94 @@
+# build-desktop.yml — macOS code signing, notarization, and CI build workflow
+#
+# Required GitHub Secrets:
+#   APPLE_SIGNING_IDENTITY    — e.g. "Developer ID Application: Zivtech LLC (XXXXXXXXXX)"
+#   APPLE_CERTIFICATE_P12     — base64-encoded .p12 certificate file
+#   APPLE_CERTIFICATE_PASSWORD — password for the .p12 certificate
+#   APPLE_TEAM_ID             — 10-character Apple Developer Team ID
+#   APPLE_ID                  — Apple ID email used for notarization
+#   APPLE_ID_PASSWORD         — App-specific password for the Apple ID
+
+name: Build Desktop (macOS)
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'desktop/v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Import signing certificate
+        if: env.APPLE_CERTIFICATE_P12 != ''
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          rm certificate.p12
+
+      - name: Build Tauri app (universal macOS)
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        working-directory: apps/desktop-companion
+        run: pnpm tauri build --target universal-apple-darwin
+
+      - name: Notarize DMG
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          DMG_PATH=$(find apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          echo "Notarizing: $DMG_PATH"
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          echo "Notarization complete."
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/desktop/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
