@@ -9,6 +9,7 @@ import { Skills } from "./pages/Skills";
 import { Settings } from "./pages/Settings";
 import { Sites } from "./pages/Sites";
 import { Onboarding } from "./pages/Onboarding";
+import { ReconDashboard } from "./pages/ReconDashboard";
 import { ReconSetup } from "./pages/ReconSetup";
 import { Usage } from "./pages/Usage";
 
@@ -56,8 +57,7 @@ function AppRoutes({ initialOnboardingComplete = false }: AppRoutesProps) {
         <Route path="/governance" element={<Governance />} />
         <Route path="/usage" element={<Usage />} />
         <Route path="/settings" element={<Settings />} />
-        {/* WP06: Recon dashboard placeholder */}
-        <Route path="/recon" element={<div>Recon Dashboard (WP06)</div>} />
+        <Route path="/recon" element={<ReconDashboard />} />
       </Route>
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/recon/setup" element={<ReconSetup />} />

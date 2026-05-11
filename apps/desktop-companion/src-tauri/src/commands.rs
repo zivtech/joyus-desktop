@@ -144,6 +144,16 @@ pub async fn create_engagement(state: State<'_, SidecarState>, params: Value) ->
     state.send_request("recon.create", params).await
 }
 
+#[command]
+pub async fn recon_scan(state: State<'_, SidecarState>, params: Value) -> Result<Value, String> {
+    state.send_request("recon.scan", params).await
+}
+
+#[command]
+pub async fn recon_export(state: State<'_, SidecarState>, params: Value) -> Result<Value, String> {
+    state.send_request("recon.export", params).await
+}
+
 // ─── Credential proxy commands ───────────────────────────────────────────────
 
 /// Save a single credential key/value pair. Proxies to the sidecar's

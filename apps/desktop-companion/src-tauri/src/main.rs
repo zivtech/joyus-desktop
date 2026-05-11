@@ -94,6 +94,8 @@ fn main() {
             commands::credentials_list,
             commands::credentials_verify,
             commands::check_skill_file,
+            commands::recon_scan,
+            commands::recon_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
