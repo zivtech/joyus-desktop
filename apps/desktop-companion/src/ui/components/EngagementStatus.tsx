@@ -346,6 +346,84 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
   );
 }
 
+// ─── Recon skill sync status line ─────────────────────────────────────────────
+
+interface SkillSyncInfo {
+  version: string | null;
+  syncedAt: string | null;
+  status: "synced" | "unknown" | "error";
+}
+
+function SkillSyncLine() {
+  const [info, setInfo] = useState<SkillSyncInfo>({ version: null, syncedAt: null, status: "unknown" });
+  const [resyncing, setResyncing] = useState(false);
+
+  async function loadSyncStatus() {
+    const result = await safeInvoke<{ version?: string; lastSync?: string; state?: string }>("get_sync_status");
+    if (result === undefined) {
+      setInfo({ version: null, syncedAt: null, status: "error" });
+      return;
+    }
+    const isError = result.state === "error";
+    setInfo({
+      version: result.version ?? null,
+      syncedAt: result.lastSync ?? null,
+      status: isError ? "error" : result.version !== undefined ? "synced" : "unknown",
+    });
+  }
+
+  async function handleResync() {
+    setResyncing(true);
+    await safeInvoke("trigger_sync");
+    await loadSyncStatus();
+    setResyncing(false);
+  }
+
+  useEffect(() => {
+    void loadSyncStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dotColor =
+    info.status === "synced" ? "#22c55e" :
+    info.status === "error" ? "#f59e0b" :
+    "#6b7280";
+
+  const label =
+    info.status === "synced"
+      ? `Recon skill v${info.version}`
+      : info.status === "error"
+      ? "Recon skill: sync error"
+      : "Recon skill: version unknown";
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.75rem", color: dotColor }}>
+      <span style={{ color: dotColor, lineHeight: 1 }}>●</span>
+      <span>{label}</span>
+      {info.status === "error" && (
+        <button
+          onClick={() => { void handleResync(); }}
+          disabled={resyncing}
+          style={{
+            marginLeft: "0.25rem",
+            padding: "0.125rem 0.5rem",
+            background: "transparent",
+            color: "#f59e0b",
+            border: "1px solid #f59e0b",
+            borderRadius: "4px",
+            fontSize: "0.688rem",
+            fontWeight: 600,
+            cursor: resyncing ? "not-allowed" : "pointer",
+            opacity: resyncing ? 0.6 : 1,
+          }}
+        >
+          {resyncing ? "Syncing…" : "Re-sync"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface EngagementStatusProps {
@@ -471,6 +549,9 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
         </h2>
         <StatusBadge status={status} />
       </div>
+
+      {/* Recon skill sync status — subtle, small, inline with engagement info */}
+      <SkillSyncLine />
 
       {/* Meta row */}
       <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.813rem", color: "#6b7280", flexWrap: "wrap" }}>

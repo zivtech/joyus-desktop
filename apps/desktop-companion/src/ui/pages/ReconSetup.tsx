@@ -275,22 +275,40 @@ function StepCredentials({ onComplete }: StepCredentialsProps) {
   );
 }
 
-// ─── Step 3: Skill file check ─────────────────────────────────────────────────
+// ─── Step 3: Skill file check (with sync-first flow) ──────────────────────────
 
 interface StepSkillCheckProps {
   onResult: (pass: boolean) => void;
 }
 
 function StepSkillCheck({ onResult }: StepSkillCheckProps) {
-  type CheckState = "checking" | "found" | "not-found";
-  const [state, setState] = useState<CheckState>("checking");
+  // "syncing" → trying trigger_sync first
+  // "checking" → running check_skill_file after sync attempt
+  // "found" → skill present, ready
+  // "not-found" → sync attempted but skill still absent
+  type CheckState = "syncing" | "checking" | "found" | "not-found";
+  const [state, setState] = useState<CheckState>("syncing");
+  const [version, setVersion] = useState<string | undefined>(undefined);
+  // When true: user chose "Skip (manual install)" — show warning but allow advance
+  const [skipped, setSkipped] = useState(false);
 
   async function runCheck() {
-    setState("checking");
+    // Reset all state at the top so Retry works cleanly
+    setState("syncing");
+    setVersion(undefined);
+    setSkipped(false);
 
-    // TODO(WP03+): `check_skill_file` Rust command and sidecar handler
-    //   (`skills.checkFile`) do not exist yet. safeInvoke returns undefined,
-    //   which we treat as not-found below.
+    // Step 1: attempt sync (trigger_sync already exists in commands.rs)
+    await safeInvoke("trigger_sync");
+
+    // Step 2: read version info — capture for display, don't block on failure
+    const syncStatus = await safeInvoke<{ version?: string }>("get_sync_status");
+    if (syncStatus?.version !== undefined) {
+      setVersion(syncStatus.version);
+    }
+
+    // Step 3: check whether the skill file is present
+    setState("checking");
     const result = await safeInvoke<{ found: boolean }>("check_skill_file");
 
     if (result === undefined || !result.found) {
@@ -307,6 +325,17 @@ function StepSkillCheck({ onResult }: StepSkillCheckProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Syncing ────────────────────────────────────────────────────────────────
+  if (state === "syncing") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+        <Spinner />
+        <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>Syncing Recon Operator skill…</span>
+      </div>
+    );
+  }
+
+  // ── Checking (post-sync) ───────────────────────────────────────────────────
   if (state === "checking") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
@@ -316,10 +345,15 @@ function StepSkillCheck({ onResult }: StepSkillCheckProps) {
     );
   }
 
+  // ── Found ──────────────────────────────────────────────────────────────────
   if (state === "found") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <StatusRow icon="✓" color="#22c55e" text="Recon skill installed" />
+        <StatusRow
+          icon="✓"
+          color="#22c55e"
+          text={version !== undefined ? `Recon Operator skill ready (v${version})` : "Recon Operator skill ready"}
+        />
         <p style={{ margin: 0, fontSize: "0.813rem", color: "#6b7280", fontFamily: "monospace" }}>
           ~/.claude/skills/joyus-recon.md
         </p>
@@ -327,28 +361,72 @@ function StepSkillCheck({ onResult }: StepSkillCheckProps) {
     );
   }
 
+  // ── Not found (sync failed or skill absent) ────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <StatusRow icon="✗" color="#ef4444" text="Skill file not found" />
+      <StatusRow icon="✗" color="#ef4444" text="Skill sync failed or skill not found." />
+
+      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+        {/* Retry: re-runs sync + check from scratch */}
+        <button
+          onClick={() => { void runCheck(); }}
+          style={{
+            padding: "0.5rem 1rem",
+            background: "#1a73e8",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            fontSize: "0.813rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
+
+        {/* Skip: allow advancing without the skill — intentional, not a bug */}
+        <button
+          onClick={() => {
+            setSkipped(true);
+            // Calling onResult(true) here lets the wizard advance even though
+            // the skill is absent. The warning banner below makes this explicit.
+            onResult(true);
+          }}
+          style={{
+            padding: "0.5rem 1rem",
+            background: "transparent",
+            color: "#6b7280",
+            border: "none",
+            fontSize: "0.813rem",
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          Skip (manual install)
+        </button>
+      </div>
+
+      {/* Manual install instructions */}
       <p style={{ margin: 0, fontSize: "0.813rem", color: "#6b7280" }}>
         Ask Alex to copy joyus-recon.md to ~/.claude/skills/
       </p>
-      <button
-        onClick={() => { void runCheck(); }}
-        style={{
-          alignSelf: "flex-start",
-          padding: "0.5rem 1rem",
-          background: "#1a73e8",
-          color: "#fff",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "0.813rem",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        Check Again
-      </button>
+
+      {/* Warning banner shown after skip */}
+      {skipped && (
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "6px",
+            padding: "0.625rem 0.875rem",
+            fontSize: "0.813rem",
+            color: "#b45309",
+            fontWeight: 600,
+          }}
+        >
+          Recon skill not installed. Some features may not work until the skill is added manually.
+        </div>
+      )}
     </div>
   );
 }
