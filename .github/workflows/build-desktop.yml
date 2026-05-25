@@ -39,7 +39,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Import signing certificate
         if: env.APPLE_CERTIFICATE_P12 != ''
