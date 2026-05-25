@@ -426,7 +426,7 @@ describe("credentials.list", () => {
 
   it("round-trip: save then list shows isSet: true", async () => {
     await ipc._invoke("credentials.save", {
-      key: "DATAFORSEO_LOGIN",
+      key: "DATAFORSEO_USERNAME",
       value: "user@example.com",
     });
     await ipc._invoke("credentials.save", {
@@ -439,7 +439,7 @@ describe("credentials.list", () => {
       {},
     )) as Array<{ key: string; isSet: boolean }>;
 
-    const loginEntry = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const loginEntry = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const passwordEntry = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(loginEntry?.isSet).toBe(true);
@@ -593,7 +593,7 @@ describe("credentials.verify", () => {
       {},
     )) as Array<{ key: string; valid: boolean | null; error?: string }>;
 
-    const login = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const login = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const password = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(login?.valid).toBe(false);
@@ -602,7 +602,7 @@ describe("credentials.verify", () => {
 
   it("returns valid: true for both DATAFORSEO keys when API responds 200", async () => {
     await ipc._invoke("credentials.save", {
-      key: "DATAFORSEO_LOGIN",
+      key: "DATAFORSEO_USERNAME",
       value: "user@test.com",
     });
     await ipc._invoke("credentials.save", {
@@ -617,7 +617,7 @@ describe("credentials.verify", () => {
       {},
     )) as Array<{ key: string; valid: boolean | null; error?: string }>;
 
-    const login = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const login = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const password = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(login?.valid).toBe(true);
@@ -626,7 +626,7 @@ describe("credentials.verify", () => {
 
   it("returns valid: false for both DATAFORSEO keys when fetch throws", async () => {
     await ipc._invoke("credentials.save", {
-      key: "DATAFORSEO_LOGIN",
+      key: "DATAFORSEO_USERNAME",
       value: "user@test.com",
     });
     await ipc._invoke("credentials.save", {
@@ -641,7 +641,7 @@ describe("credentials.verify", () => {
       {},
     )) as Array<{ key: string; valid: boolean | null; error?: string }>;
 
-    const login = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const login = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const password = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(login?.valid).toBe(false);
@@ -649,9 +649,9 @@ describe("credentials.verify", () => {
     expect(login?.error).toContain("connection refused");
   });
 
-  it("returns valid: false for DATAFORSEO_LOGIN when only DATAFORSEO_PASSWORD is missing", async () => {
+  it("returns valid: false for DATAFORSEO_USERNAME when only DATAFORSEO_PASSWORD is missing", async () => {
     await ipc._invoke("credentials.save", {
-      key: "DATAFORSEO_LOGIN",
+      key: "DATAFORSEO_USERNAME",
       value: "user@test.com",
     });
 
@@ -662,14 +662,14 @@ describe("credentials.verify", () => {
       {},
     )) as Array<{ key: string; valid: boolean | null; error?: string }>;
 
-    const login = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const login = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const password = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(login?.valid).toBe(false);
     expect(password?.valid).toBe(false);
   });
 
-  it("returns valid: false for DATAFORSEO_PASSWORD when only DATAFORSEO_LOGIN is missing", async () => {
+  it("returns valid: false for DATAFORSEO_PASSWORD when only DATAFORSEO_USERNAME is missing", async () => {
     await ipc._invoke("credentials.save", {
       key: "DATAFORSEO_PASSWORD",
       value: "p@ssword",
@@ -682,7 +682,7 @@ describe("credentials.verify", () => {
       {},
     )) as Array<{ key: string; valid: boolean | null; error?: string }>;
 
-    const login = result.find((r) => r.key === "DATAFORSEO_LOGIN");
+    const login = result.find((r) => r.key === "DATAFORSEO_USERNAME");
     const password = result.find((r) => r.key === "DATAFORSEO_PASSWORD");
 
     expect(login?.valid).toBe(false);
@@ -713,7 +713,7 @@ describe("credentials.verify", () => {
 
   it("sends Basic auth header for DATAFORSEO verification", async () => {
     await ipc._invoke("credentials.save", {
-      key: "DATAFORSEO_LOGIN",
+      key: "DATAFORSEO_USERNAME",
       value: "mylogin",
     });
     await ipc._invoke("credentials.save", {

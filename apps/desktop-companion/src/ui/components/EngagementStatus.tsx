@@ -35,14 +35,23 @@ interface ScanFinding {
 }
 
 interface ScanResult {
-  pass: boolean;
-  findings?: ScanFinding[];
+  passed: boolean;
+  findings: ScanFinding[];
 }
 
-interface ExportResult {
+interface ExportResultSuccess {
   zipPath: string;
-  fileSizeBytes?: number;
+  size: number;
+  scanPassed: boolean;
+  overridden?: boolean;
 }
+
+interface ExportResultBlocked {
+  blocked: true;
+  findings: ScanFinding[];
+}
+
+type ExportResult = ExportResultSuccess | ExportResultBlocked;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +159,7 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
     const result = await safeInvoke<ScanResult>("recon_scan", {
       params: { engagementDir },
     });
-    setScanResult(result ?? { pass: false, findings: [] });
+    setScanResult(result ?? { passed: false, findings: [] });
     setScanning(false);
   }
 
@@ -164,13 +173,15 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
 
     if (result === undefined) {
       setExportError("Export failed — sidecar may not be running.");
+    } else if ("blocked" in result && result.blocked) {
+      setExportError(`Export blocked — scan found ${result.findings.length} sensitive finding(s). Override the scan first.`);
     } else {
       setExportResult(result);
     }
     setExporting(false);
   }
 
-  const canExport = scanResult?.pass === true || overrideConfirmed;
+  const canExport = scanResult?.passed === true || overrideConfirmed;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
@@ -208,7 +219,7 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
 
       {scanResult !== undefined && (
         <>
-          {scanResult.pass ? (
+          {scanResult.passed ? (
             <div
               style={{
                 background: "#f0fdf4",
@@ -224,7 +235,7 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
             </div>
           ) : (
             <ScanFailurePanel
-              findings={scanResult.findings ?? []}
+              findings={scanResult.findings}
               engagementDir={engagementDir}
               onAllOverridden={() => { setOverrideConfirmed(true); }}
             />
@@ -273,7 +284,7 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
             </div>
           )}
 
-          {exportResult !== undefined && (
+          {exportResult !== undefined && !("blocked" in exportResult) && (
             <div
               style={{
                 background: "#f0fdf4",
@@ -291,14 +302,8 @@ function ScanExportPanel({ engagementDir }: ScanExportPanelProps) {
               <p style={{ margin: 0, fontSize: "0.75rem", color: "#374151", fontFamily: "monospace", wordBreak: "break-all" }}>
                 {exportResult.zipPath}
               </p>
-              {exportResult.fileSizeBytes !== undefined && (
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>
-                  {formatBytes(exportResult.fileSizeBytes)}
-                </p>
-              )}
-              {/* TODO: Reveal in Finder (requires Tauri shell open command) */}
-              <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280", fontStyle: "italic" }}>
-                (Reveal in Finder: TODO — requires shell.open integration)
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>
+                {formatBytes(exportResult.size)}
               </p>
             </div>
           )}

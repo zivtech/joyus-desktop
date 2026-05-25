@@ -177,8 +177,14 @@ pub async fn credentials_verify(state: State<'_, SidecarState>) -> Result<Value,
     state.send_request("credentials.verify", Value::Object(Default::default())).await
 }
 
+/// Detect whether Claude Code CLI is installed and accessible on PATH.
+#[command]
+pub async fn check_claude_binary(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("claude.detect", Value::Object(Default::default())).await
+}
+
 /// Check whether the Recon skill file exists at ~/.claude/skills/joyus-recon.md.
-/// TODO(WP03+): Wire sidecar handler `skills.checkFile` once implemented.
+/// Proxies to the sidecar's `skills.checkFile` handler.
 #[command]
 pub async fn check_skill_file(state: State<'_, SidecarState>) -> Result<Value, String> {
     state.send_request("skills.checkFile", Value::Object(Default::default())).await

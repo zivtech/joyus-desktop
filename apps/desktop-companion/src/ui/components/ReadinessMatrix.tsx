@@ -78,7 +78,7 @@ export function ReadinessMatrix({ onPreflightComplete }: ReadinessMatrixProps) {
         id: "credentials",
         label: "Credentials",
         status: (() => {
-          const required = ["ANTHROPIC_API_KEY", "DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD"];
+          const required = ["ANTHROPIC_API_KEY", "DATAFORSEO_USERNAME", "DATAFORSEO_PASSWORD"];
           const stored = creds ?? [];
           const allPresent = required.every((k) => stored.includes(k));
           return allPresent ? "ready" : "blocking";
@@ -102,12 +102,12 @@ export function ReadinessMatrix({ onPreflightComplete }: ReadinessMatrixProps) {
         label: "DataForSEO",
         status: (() => {
           if (!verify) return "warning";
-          const dfsLogin = verify.find((r) => r.key === "DATAFORSEO_LOGIN");
+          const dfsLogin = verify.find((r) => r.key === "DATAFORSEO_USERNAME");
           return dfsLogin?.valid === true ? "ready" : "warning";
         })(),
         detail: (() => {
           if (!verify) return "Not checked";
-          const dfsLogin = verify.find((r) => r.key === "DATAFORSEO_LOGIN");
+          const dfsLogin = verify.find((r) => r.key === "DATAFORSEO_USERNAME");
           return dfsLogin?.valid === true ? "Verified" : "Unverified";
         })(),
       },

@@ -1,7 +1,7 @@
 # Recon Operator Setup Runbook
 
 > For Alex to follow during onboarding video call with Aaron.
-> Aaron is non-technical — every step must be completable without a terminal unless labeled "Alex runs in terminal."
+> Aaron is non-technical. Steps that require a terminal are labeled "terminal required" — Alex runs these on Aaron's machine via screen share or SSH.
 
 ---
 
@@ -17,9 +17,10 @@ Before the call, confirm:
 
 ---
 
-## Step 1: Install Claude Code (Alex — terminal)
+## Step 1: Install Claude Code (terminal required)
 
-Alex runs this on Aaron's machine (share screen or SSH) or walks Aaron through copy-pasting into Terminal:
+Alex runs this on Aaron's machine (share screen or SSH) or walks Aaron through copy-pasting into Terminal.
+The Setup Wizard (Step 5.1) will auto-detect Claude Code; if it is not installed, the wizard blocks.
 
 ```bash
 npm install -g @anthropic-ai/claude-code
@@ -110,7 +111,7 @@ Alex sends each credential individually via Signal, one at a time. Aaron types i
 | # | Credential | Source |
 |---|-----------|--------|
 | 1 | Anthropic API Key | Anthropic Console (Alex's account) |
-| 2 | DataForSEO Login | DataForSEO dashboard (Alex's account) |
+| 2 | DataForSEO Username | DataForSEO dashboard (Alex's account) |
 | 3 | DataForSEO Password | DataForSEO dashboard (Alex's account) |
 | 4 | CrUX API Key | Google Cloud Console (Alex's project) |
 
@@ -170,7 +171,7 @@ Run a short engagement against a public site to confirm the full pipeline works 
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| Wizard Step 1 shows red X | Claude Code not installed or not in PATH | Reinstall via `npm install -g @anthropic-ai/claude-code`, then restart the app |
+| Wizard Step 1 shows red X | Claude Code not installed or not in PATH | Install via `npm install -g @anthropic-ai/claude-code` (terminal required), then click **Check Again** |
 | Wizard Step 2 "Verify All" shows red X | Credential copied with leading/trailing whitespace | Delete the field, retype manually, click Save, then Verify All |
 | Progress log is empty after 30 seconds | Sidecar process failed to start | Force-quit the app (Cmd+Q), relaunch, try again |
 | Progress log shows error message | API key rejected or network error | Check the specific error text; if "401 Unauthorized", re-enter the relevant credential |
@@ -191,17 +192,21 @@ Run a short engagement against a public site to confirm the full pipeline works 
 
 ---
 
-## Reference: Credential Storage Location
+## Reference: Credential Storage
 
-Credentials are stored locally at:
+Credentials are stored in two locations:
 
-```
-~/Library/Application Support/com.joyus.desktop-companion/credentials.env
-```
+1. **macOS Keychain** (primary, service: `com.joyus.desktop-companion`) — persists across app restarts; populated by one-time migration from the flat file on launch.
+2. **Flat file** (written by the Setup Wizard) at:
+   ```
+   ~/Library/Application Support/com.joyus.desktop-companion/credentials.env
+   ```
+   Set to permission `600` (owner read/write only).
 
-This file is:
-- Set to permission `600` (owner read/write only)
+When launching an engagement, the app merges both sources: keychain values first, then flat-file values overlaid (flat-file wins on conflict, since the Setup Wizard writes there directly). This ensures rotated credentials take effect immediately without requiring an app restart.
+
+Credentials are:
 - Never included in engagement exports
-- Never transmitted off-device (credentials are used locally to authenticate API calls)
+- Never transmitted off-device (used locally to authenticate API calls)
 
 If credentials need to be rotated, Aaron can re-open the Setup Wizard from the app menu (`Joyus Desktop > Setup Wizard`) and re-enter each credential.

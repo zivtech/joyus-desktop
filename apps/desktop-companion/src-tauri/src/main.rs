@@ -106,6 +106,7 @@ fn main() {
             commands::credentials_verify,
             commands::github_auth_start,
             commands::github_auth_cancel,
+            commands::check_claude_binary,
             commands::check_skill_file,
             commands::recon_scan,
             commands::recon_export,

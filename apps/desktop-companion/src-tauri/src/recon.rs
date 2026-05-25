@@ -79,8 +79,6 @@ pub async fn launch_recon(
     app_handle: tauri::AppHandle,
 ) -> Result<Value, String> {
     let budget = max_budget.unwrap_or(25);
-    let keychain_keys = crate::keychain::list_stored_keys();
-    let use_keychain = !keychain_keys.is_empty();
 
     let launch_time = {
         let d = std::time::SystemTime::now()
@@ -107,17 +105,24 @@ pub async fn launch_recon(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::inherit());
 
-    if use_keychain {
-        log::info!("launching recon with keychain credentials");
+    // Merge both credential sources: keychain is the primary store after
+    // migration, but the sidecar's credentials.save still writes to the flat
+    // file. To avoid silently using stale keychain values when a credential
+    // was rotated via the UI, we start from keychain then overlay flat-file
+    // entries (flat-file wins on conflict since it's the most-recently-written).
+    {
+        let mut merged: std::collections::HashMap<String, String> = std::collections::HashMap::new();
         for key in crate::keychain::ALLOWED_KEYS {
             if let Ok(Some(val)) = crate::keychain::retrieve_credential(key) {
-                cmd.env(key, val);
+                merged.insert(key.to_string(), val);
             }
         }
-    } else {
-        log::info!("launching recon with flat-file credentials (migration pending)");
-        let credentials = read_credentials();
-        for (key, value) in &credentials {
+        let flat_creds = read_credentials();
+        for (key, value) in &flat_creds {
+            merged.insert(key.clone(), value.clone());
+        }
+        log::info!("launching recon with merged credentials (keychain + flat-file overlay)");
+        for (key, value) in &merged {
             cmd.env(key, value);
         }
     }

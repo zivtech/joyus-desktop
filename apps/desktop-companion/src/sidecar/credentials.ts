@@ -47,7 +47,7 @@ export function getCredentialFilePath(): string {
 export const CREDENTIAL_FILE_PATH = getCredentialFilePath();
 
 export const CREDENTIAL_ALLOWLIST: readonly string[] = [
-  "DATAFORSEO_LOGIN",
+  "DATAFORSEO_USERNAME",
   "DATAFORSEO_PASSWORD",
   "CRUX_API_KEY",
   "ANTHROPIC_API_KEY",
@@ -243,9 +243,9 @@ export function registerCredentialMethods(ipc: IpcHandler): void {
       }
     });
 
-    // DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD (verified as a pair)
+    // DATAFORSEO_USERNAME + DATAFORSEO_PASSWORD (verified as a pair)
     tasks.push(async (): Promise<VerifyEntry[]> => {
-      const loginKey = "DATAFORSEO_LOGIN";
+      const loginKey = "DATAFORSEO_USERNAME";
       const passwordKey = "DATAFORSEO_PASSWORD";
       const login = map.get(loginKey);
       const password = map.get(passwordKey);
@@ -259,7 +259,7 @@ export function registerCredentialMethods(ipc: IpcHandler): void {
       if (!login) {
         return [
           { key: loginKey, valid: false, error: "not configured" },
-          { key: passwordKey, valid: false, error: "DATAFORSEO_LOGIN is not configured" },
+          { key: passwordKey, valid: false, error: "DATAFORSEO_USERNAME is not configured" },
         ];
       }
       if (!password) {

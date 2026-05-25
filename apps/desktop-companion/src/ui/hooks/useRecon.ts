@@ -24,7 +24,7 @@ interface SkillFileResult {
 
 const REQUIRED_CREDENTIAL_KEYS = [
   "ANTHROPIC_API_KEY",
-  "DATAFORSEO_LOGIN",
+  "DATAFORSEO_USERNAME",
   "DATAFORSEO_PASSWORD",
   "CRUX_API_KEY",
 ] as const;
@@ -69,9 +69,6 @@ export function useReconSetup(): ReconSetupStatus {
       }
 
       // 2. Check skill file
-      // TODO(WP03+): `check_skill_file` Rust command and sidecar handler
-      //   (`skills.checkFile`) do not exist yet. safeInvoke returns undefined,
-      //   which we treat as not-found below.
       const skillResult = await safeInvoke<SkillFileResult>("check_skill_file");
       if (skillResult === undefined || !skillResult.found) {
         missing.push("skill-file");

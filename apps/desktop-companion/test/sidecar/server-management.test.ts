@@ -3,6 +3,8 @@ import {
   registerServerMethods,
   registerServerNotifications,
   registerChromeDetect,
+  registerClaudeDetect,
+  registerSkillFileCheck,
 } from "../../src/sidecar/services";
 import type { IpcHandler } from "../../src/sidecar/ipc-handler";
 import type { Registry } from "@joyus/mcp-registry";
@@ -10,6 +12,8 @@ import type { ProcessManager } from "@joyus/mcp-registry";
 import type { McpServerInfo } from "@joyus/mcp-registry";
 import type { ChromeDetectDeps } from "../../src/sidecar/chrome-detect";
 import { createDefaultChromeDeps } from "../../src/sidecar/chrome-detect";
+import type { ClaudeDetectDeps } from "../../src/sidecar/claude-detect";
+import type { SkillFileCheckDeps } from "../../src/sidecar/services";
 
 // ---------- helpers ----------
 
@@ -425,5 +429,73 @@ describe("createDefaultChromeDeps", () => {
     const deps = createDefaultChromeDeps();
     const result = deps.execCommand("echo hello");
     expect(typeof result).toBe("string");
+  });
+});
+
+// ---------- claude.detect ----------
+
+describe("registerClaudeDetect", () => {
+  it("returns found: true when claude is on PATH", async () => {
+    const claudeDeps: ClaudeDetectDeps = {
+      execCommand: vi.fn().mockImplementation((cmd: string) => {
+        if (cmd === "which claude") return "/usr/local/bin/claude\n";
+        if (cmd === "claude --version") return "claude-code/1.2.3\n";
+        return "";
+      }),
+      fileExists: vi.fn().mockReturnValue(true),
+    };
+    const { ipc, methods } = makeMockIpc();
+
+    registerClaudeDetect(ipc, claudeDeps);
+
+    const result = await methods.get("claude.detect")!(undefined) as Record<string, unknown>;
+    expect(result["found"]).toBe(true);
+    expect(result["path"]).toBe("/usr/local/bin/claude");
+    expect(result["version"]).toBe("1.2.3");
+  });
+
+  it("returns found: false when claude is not on PATH", async () => {
+    const claudeDeps: ClaudeDetectDeps = {
+      execCommand: vi.fn().mockImplementation(() => { throw new Error("not found"); }),
+      fileExists: vi.fn().mockReturnValue(false),
+    };
+    const { ipc, methods } = makeMockIpc();
+
+    registerClaudeDetect(ipc, claudeDeps);
+
+    const result = await methods.get("claude.detect")!(undefined) as Record<string, unknown>;
+    expect(result["found"]).toBe(false);
+  });
+});
+
+// ---------- skills.checkFile ----------
+
+describe("registerSkillFileCheck", () => {
+  it("returns found: true when skill file exists", async () => {
+    const deps: SkillFileCheckDeps = {
+      fileExists: vi.fn().mockReturnValue(true),
+      homedir: vi.fn().mockReturnValue("/Users/test"),
+    };
+    const { ipc, methods } = makeMockIpc();
+
+    registerSkillFileCheck(ipc, deps);
+
+    const result = await methods.get("skills.checkFile")!(undefined) as Record<string, unknown>;
+    expect(result["found"]).toBe(true);
+    expect(deps.fileExists).toHaveBeenCalledWith("/Users/test/.claude/skills/joyus-recon.md");
+  });
+
+  it("returns found: false when skill file is absent", async () => {
+    const deps: SkillFileCheckDeps = {
+      fileExists: vi.fn().mockReturnValue(false),
+      homedir: vi.fn().mockReturnValue("/home/user"),
+    };
+    const { ipc, methods } = makeMockIpc();
+
+    registerSkillFileCheck(ipc, deps);
+
+    const result = await methods.get("skills.checkFile")!(undefined) as Record<string, unknown>;
+    expect(result["found"]).toBe(false);
+    expect(deps.fileExists).toHaveBeenCalledWith("/home/user/.claude/skills/joyus-recon.md");
   });
 });

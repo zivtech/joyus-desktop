@@ -189,10 +189,6 @@ function StepClaudeDetect({ onResult }: StepClaudeDetectProps) {
   async function runDetect() {
     setStatus("checking");
 
-    // TODO(WP03+): Replace `check_claude_binary` with the real Rust command once
-    //   WP03 adds it to commands.rs and the sidecar implements `claude.detect`.
-    //   For now, safeInvoke returns undefined (command does not exist) and we
-    //   fall through to the "not found" branch.
     const result = await safeInvoke<{ found: boolean; version?: string }>(
       "check_claude_binary"
     );

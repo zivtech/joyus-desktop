@@ -6,7 +6,7 @@ const SERVICE: &str = "com.joyus.desktop-companion";
 
 pub const ALLOWED_KEYS: &[&str] = &[
     "ANTHROPIC_API_KEY",
-    "DATAFORSEO_LOGIN",
+    "DATAFORSEO_USERNAME",
     "DATAFORSEO_PASSWORD",
     "CRUX_API_KEY",
     "PAGESPEED_API_KEY",

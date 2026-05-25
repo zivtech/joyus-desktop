@@ -9,6 +9,7 @@ import {
   type UsageCollector,
 } from "./usage-collector";
 import { detectChrome, type ChromeDetectDeps } from "./chrome-detect";
+import { detectClaude, type ClaudeDetectDeps } from "./claude-detect";
 import { scanSkills, type SkillScannerDeps } from "./skill-scanner";
 import { registerReconMethods } from "./recon";
 import { registerCredentialMethods } from "./credentials";
@@ -267,6 +268,24 @@ export function registerServerNotifications(
 export function registerChromeDetect(ipc: IpcHandler, deps: ChromeDetectDeps): void {
   ipc.registerMethod("chrome.detect", async () => {
     return detectChrome(deps);
+  });
+}
+
+export function registerClaudeDetect(ipc: IpcHandler, deps: ClaudeDetectDeps): void {
+  ipc.registerMethod("claude.detect", async () => {
+    return detectClaude(deps);
+  });
+}
+
+export interface SkillFileCheckDeps {
+  fileExists: (path: string) => boolean;
+  homedir: () => string;
+}
+
+export function registerSkillFileCheck(ipc: IpcHandler, deps: SkillFileCheckDeps): void {
+  ipc.registerMethod("skills.checkFile", async () => {
+    const skillPath = `${deps.homedir()}/.claude/skills/joyus-recon.md`;
+    return { found: deps.fileExists(skillPath) };
   });
 }
 

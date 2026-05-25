@@ -41,9 +41,9 @@ const CREDENTIAL_FIELDS: CredentialField[] = [
     description: "Used to run Claude inside Recon sessions",
   },
   {
-    key: "DATAFORSEO_LOGIN",
-    label: "DataForSEO Login",
-    description: "DataForSEO account login",
+    key: "DATAFORSEO_USERNAME",
+    label: "DataForSEO Username",
+    description: "DataForSEO account username",
   },
   {
     key: "DATAFORSEO_PASSWORD",
