@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: "/usage", label: "Usage", icon: "◷" },
   { to: "/settings", label: "Settings", icon: "⚙" },
   { to: "/onboarding", label: "Onboarding", icon: "◉" },
+  { to: "/recon", label: "Recon", icon: "⌖" },
 ] as const;
 
 export function Layout() {

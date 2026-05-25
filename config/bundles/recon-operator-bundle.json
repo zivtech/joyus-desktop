@@ -1,0 +1,20 @@
+{
+  "bundle_name": "recon-operator-bundle",
+  "version": "0.1.0",
+  "description": "Recon Operator skill and output scan script for site architecture discovery engagements.",
+  "target_orgs": ["zivtech"],
+  "skills": [
+    "joyus-recon"
+  ],
+  "skill_count": 1,
+  "resources": [
+    {
+      "source": "scripts/scan-sensitive-output.mjs",
+      "destination": "resources/scan-sensitive-output.mjs"
+    }
+  ],
+  "repo": "joyus-ai/joyus-recon",
+  "ref": "v0.1.0",
+  "_note": "Replace ref with actual tag after first joyus-recon release",
+  "notes": "Includes the joyus-recon skill for site architecture discovery and the scan-sensitive-output.mjs script for credential leak detection in engagement output. Both files are pulled from the joyus-recon repo at the pinned ref."
+}
