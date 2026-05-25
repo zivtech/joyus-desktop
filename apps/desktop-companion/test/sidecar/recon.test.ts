@@ -709,6 +709,8 @@ describe("recon.export", () => {
     await mkdir(subDir, { recursive: true });
     await writeFile(path.join(subDir, "summary.txt"), "report content");
     await writeFile(path.join(engagementDir, "notes.txt"), "top-level note");
+    // Tiny file that deflation cannot shrink (exercises store-raw branch)
+    await writeFile(path.join(engagementDir, "tiny.bin"), Buffer.from([0x42]));
 
     const fakeChild = makeFakeChild();
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);

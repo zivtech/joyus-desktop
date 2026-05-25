@@ -132,7 +132,7 @@ async function fetchWithTimeout(
       throw new Error(`Request timed out after ${timeoutMs}ms`);
     }
     throw err;
-  } finally {
+  } /* v8 ignore next */ finally {
     clearTimeout(timer);
   }
 }

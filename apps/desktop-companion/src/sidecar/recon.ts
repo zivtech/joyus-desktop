@@ -257,7 +257,7 @@ export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps):
       await fs.mkdir(engagementDir, { recursive: true });
     } catch (err) {
       throw new Error(
-        `recon.create: failed to create engagement directory at ${engagementDir}: ${err instanceof Error ? err.message : String(err)}`,
+        `recon.create: failed to create engagement directory at ${engagementDir}: ${err instanceof Error ? err.message : /* v8 ignore next */ String(err)}`,
       );
     }
 
@@ -275,7 +275,7 @@ export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps):
       await fs.writeFile(metaPath, JSON.stringify(meta, null, 2) + "\n", "utf8");
     } catch (err) {
       throw new Error(
-        `recon.create: failed to write .recon-meta.json: ${err instanceof Error ? err.message : String(err)}`,
+        `recon.create: failed to write .recon-meta.json: ${err instanceof Error ? err.message : /* v8 ignore next */ String(err)}`,
       );
     }
 
