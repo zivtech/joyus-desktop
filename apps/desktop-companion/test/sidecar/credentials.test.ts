@@ -27,7 +27,7 @@ import {
   beforeEach,
   afterEach,
 } from "vitest";
-import { mkdtempSync, rmSync, existsSync as realExistsSync, statSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, existsSync as realExistsSync, statSync } from "node:fs";
 import * as path from "node:path";
 import * as nodeos from "node:os";
 
@@ -317,6 +317,14 @@ describe("credentials.list", () => {
 
   afterEach(() => {
     removeTempDir(tempDir);
+  });
+
+  it("re-throws non-ENOENT errors from readCredentials", async () => {
+    // Create credentials.env as a directory so readFile throws EISDIR
+    const filePath = credentialFilePath(tempDir);
+    mkdirSync(filePath, { recursive: true });
+
+    await expect(ipc._invoke("credentials.list", {})).rejects.toThrow();
   });
 
   it("returns all 5 allowlist keys in order when no credentials are set", async () => {

@@ -25,7 +25,8 @@ import {
 } from "vitest";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, existsSync as realExistsSync } from "node:fs";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, writeFile as realWriteFile } from "node:fs/promises";
+import { promises as mockedFsPromises } from "node:fs";
 import { execSync } from "node:child_process";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -832,5 +833,44 @@ describe("recon.create with syncDeps (version gate)", () => {
         removeTempDir(result.engagementDir);
       }
     }
+  });
+
+  it("wraps mkdir errors with a descriptive message", async () => {
+    const ipc = makeIpc();
+    registerReconMethods(ipc);
+
+    const mkdirSpy = vi.spyOn(mockedFsPromises, "mkdir")
+      .mockRejectedValueOnce(new Error("EACCES: permission denied"));
+
+    await expect(
+      ipc._invoke("recon.create", {
+        clientName: "Mkdir Fail Co",
+        url: "https://example.com",
+        accessMode: "rfp",
+      }),
+    ).rejects.toThrow("recon.create: failed to create engagement directory");
+
+    mkdirSpy.mockRestore();
+  });
+
+  it("wraps writeFile errors with a descriptive message", async () => {
+    const ipc = makeIpc();
+    registerReconMethods(ipc);
+
+    // mkdir succeeds, writeFile fails
+    const mkdirSpy = vi.spyOn(mockedFsPromises, "mkdir").mockResolvedValueOnce(undefined);
+    const writeSpy = vi.spyOn(mockedFsPromises, "writeFile")
+      .mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
+
+    await expect(
+      ipc._invoke("recon.create", {
+        clientName: "Write Fail Co",
+        url: "https://example.com",
+        accessMode: "rfp",
+      }),
+    ).rejects.toThrow("recon.create: failed to write .recon-meta.json");
+
+    mkdirSpy.mockRestore();
+    writeSpy.mockRestore();
   });
 });
