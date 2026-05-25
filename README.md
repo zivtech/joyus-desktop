@@ -170,6 +170,18 @@ pnpm skill-sync:tester
 pnpm skill-sync:verify-pin
 ```
 
+Dogfood smoke:
+
+```bash
+pnpm dogfood:smoke
+```
+
+The smoke test reads control-plane values from `JOYUS_API_URL` before
+`JOYUS_MCP_BASE_URL`, and `JOYUS_API_TOKEN` before `JOYUS_MCP_BEARER_TOKEN`.
+For mediation, `JOYUS_MEDIATION_BASE_URL` overrides the control-plane URL,
+`JOYUS_MEDIATION_API_KEY` overrides `API_KEY`, and
+`JOYUS_MEDIATION_BEARER_TOKEN` overrides `JOYUS_DEV_JWT_TOKEN`.
+
 ## Repo Notes
 
 - The original architecture and threat-model docs are still light and should be expanded alongside the active feature work.
