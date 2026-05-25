@@ -706,6 +706,62 @@ describe("credentials.verify", () => {
     const expectedBasic = Buffer.from("mylogin:mypass").toString("base64");
     expect(headers?.["Authorization"]).toBe(`Basic ${expectedBasic}`);
   });
+
+  it("throws 'timed out' error when fetch AbortError is thrown", async () => {
+    // Save a credential so the fetch path is exercised for ANTHROPIC_API_KEY
+    await ipc._invoke("credentials.save", {
+      key: "ANTHROPIC_API_KEY",
+      value: "sk-test",
+    });
+
+    const abortError = new Error("The operation was aborted");
+    abortError.name = "AbortError";
+    global.fetch = vi.fn().mockRejectedValue(abortError);
+
+    const result = (await ipc._invoke(
+      "credentials.verify",
+      {},
+    )) as Array<{ key: string; valid: boolean | null; error?: string }>;
+
+    const anthropic = result.find((r) => r.key === "ANTHROPIC_API_KEY");
+    expect(anthropic?.valid).toBe(false);
+    // The AbortError branch in fetchWithTimeout converts it to a timeout message
+    expect(anthropic?.error).toContain("timed out after");
+  });
+
+  it("handles unexpected task rejection via allSettled rejected outcome", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ status: 200 } as Response);
+
+    const realAllSettled = Promise.allSettled.bind(Promise);
+    try {
+      // Wrap allSettled to inject one rejected outcome alongside real results
+      Promise.allSettled = (<T>(promises: Iterable<T | PromiseLike<T>>) => {
+        return realAllSettled(promises).then(
+          (results: PromiseSettledResult<Awaited<T>>[]) => [
+            ...results,
+            {
+              status: "rejected" as const,
+              reason: new Error("injected unexpected failure"),
+            },
+          ],
+        );
+      }) as typeof Promise.allSettled;
+
+      const result = (await ipc._invoke(
+        "credentials.verify",
+        {},
+      )) as Array<{ key: string; valid: boolean | null; error?: string }>;
+
+      // The "unknown" key entry produced by the rejection branch is filtered out
+      // by the allowlist-ordered final pass, so the return still has exactly the
+      // allowlist entries. The key assertion is that verify completes without
+      // throwing — line 330 is exercised by the injected rejected outcome.
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(CREDENTIAL_ALLOWLIST.length);
+    } finally {
+      Promise.allSettled = realAllSettled;
+    }
+  });
 });
 
 // ===========================================================================

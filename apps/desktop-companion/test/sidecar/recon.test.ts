@@ -55,6 +55,18 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 
 // ---------------------------------------------------------------------------
+// Mock version-gate so tests can control autoSyncIfNeeded / checkVersion
+// without real filesystem access (readPinnedVersion reads distribution-config.json).
+// ---------------------------------------------------------------------------
+
+const vgMock = vi.hoisted(() => ({
+  autoSyncIfNeeded: vi.fn(),
+  checkVersion: vi.fn(),
+}));
+
+vi.mock("../../src/sidecar/version-gate", () => vgMock);
+
+// ---------------------------------------------------------------------------
 // Import production code AFTER mocks are declared
 // ---------------------------------------------------------------------------
 
@@ -645,6 +657,180 @@ describe("recon.export", () => {
     ];
     for (const excluded of EXCLUDED) {
       expect(unzipOutput).not.toContain(excluded);
+    }
+  });
+
+  it("includes files in nested subdirectories in the ZIP archive", async () => {
+    // Create a subdirectory with a file inside the engagement dir
+    const subDir = path.join(engagementDir, "reports");
+    await mkdir(subDir, { recursive: true });
+    await writeFile(path.join(subDir, "summary.txt"), "report content");
+    await writeFile(path.join(engagementDir, "notes.txt"), "top-level note");
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    resolveCleanChild(fakeChild);
+
+    const result = (await exportPromise) as { zipPath: string; size: number };
+
+    expect(realExistsSync(result.zipPath)).toBe(true);
+
+    // Use the system `unzip -l` to verify the nested file is in the archive
+    let unzipOutput: string;
+    try {
+      unzipOutput = execSync(`unzip -l "${result.zipPath}"`, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (err) {
+      const isUnavailable =
+        err instanceof Error &&
+        (err.message.includes("ENOENT") || err.message.includes("not found"));
+      if (isUnavailable) return;
+      throw err;
+    }
+
+    expect(unzipOutput).toContain("notes.txt");
+    expect(unzipOutput).toContain("summary.txt");
+  });
+});
+
+// ===========================================================================
+// T5: recon.checkVersion — version gate IPC method
+// ===========================================================================
+
+describe("recon.checkVersion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns stale result when syncDeps is not provided", async () => {
+    const ipc = makeIpc();
+    // Register without syncDeps — version gate is a no-op
+    registerReconMethods(ipc);
+
+    const result = (await ipc._invoke("recon.checkVersion", {})) as {
+      current: string | null;
+      pinned: string | null;
+      match: boolean;
+      stale: boolean;
+    };
+
+    expect(result.current).toBeNull();
+    expect(result.pinned).toBeNull();
+    expect(result.match).toBe(false);
+    expect(result.stale).toBe(true);
+  });
+
+  it("delegates to checkVersion from version-gate when syncDeps is provided", async () => {
+    const ipc = makeIpc();
+    const getSyncStatus = vi.fn().mockResolvedValue({ version: "1.2.3" });
+    const triggerSync = vi.fn().mockResolvedValue(undefined);
+
+    const expectedResult = {
+      current: "1.2.3",
+      pinned: "1.2.3",
+      match: true,
+    };
+    vgMock.checkVersion.mockResolvedValue(expectedResult);
+
+    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+
+    const result = await ipc._invoke("recon.checkVersion", {});
+
+    expect(vgMock.checkVersion).toHaveBeenCalledWith(getSyncStatus);
+    expect(result).toEqual(expectedResult);
+  });
+});
+
+// ===========================================================================
+// T6: recon.create — version gate integration (syncDeps provided)
+// ===========================================================================
+
+describe("recon.create with syncDeps (version gate)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("blocks creation when version is definitively mismatched (stale: false)", async () => {
+    const ipc = makeIpc();
+    const getSyncStatus = vi.fn().mockResolvedValue({ version: "1.0.0" });
+    const triggerSync = vi.fn().mockResolvedValue(undefined);
+
+    // autoSyncIfNeeded returns a definitive mismatch (stale NOT true)
+    vgMock.autoSyncIfNeeded.mockResolvedValue({
+      syncPerformed: true,
+      versionCheck: { current: "1.0.0", pinned: "2.0.0", match: false },
+    });
+
+    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+
+    await expect(
+      ipc._invoke("recon.create", {
+        clientName: "Version Mismatch Co",
+        url: "https://example.com",
+        accessMode: "rfp",
+      }),
+    ).rejects.toThrow("recon.create: Recon skill version mismatch");
+  });
+
+  it("allows creation when version matches (fail-open: match=true)", async () => {
+    const ipc = makeIpc();
+    const getSyncStatus = vi.fn().mockResolvedValue({ version: "2.0.0" });
+    const triggerSync = vi.fn().mockResolvedValue(undefined);
+
+    // autoSyncIfNeeded returns a successful match
+    vgMock.autoSyncIfNeeded.mockResolvedValue({
+      syncPerformed: false,
+      versionCheck: { current: "2.0.0", pinned: "2.0.0", match: true },
+    });
+
+    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+
+    let result: { engagementDir: string } | undefined;
+    try {
+      result = (await ipc._invoke("recon.create", {
+        clientName: "Version Match Co",
+        url: "https://example.com",
+        accessMode: "rfp",
+      })) as { engagementDir: string };
+
+      expect(typeof result.engagementDir).toBe("string");
+    } finally {
+      if (result?.engagementDir !== undefined && realExistsSync(result.engagementDir)) {
+        removeTempDir(result.engagementDir);
+      }
+    }
+  });
+
+  it("allows creation when version is stale (fail-open: stale=true)", async () => {
+    const ipc = makeIpc();
+    const getSyncStatus = vi.fn().mockResolvedValue(undefined);
+    const triggerSync = vi.fn().mockResolvedValue(undefined);
+
+    // autoSyncIfNeeded returns stale — offline scenario, fail-open
+    vgMock.autoSyncIfNeeded.mockResolvedValue({
+      syncPerformed: false,
+      versionCheck: { current: null, pinned: "2.0.0", match: false, stale: true },
+    });
+
+    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+
+    let result: { engagementDir: string } | undefined;
+    try {
+      result = (await ipc._invoke("recon.create", {
+        clientName: "Stale Version Co",
+        url: "https://example.com",
+        accessMode: "rfp",
+      })) as { engagementDir: string };
+
+      expect(typeof result.engagementDir).toBe("string");
+    } finally {
+      if (result?.engagementDir !== undefined && realExistsSync(result.engagementDir)) {
+        removeTempDir(result.engagementDir);
+      }
     }
   });
 });
