@@ -12,6 +12,7 @@ import { detectChrome, type ChromeDetectDeps } from "./chrome-detect";
 import { scanSkills, type SkillScannerDeps } from "./skill-scanner";
 import { registerReconMethods } from "./recon";
 import { registerCredentialMethods } from "./credentials";
+import { registerGitHubAuthMethods } from "./github-auth";
 
 export interface ServiceContainer {
   processManager: ProcessManager;
@@ -189,6 +190,7 @@ export function registerAllMethods(
   registerOnboarding(ipc, container, usageCollector);
   registerReconMethods(ipc);
   registerCredentialMethods(ipc);
+  registerGitHubAuthMethods(ipc);
 }
 
 // ---------------------------------------------------------------------------

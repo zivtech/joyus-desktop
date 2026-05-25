@@ -221,6 +221,8 @@ export function Onboarding() {
   const navigate = useNavigate();
 
   // Step 1 — Auth
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [githubBusy, setGithubBusy] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [authToken, setAuthToken] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -361,6 +363,49 @@ export function Onboarding() {
     }
   }, [orgName, authToken, tenantId, workspaceId, attachEventListeners]);
 
+  // ── Step 1b: GitHub OAuth login ────────────────────────────────────────
+
+  const handleGitHubLogin = useCallback(async () => {
+    setGithubBusy(true);
+    setAuthError(undefined);
+
+    try {
+      const result = await safeInvoke<{
+        authToken: string;
+        tenantId: string;
+        workspaceId: string;
+      }>("github_auth_start", {});
+
+      if (result === undefined) {
+        setAuthError("GitHub login unavailable outside of Joyus Desktop.");
+        return;
+      }
+
+      await safeInvoke("set_config", { key: "auth_token", value: result.authToken });
+      await safeInvoke("set_config", { key: "tenant_id", value: result.tenantId });
+      await safeInvoke("set_config", { key: "workspace_id", value: result.workspaceId });
+      await safeInvoke("set_config", { key: "onboarding_phase", value: "mcp" });
+
+      attachEventListeners();
+      setPhase("mcp");
+      setMcpProgress(0);
+
+      await safeInvoke("start_onboarding", {
+        authToken: result.authToken,
+        tenantId: result.tenantId,
+        workspaceId: result.workspaceId,
+      });
+    } catch (err) {
+      setAuthError(String(err));
+    } finally {
+      setGithubBusy(false);
+    }
+  }, [attachEventListeners]);
+
+  const handleCancelGitHubLogin = useCallback(() => {
+    void safeInvoke("github_auth_cancel", {});
+  }, []);
+
   // ── Step 2: Retry failed MCP servers ─────────────────────────────────────
 
   const handleRetryMcp = useCallback(() => {
@@ -458,16 +503,70 @@ export function Onboarding() {
                 Connect your account to get started.
               </p>
             </div>
-            <Input label="Organization Name (optional)" value={orgName} onChange={setOrgName} placeholder="Acme Corp" />
-            <Input label="Auth Token" type="password" value={authToken} onChange={setAuthToken} placeholder="sk-..." />
-            <Input label="Tenant ID" value={tenantId} onChange={setTenantId} placeholder="tenant-abc" />
-            <Input label="Workspace ID" value={workspaceId} onChange={setWorkspaceId} placeholder="ws-xyz" />
+
             {authError !== undefined && (
-              <ErrorBox message={authError} onRetry={() => { void handleConnect(); }} />
+              <ErrorBox message={authError} />
             )}
-            <PrimaryButton onClick={() => { void handleConnect(); }} disabled={authBusy}>
-              {authBusy ? "Connecting…" : "Connect"}
-            </PrimaryButton>
+
+            {!showManualEntry && !githubBusy && (
+              <>
+                <PrimaryButton onClick={() => { void handleGitHubLogin(); }}>
+                  Login with GitHub
+                </PrimaryButton>
+                <button
+                  onClick={() => setShowManualEntry(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#6b7280",
+                    fontSize: "0.813rem",
+                    cursor: "pointer",
+                    padding: 0,
+                    alignSelf: "flex-start",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Enter credentials manually
+                </button>
+              </>
+            )}
+
+            {githubBusy && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center", padding: "1rem 0" }}>
+                <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
+                  Waiting for browser authentication…
+                </p>
+                <SecondaryButton onClick={handleCancelGitHubLogin}>Cancel</SecondaryButton>
+              </div>
+            )}
+
+            {showManualEntry && !githubBusy && (
+              <>
+                <Input label="Organization Name (optional)" value={orgName} onChange={setOrgName} placeholder="Acme Corp" />
+                <Input label="Auth Token" type="password" value={authToken} onChange={setAuthToken} placeholder="sk-..." />
+                <Input label="Tenant ID" value={tenantId} onChange={setTenantId} placeholder="tenant-abc" />
+                <Input label="Workspace ID" value={workspaceId} onChange={setWorkspaceId} placeholder="ws-xyz" />
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                  <PrimaryButton onClick={() => { void handleConnect(); }} disabled={authBusy}>
+                    {authBusy ? "Connecting…" : "Connect"}
+                  </PrimaryButton>
+                  <button
+                    onClick={() => setShowManualEntry(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#6b7280",
+                      fontSize: "0.813rem",
+                      cursor: "pointer",
+                      padding: 0,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Back to GitHub login
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

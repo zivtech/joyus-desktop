@@ -184,6 +184,18 @@ pub async fn check_skill_file(state: State<'_, SidecarState>) -> Result<Value, S
     state.send_request("skills.checkFile", Value::Object(Default::default())).await
 }
 
+// ─── GitHub OAuth commands ──────────────────────────────────────────────────
+
+#[command]
+pub async fn github_auth_start(state: State<'_, SidecarState>, params: Value) -> Result<Value, String> {
+    state.send_request("github-auth.start", params).await
+}
+
+#[command]
+pub async fn github_auth_cancel(state: State<'_, SidecarState>) -> Result<Value, String> {
+    state.send_request("github-auth.cancel", Value::Object(Default::default())).await
+}
+
 // ─── Session commands ────────────────────────────────────────────────────────
 
 #[command]

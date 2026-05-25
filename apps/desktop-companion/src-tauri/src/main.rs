@@ -104,6 +104,8 @@ fn main() {
             commands::credentials_save,
             commands::credentials_list,
             commands::credentials_verify,
+            commands::github_auth_start,
+            commands::github_auth_cancel,
             commands::check_skill_file,
             commands::recon_scan,
             commands::recon_export,
