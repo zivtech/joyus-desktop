@@ -807,7 +807,7 @@ describe("recon.create with syncDeps (version gate)", () => {
     // autoSyncIfNeeded returns a definitive mismatch (stale NOT true)
     vgMock.autoSyncIfNeeded.mockResolvedValue({
       syncPerformed: true,
-      versionCheck: { current: "1.0.0", pinned: "2.0.0", match: false },
+      versionCheck: { current: null, pinned: null, match: false },
     });
 
     registerReconMethods(ipc, { getSyncStatus, triggerSync });
