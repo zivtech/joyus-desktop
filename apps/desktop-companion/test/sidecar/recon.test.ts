@@ -367,6 +367,48 @@ describe("recon.create", () => {
 });
 
 // ===========================================================================
+// resolveScanScript fallback and throw paths
+// ===========================================================================
+
+describe("resolveScanScript", () => {
+  let ipc: InvokableMockIpc;
+  const existsSyncMock = vi.mocked(realExistsSync);
+
+  beforeEach(() => {
+    ipc = makeIpc();
+    registerReconMethods(ipc);
+  });
+
+  afterEach(() => {
+    existsSyncMock.mockReturnValue(true);
+  });
+
+  it("uses fallback path when primary candidate does not exist", async () => {
+    const spawnMock = await getSpawnMock();
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    // First existsSync (primary candidate) → false, second (fallback) → true
+    existsSyncMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+    const promise = ipc._invoke("recon.scan", { engagementDir: "/tmp/fake-engagement" });
+    resolveCleanChild(fakeChild);
+    const result = (await promise) as { passed: boolean };
+
+    expect(result.passed).toBe(true);
+    expect(spawnMock).toHaveBeenCalled();
+  });
+
+  it("throws when neither scan script candidate exists", async () => {
+    existsSyncMock.mockReturnValueOnce(false).mockReturnValueOnce(false);
+
+    await expect(
+      ipc._invoke("recon.scan", { engagementDir: "/tmp/fake-engagement" }),
+    ).rejects.toThrow("scan-sensitive-output.mjs not found");
+  });
+});
+
+// ===========================================================================
 // T3: recon.scan
 // ===========================================================================
 

@@ -111,7 +111,7 @@ function serializeCredentials(map: Map<string, string>): string {
   for (const [key, value] of map.entries()) {
     lines.push(`${key}=${value}`);
   }
-  return lines.join("\n") + (lines.length > 0 ? "\n" : "");
+  return lines.join("\n") + "\n";
 }
 
 /**

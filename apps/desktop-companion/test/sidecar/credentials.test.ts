@@ -327,6 +327,27 @@ describe("credentials.list", () => {
     await expect(ipc._invoke("credentials.list", {})).rejects.toThrow();
   });
 
+  it("ignores malformed lines (no = sign) and comment lines in credential file", async () => {
+    // Write a credential file with comments, blank lines, and a malformed line
+    const filePath = credentialFilePath(tempDir);
+    const dir = path.dirname(filePath);
+    mkdirSync(dir, { recursive: true });
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(
+      filePath,
+      "# this is a comment\nmalformed-no-equals\nANTHROPIC_API_KEY=sk-valid\n\n",
+      "utf8",
+    );
+
+    const result = (await ipc._invoke(
+      "credentials.list",
+      {},
+    )) as Array<{ key: string; isSet: boolean }>;
+
+    const anthropic = result.find((r) => r.key === "ANTHROPIC_API_KEY");
+    expect(anthropic?.isSet).toBe(true);
+  });
+
   it("returns all 5 allowlist keys in order when no credentials are set", async () => {
     const result = (await ipc._invoke(
       "credentials.list",
