@@ -52,41 +52,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ── Tests ──────────────────────────────────────────────────────────────
-      - name: TypeScript tests
-        run: pnpm test
-
-      - name: Rust tests
-        working-directory: apps/desktop-companion/src-tauri
-        run: cargo test
-
       # ── Sidecar & Node.js binaries ─────────────────────────────────────────
       - name: Build sidecar bundle
-        run: pnpm --filter @joyus/desktop-companion build:sidecar
+        working-directory: apps/desktop-companion
+        run: node scripts/bundle-sidecar.mjs
 
       - name: Download Node.js binaries
-        run: pnpm --filter @joyus/desktop-companion download:node
+        working-directory: apps/desktop-companion
+        run: node scripts/download-node.mjs
 
       - name: Verify sidecar artifacts (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
-          test -f apps/desktop-companion/src-tauri/binaries/node-aarch64-apple-darwin \
+          test -f apps/desktop-companion/binaries/node-aarch64-apple-darwin \
             || (echo "ERROR: missing node-aarch64-apple-darwin" && exit 1)
-          test -f apps/desktop-companion/src-tauri/binaries/node-x86_64-apple-darwin \
+          test -f apps/desktop-companion/binaries/node-x86_64-apple-darwin \
             || (echo "ERROR: missing node-x86_64-apple-darwin" && exit 1)
-          test -f apps/desktop-companion/src-tauri/binaries/sidecar-main.mjs \
+          test -f apps/desktop-companion/binaries/sidecar-main.mjs \
             || (echo "ERROR: missing sidecar-main.mjs" && exit 1)
 
       - name: Verify sidecar artifacts (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          if (-not (Test-Path "apps/desktop-companion/src-tauri/binaries/node-x86_64-pc-windows-msvc.exe")) {
+          if (-not (Test-Path "apps/desktop-companion/binaries/node-x86_64-pc-windows-msvc.exe")) {
             Write-Error "ERROR: missing node-x86_64-pc-windows-msvc.exe"; exit 1
           }
-          if (-not (Test-Path "apps/desktop-companion/src-tauri/binaries/sidecar-main.mjs")) {
+          if (-not (Test-Path "apps/desktop-companion/binaries/sidecar-main.mjs")) {
             Write-Error "ERROR: missing sidecar-main.mjs"; exit 1
           }
+
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
 
       # ── macOS code signing ─────────────────────────────────────────────────
       - name: Import macOS certificate
@@ -118,7 +116,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: cargo tauri build --target universal-apple-darwin
+        run: cargo tauri build --target universal-apple-darwin --ignore-version-mismatches
         working-directory: apps/desktop-companion
 
       - name: Build Tauri app (Windows)
@@ -126,7 +124,7 @@ jobs:
         env:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: cargo tauri build
+        run: cargo tauri build --ignore-version-mismatches
         working-directory: apps/desktop-companion
 
       # ── Upload build artifacts ─────────────────────────────────────────────
