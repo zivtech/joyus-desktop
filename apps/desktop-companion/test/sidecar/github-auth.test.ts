@@ -6,7 +6,20 @@ import {
   beforeEach,
   afterEach,
 } from "vitest";
+import { execFile } from "node:child_process";
 import { EventEmitter } from "node:events";
+
+vi.mock("node:child_process", () => ({
+  execFile: vi.fn(
+    (
+      _cmd: string,
+      _args: readonly string[],
+      cb: (err: Error | null) => void,
+    ) => {
+      cb(new Error("mock execFile"));
+    },
+  ),
+}));
 import type {
   Server,
   IncomingMessage,
@@ -195,38 +208,68 @@ describe("HTML helpers", () => {
 // ---------------------------------------------------------------------------
 
 describe("defaultOpenUrl", () => {
+  const mockedExecFile = vi.mocked(execFile);
+
+  beforeEach(() => {
+    mockedExecFile.mockClear();
+  });
+
   it("is exported as a function", () => {
     expect(typeof defaultOpenUrl).toBe("function");
   });
 
-  it("calls execFile with platform-appropriate command on darwin", async () => {
+  it("calls execFile with 'open' on darwin", async () => {
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "darwin" });
     try {
       await expect(defaultOpenUrl("https://example.com")).rejects.toBeDefined();
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        "open",
+        ["https://example.com"],
+        expect.any(Function),
+      );
     } finally {
       Object.defineProperty(process, "platform", { value: originalPlatform });
     }
   });
 
-  it("uses cmd on win32", async () => {
+  it("calls execFile with 'cmd' on win32", async () => {
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "win32" });
     try {
       await expect(defaultOpenUrl("https://example.com")).rejects.toBeDefined();
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        "cmd",
+        ["/c", "start", "", "https://example.com"],
+        expect.any(Function),
+      );
     } finally {
       Object.defineProperty(process, "platform", { value: originalPlatform });
     }
   });
 
-  it("uses xdg-open on linux", async () => {
+  it("calls execFile with 'xdg-open' on linux", async () => {
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "linux" });
     try {
       await expect(defaultOpenUrl("https://example.com")).rejects.toBeDefined();
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        "xdg-open",
+        ["https://example.com"],
+        expect.any(Function),
+      );
     } finally {
       Object.defineProperty(process, "platform", { value: originalPlatform });
     }
+  });
+
+  it("resolves when execFile succeeds", async () => {
+    mockedExecFile.mockImplementationOnce(
+      (_cmd: string, _args: readonly string[], cb: (err: null) => void) => {
+        cb(null);
+      },
+    );
+    await expect(defaultOpenUrl("https://example.com")).resolves.toBeUndefined();
   });
 });
 

@@ -528,23 +528,21 @@ describe("recon.scan", () => {
 
 describe("recon.export", () => {
   let ipc: InvokableMockIpc;
+  let tmpRoot: string;
   let engagementDir: string;
   let spawnMock: MockInstance;
 
   beforeEach(async () => {
     ipc = makeIpc();
     registerReconMethods(ipc);
-    engagementDir = makeTempDir();
+    tmpRoot = makeTempDir();
+    engagementDir = path.join(tmpRoot, "engagement");
+    await mkdir(engagementDir, { recursive: true });
     spawnMock = await getSpawnMock();
   });
 
   afterEach(() => {
-    removeTempDir(engagementDir);
-    // Also clean up the exports dir that recon.export creates adjacent to engDir
-    const exportsDir = path.join(path.dirname(engagementDir), "exports");
-    if (realExistsSync(exportsDir)) {
-      removeTempDir(exportsDir);
-    }
+    removeTempDir(tmpRoot);
   });
 
   it("rejects null params", async () => {

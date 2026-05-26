@@ -3,14 +3,14 @@
   "productName": "Joyus Desktop",
   "version": "0.1.0",
   "identifier": "com.joyus.desktop-companion",
-  "copyright": "© 2024 Joyus Inc.",
-  "category": "DeveloperTool",
   "build": {
     "beforeBuildCommand": "pnpm --filter @joyus/desktop-companion run build:frontend",
     "frontendDist": "../dist-ui"
   },
   "bundle": {
     "active": true,
+    "copyright": "© 2024 Joyus Inc.",
+    "category": "DeveloperTool",
     "targets": ["dmg", "nsis"],
     "icon": [
       "icons/32x32.png",
@@ -24,8 +24,7 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "signingIdentity": "Developer ID Application: Zivtech LLC (PLACEHOLDER_TEAM_ID)",
-      "entitlements": "entitlements.plist",
-      "_note": "Replace PLACEHOLDER_TEAM_ID with the actual 10-character Apple Team ID before release"
+      "entitlements": "entitlements.plist"
     },
     "windows": {
       "certificateThumbprint": null,
@@ -33,7 +32,7 @@
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "installerScript": "nsis/installer.nsi"
+        "installerHooks": "nsis/installer.nsi"
       }
     }
   },

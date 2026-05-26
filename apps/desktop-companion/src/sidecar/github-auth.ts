@@ -143,6 +143,7 @@ export function startCallbackServer(
 
     const server: Server = createServerFn(
       (req: IncomingMessage, res: ServerResponse) => {
+        /* v8 ignore next -- req.url is always defined on real HTTP requests */
         const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
         if (url.pathname !== "/callback") {

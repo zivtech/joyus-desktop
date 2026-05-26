@@ -1,5 +1,5 @@
 ; Joyus Desktop — custom NSIS uninstall hook
-; This script is referenced by tauri.conf.json -> bundle.windows.nsis.installerScript
+; This script is referenced by tauri.conf.json -> bundle.windows.nsis.installerHooks
 ; It adds a dialog during uninstall asking whether to remove user data.
 
 !macro NSIS_HOOK_PREUNINSTALL
