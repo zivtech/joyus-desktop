@@ -116,7 +116,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm tauri build --target universal-apple-darwin --ignore-version-mismatches
+        run: pnpm tauri build --ignore-version-mismatches
         working-directory: apps/desktop-companion
 
       - name: Build Tauri app (Windows)
@@ -142,9 +142,9 @@ jobs:
         with:
           name: macos-artifacts
           path: |
-            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz
-            apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz.sig
+            apps/desktop-companion/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop-companion/src-tauri/target/release/bundle/macos/*.tar.gz
+            apps/desktop-companion/src-tauri/target/release/bundle/macos/*.tar.gz.sig
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows-latest'
@@ -162,7 +162,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          BUNDLE_DIR="apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle"
+          BUNDLE_DIR="apps/desktop-companion/src-tauri/target/release/bundle"
           DMG=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" | head -1)
           TARGZ=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" | head -1)
           TARGZ_SIG=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz.sig" | head -1)
