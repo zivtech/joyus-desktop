@@ -16,6 +16,7 @@ on:
       - main
     tags:
       - 'desktop/v*'
+  workflow_dispatch:
 
 jobs:
   build-macos:
