@@ -13,6 +13,7 @@ on:
 env:
   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  HAS_APPLE_SIGNING: ${{ secrets.APPLE_TEAM_ID != '' }}
 
 jobs:
   build:
@@ -110,12 +111,17 @@ jobs:
             "$KEYCHAIN_PATH"
 
       # ── Tauri build ────────────────────────────────────────────────────────
-      - name: Build Tauri app (macOS — universal)
-        if: matrix.platform == 'macos-latest'
+      - name: Build Tauri app (macOS — notarized)
+        if: matrix.platform == 'macos-latest' && env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm tauri build --ignore-version-mismatches
+        working-directory: apps/desktop-companion
+
+      - name: Build Tauri app (macOS — ad-hoc signed)
+        if: matrix.platform == 'macos-latest' && env.HAS_APPLE_SIGNING != 'true'
         run: pnpm tauri build --ignore-version-mismatches
         working-directory: apps/desktop-companion
 
