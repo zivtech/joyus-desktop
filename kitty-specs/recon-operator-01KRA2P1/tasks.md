@@ -117,11 +117,11 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~350 lines
 
-- [ ] T006 Create credentials.ts sidecar module scaffold
-- [ ] T007 Implement credentials.save handler
-- [ ] T008 Implement credentials.list handler
-- [ ] T009 Implement credentials.verify handler
-- [ ] T010 Register recon + credential handlers in services.ts
+- [x] T006 Create credentials.ts sidecar module scaffold
+- [x] T007 Implement credentials.save handler
+- [x] T008 Implement credentials.list handler
+- [x] T009 Implement credentials.verify handler
+- [x] T010 Register recon + credential handlers in services.ts
 
 ### WP03 — Rust Engagement Commands
 **Prompt**: [`tasks/WP03-rust-engagement-commands.md`](tasks/WP03-rust-engagement-commands.md)
@@ -129,11 +129,11 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~400 lines
 
-- [ ] T011 Create recon.rs Rust module with process state
-- [ ] T012 Implement launch_recon command
-- [ ] T013 Implement get_engagement_status command
-- [ ] T014 Implement cancel_engagement command
-- [ ] T015 Add create_engagement proxy and register commands
+- [x] T011 Create recon.rs Rust module with process state
+- [x] T012 Implement launch_recon command
+- [x] T013 Implement get_engagement_status command
+- [x] T014 Implement cancel_engagement command
+- [x] T015 Add create_engagement proxy and register commands
 
 ### WP04 — Completion Sentinel
 **Prompt**: [`tasks/WP04-completion-sentinel.md`](tasks/WP04-completion-sentinel.md)
@@ -151,12 +151,12 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~450 lines
 
-- [ ] T018 Create ReconSetup.tsx wizard page structure
-- [ ] T019 Implement Claude Code detection (Step 1)
-- [ ] T020 Create CredentialForm.tsx component
-- [ ] T021 Implement credential entry wizard step (Step 2)
-- [ ] T022 Implement skill installation check (Step 3)
-- [ ] T023 Add first-run detection hook (useReconSetup)
+- [x] T018 Create ReconSetup.tsx wizard page structure
+- [x] T019 Implement Claude Code detection (Step 1)
+- [x] T020 Create CredentialForm.tsx component
+- [x] T021 Implement credential entry wizard step (Step 2)
+- [x] T022 Implement skill installation check (Step 3)
+- [x] T023 Add first-run detection hook (useReconSetup)
 
 ### WP06 — Engagement Dashboard Frontend
 **Prompt**: [`tasks/WP06-engagement-dashboard-frontend.md`](tasks/WP06-engagement-dashboard-frontend.md)
@@ -164,11 +164,11 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~400 lines
 
-- [ ] T024 Create ReconDashboard.tsx with New Engagement form
-- [ ] T025 Create EngagementStatus.tsx component
-- [ ] T026 Implement progress streaming via safeListen
-- [ ] T027 Implement post-completion scan and export flow
-- [ ] T028 Add /recon routes to App.tsx and Layout nav
+- [x] T024 Create ReconDashboard.tsx with New Engagement form
+- [x] T025 Create EngagementStatus.tsx component
+- [x] T026 Implement progress streaming via safeListen
+- [x] T027 Implement post-completion scan and export flow
+- [x] T028 Add /recon routes to App.tsx and Layout nav
 
 ### WP07 — Phase 1 Integration
 **Prompt**: [`tasks/WP07-phase1-integration.md`](tasks/WP07-phase1-integration.md)
@@ -176,7 +176,7 @@ Phase 3:
 **Priority**: P0
 **Estimated prompt size**: ~200 lines
 
-- [ ] T029 Create smoke test script
+- [x] T029 Create smoke test script
 - [ ] T030 Document assisted setup runbook
 
 ---
@@ -189,11 +189,11 @@ Phase 3:
 **Priority**: P1
 **Estimated prompt size**: ~350 lines
 
-- [ ] T031 Add keyring dependency to Cargo.toml
-- [ ] T032 Create keychain.rs module (store/retrieve/delete/list)
-- [ ] T033 Register Tauri keychain commands
-- [ ] T034 Implement flat file → Keychain migration
-- [ ] T035 Modify launch_recon to retrieve from Keychain
+- [x] T031 Add keyring dependency to Cargo.toml
+- [x] T032 Create keychain.rs module (store/retrieve/delete/list)
+- [x] T033 Register Tauri keychain commands
+- [x] T034 Implement flat file → Keychain migration
+- [x] T035 Modify launch_recon to retrieve from Keychain
 
 ### WP09 — Skill-Sync Recon Bundle
 **Prompt**: [`tasks/WP09-skill-sync-recon-bundle.md`](tasks/WP09-skill-sync-recon-bundle.md)
@@ -201,10 +201,10 @@ Phase 3:
 **Priority**: P1
 **Estimated prompt size**: ~250 lines
 
-- [ ] T036 Add recon-operator-bundle to distribution config
-- [ ] T037 Configure skill-sync for joyus-recon repo
-- [ ] T038 Modify wizard Step 3 to use sync.trigger
-- [ ] T039 Add version display in engagement status
+- [x] T036 Add recon-operator-bundle to distribution config
+- [x] T037 Configure skill-sync for joyus-recon repo
+- [x] T038 Modify wizard Step 3 to use sync.trigger
+- [x] T039 Add version display in engagement status
 
 ### WP10 — Version Consistency Gate
 **Prompt**: [`tasks/WP10-version-consistency-gate.md`](tasks/WP10-version-consistency-gate.md)
@@ -212,9 +212,9 @@ Phase 3:
 **Priority**: P1
 **Estimated prompt size**: ~200 lines
 
-- [ ] T040 Implement pre-launch skill version check
-- [ ] T041 Implement auto-sync on version mismatch
-- [ ] T042 Log skill version in completion sentinel
+- [x] T040 Implement pre-launch skill version check
+- [x] T041 Implement auto-sync on version mismatch
+- [x] T042 Log skill version in completion sentinel
 
 ---
 
@@ -226,10 +226,10 @@ Phase 3:
 **Priority**: P2
 **Estimated prompt size**: ~300 lines
 
-- [ ] T043 Configure tauri.conf.json signing identity
-- [ ] T044 Create entitlements.plist
-- [ ] T045 Create GitHub Actions build workflow
-- [ ] T046 Add notarization step to workflow
+- [x] T043 Configure tauri.conf.json signing identity
+- [x] T044 Create entitlements.plist
+- [x] T045 Create GitHub Actions build workflow
+- [x] T046 Add notarization step to workflow
 
 ### WP12 — Readiness Matrix UI
 **Prompt**: [`tasks/WP12-readiness-matrix-ui.md`](tasks/WP12-readiness-matrix-ui.md)
@@ -237,8 +237,8 @@ Phase 3:
 **Priority**: P2
 **Estimated prompt size**: ~250 lines
 
-- [ ] T047 Create ReadinessMatrix.tsx component
-- [ ] T048 Implement preflight check and engagement blocking
+- [x] T047 Create ReadinessMatrix.tsx component
+- [x] T048 Implement preflight check and engagement blocking
 
 ### WP13 — Error Recovery UX
 **Prompt**: [`tasks/WP13-error-recovery-ux.md`](tasks/WP13-error-recovery-ux.md)
@@ -246,9 +246,9 @@ Phase 3:
 **Priority**: P2
 **Estimated prompt size**: ~250 lines
 
-- [ ] T049 Implement engagement timeout alert
-- [ ] T050 Implement crash recovery
-- [ ] T051 Implement scan failure UX with override audit log
+- [x] T049 Implement engagement timeout alert
+- [x] T050 Implement crash recovery
+- [x] T051 Implement scan failure UX with override audit log
 
 ### WP14 — Aaron UAT
 **Prompt**: [`tasks/WP14-aaron-uat.md`](tasks/WP14-aaron-uat.md)
