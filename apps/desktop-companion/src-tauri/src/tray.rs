@@ -2,7 +2,7 @@ use serde_json::Value;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager,
+    AppHandle, Emitter, Listener, Manager,
 };
 
 use crate::sidecar::SidecarState;
@@ -90,19 +90,17 @@ pub fn update_tray_status(app: &AppHandle, status: &str) {
 pub fn listen_for_status_changes(app: &AppHandle) {
     let app_handle = app.clone();
     app.listen("state:server-changed", move |event| {
-        if let Some(payload) = event.payload().as_ref() {
-            if let Ok(data) = serde_json::from_str::<Value>(payload) {
-                let status = data
-                    .get("status")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("running");
-                let tray_status = match status {
-                    "error" => "error",
-                    "starting" => "warning",
-                    _ => "normal",
-                };
-                update_tray_status(&app_handle, tray_status);
-            }
+        if let Ok(data) = serde_json::from_str::<Value>(event.payload()) {
+            let status = data
+                .get("status")
+                .and_then(|s| s.as_str())
+                .unwrap_or("running");
+            let tray_status = match status {
+                "error" => "error",
+                "starting" => "warning",
+                _ => "normal",
+            };
+            update_tray_status(&app_handle, tray_status);
         }
     });
 }

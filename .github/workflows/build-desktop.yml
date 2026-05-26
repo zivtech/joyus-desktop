@@ -1,14 +1,13 @@
-# build-desktop.yml — macOS code signing, notarization, and CI build workflow
+# build-desktop.yml — Self-signed desktop builds for dogfooding
 #
-# Required GitHub Secrets:
-#   APPLE_SIGNING_IDENTITY    — e.g. "Developer ID Application: Zivtech LLC (XXXXXXXXXX)"
-#   APPLE_CERTIFICATE_P12     — base64-encoded .p12 certificate file
-#   APPLE_CERTIFICATE_PASSWORD — password for the .p12 certificate
-#   APPLE_TEAM_ID             — 10-character Apple Developer Team ID
-#   APPLE_ID                  — Apple ID email used for notarization
-#   APPLE_ID_PASSWORD         — App-specific password for the Apple ID
+# Produces ad-hoc signed macOS DMG and Windows NSIS EXE as downloadable
+# GitHub Actions artifacts. No Apple Developer or Windows signing certs needed.
+#
+# For production notarized builds, set these GitHub Secrets:
+#   APPLE_SIGNING_IDENTITY, APPLE_CERTIFICATE_P12, APPLE_CERTIFICATE_PASSWORD,
+#   APPLE_TEAM_ID, APPLE_ID, APPLE_ID_PASSWORD
 
-name: Build Desktop (macOS)
+name: Build Desktop
 
 on:
   push:
@@ -19,8 +18,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust-targets: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout
@@ -29,21 +39,30 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+          targets: ${{ matrix.rust-targets }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Import signing certificate
-        if: env.APPLE_CERTIFICATE_P12 != ''
+      - name: Bundle sidecar
+        working-directory: apps/desktop-companion
+        run: node scripts/bundle-sidecar.mjs
+
+      - name: Download Node.js sidecar binary
+        working-directory: apps/desktop-companion
+        run: node scripts/download-node.mjs
+
+      - name: Import signing certificate (macOS)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE_P12 != ''
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -57,21 +76,25 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
           rm certificate.p12
 
-      - name: Build Tauri app (universal macOS)
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      - name: Build Tauri app
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         working-directory: apps/desktop-companion
-        run: pnpm tauri build --target universal-apple-darwin
+        run: pnpm tauri build --ignore-version-mismatches
 
-      - name: Notarize DMG
-        if: env.APPLE_SIGNING_IDENTITY != ''
+      - name: Notarize DMG (macOS, production only)
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          DMG_PATH=$(find apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          DMG_PATH=$(find apps/desktop-companion/src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
           echo "Notarizing: $DMG_PATH"
           xcrun notarytool submit "$DMG_PATH" \
             --apple-id "$APPLE_ID" \
@@ -79,17 +102,25 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --wait
           xcrun stapler staple "$DMG_PATH"
-          xcrun stapler validate "$DMG_PATH"
-          echo "Notarization complete."
 
-      - name: Upload DMG artifact
+      - name: Upload macOS DMG
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/
+          path: apps/desktop-companion/src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: Upload Windows EXE
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.exe
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/desktop/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/desktop-companion/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          files: |
+            apps/desktop-companion/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.exe
