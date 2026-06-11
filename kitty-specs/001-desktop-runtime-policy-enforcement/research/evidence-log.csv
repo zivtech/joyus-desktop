@@ -1,0 +1,7 @@
+finding_id,date,source,finding,impact,status
+R1-001,2026-03-05,spec.md FR-001/FR-002/FR-003,Authorization must evaluate allow/deny/escalate before privileged actions,HIGH - core trust boundary,Implemented
+R1-002,2026-03-05,spec.md FR-006/FR-007,Fail-closed required for external medium/high and internal high risk during outages,HIGH - security,Implemented
+R2-001,2026-03-05,spec.md FR-004/FR-005,External tenants always remote; internal tenants configurable,HIGH - tenant isolation,Implemented
+R3-001,2026-03-05,threat-model.md,Token replay prevention requires context-binding (tenant/workspace/action hash),HIGH - security,Implemented
+R4-001,2026-03-10,ANALYSIS-NOTES.md,4 edge cases from spec lack explicit test coverage,MEDIUM - defensive gaps,Open - recommend WP05
+R5-001,2026-03-14,feature 004 integration,RiskLevel extended with "critical" for handoff blocking,LOW - backwards compatible,Implemented

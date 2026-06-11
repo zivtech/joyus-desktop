@@ -1,0 +1,9 @@
+id,date,source_id,finding,decision_supported,confidence
+EL-001,2026-02-15,SR-001,Anthropic announced Cowork connector catalog supports HTTP streamable-HTTP and SSE transport only — stdio not supported in browser context,D-001,HIGH
+EL-002,2026-02-15,SR-001,Claude.ai → Claude Code MCP sync is one-directional: servers configured in claude.ai appear in Claude Code (same account) but not vice versa,D-007,HIGH
+EL-003,2026-02-15,SR-001,Cowork Team plan supports admin-managed connectors via claude.ai/settings/connectors; plugins can bundle skills + connectors,D-006,HIGH
+EL-004,2026-03-10,SR-002,joyus-ai already has auth and database infrastructure; adding REST endpoints avoids standing up separate service for <100 users,D-002,HIGH
+EL-005,2026-03-10,SR-002,POST /api/telemetry/events with 202 Accepted pattern satisfies NFR-004 (non-blocking telemetry),D-005,HIGH
+EL-006,2026-03-10,SR-003,packages/updater convention in joyus-desktop established pattern for workspace packages with own test suites,D-003 D-004,HIGH
+EL-007,2026-03-10,SR-003,zivtech-mcp-tools has known async/await and tsconfig bugs confirmed in WP06 scope — Phase 2 prerequisite,D-006,MEDIUM
+EL-008,2026-03-10,SR-004,29 prompt-only skills from zivtech-meta-skills confirmed as markdown files installable into ~/.claude/skills/ without code execution,D-003,HIGH

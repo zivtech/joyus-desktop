@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "default_version": "v1.0.0",
+  "bundles": {
+    "pm-bundle": { "version": "v1.0.0" },
+    "developer-bundle": { "version": "v1.0.0" },
+    "full-bundle": { "version": "v1.0.0" },
+    "recon-operator-bundle": { "version": "v0.1.0" }
+  },
+  "updated_at": "2026-05-10T00:00:00Z",
+  "updated_by": "admin@example.com"
+}

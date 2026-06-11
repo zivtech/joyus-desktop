@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "mission_slug": "recon-operator-01KRA2P1",
+  "mission_id": "01KRA2P11PNXGNMMJQYQYP34M8",
+  "mission_branch": "kitty/mission-recon-operator-01KRA2P1",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP12",
+        "WP13"
+      ],
+      "write_scope": [
+        "apps/desktop-companion/config/distribution-config.json",
+        "_private/docs/recon-operator-setup-runbook.md",
+        "apps/desktop-companion/resources/scan-sensitive-output.mjs",
+        "apps/desktop-companion/src-tauri/Cargo.toml",
+        "apps/desktop-companion/src-tauri/src/commands.rs",
+        "apps/desktop-companion/src-tauri/src/keychain.rs",
+        "apps/desktop-companion/src-tauri/src/lib.rs",
+        "apps/desktop-companion/src-tauri/src/recon.rs",
+        "apps/desktop-companion/src-tauri/tauri.conf.json",
+        "apps/desktop-companion/src/sidecar/credentials.ts",
+        "apps/desktop-companion/src/sidecar/recon.ts",
+        "apps/desktop-companion/src/sidecar/services.ts",
+        "apps/desktop-companion/src/sidecar/version-gate.ts",
+        "apps/desktop-companion/src/ui/App.tsx",
+        "apps/desktop-companion/src/ui/components/CredentialForm.tsx",
+        "apps/desktop-companion/src/ui/components/EngagementStatus.tsx",
+        "apps/desktop-companion/src/ui/components/ErrorRecovery.tsx",
+        "apps/desktop-companion/src/ui/components/ReadinessMatrix.tsx",
+        "apps/desktop-companion/src/ui/hooks/useRecon.ts",
+        "apps/desktop-companion/src/ui/pages/ReconDashboard.tsx",
+        "apps/desktop-companion/src/ui/pages/ReconSetup.tsx",
+        "apps/desktop-companion/tools/smoke-recon-operator.sh"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        ".github/workflows/build-desktop.yml",
+        "apps/desktop-companion/src-tauri/entitlements.plist"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04",
+        "WP14"
+      ],
+      "write_scope": [
+        "kitty-specs/recon-operator-01KRA2P1/tasks/WP04-completion-sentinel.md",
+        "kitty-specs/recon-operator-01KRA2P1/tasks/WP14-operator-uat.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-10T23:48:21.056003+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04",
+    "WP14"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP01"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP09",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP09"
+      },
+      {
+        "wp_a": "WP12",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP12 depends on WP08"
+      },
+      {
+        "wp_a": "WP12",
+        "wp_b": "WP09",
+        "rule": "dependency",
+        "evidence": "WP12 depends on WP09"
+      },
+      {
+        "wp_a": "WP13",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP13 depends on WP07"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 10
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-03-19T00:00:00Z",
+  "feature_number": "006",
+  "feature_slug": "006-managed-git-sessions",
+  "friendly_name": "Managed Git Sessions",
+  "mission": "software-dev",
+  "slug": "006-managed-git-sessions",
+  "source_description": "006 Worktree-aware session management: enforce git worktree isolation per chat session, detect mission/context drift and suggest new worktree, provide non-dev-friendly cleanup and visibility into all local sessions/folders/chats",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-03-20T01:26:31.190868+00:00",
+  "mission_id": "01KPR4E967F61H0B7K24440QG4"
+}

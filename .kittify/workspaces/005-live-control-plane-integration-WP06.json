@@ -1,0 +1,12 @@
+{
+  "wp_id": "WP06",
+  "feature_slug": "005-live-control-plane-integration",
+  "worktree_path": ".worktrees/005-live-control-plane-integration-WP06",
+  "branch_name": "005-live-control-plane-integration-WP06",
+  "base_branch": "005-live-control-plane-integration-WP05",
+  "base_commit": "f1bc883a26d59b5633bfa90df9cfd78da3c5d077",
+  "dependencies": [],
+  "created_at": "2026-03-19T12:08:54.085829+00:00",
+  "created_by": "implement-command",
+  "vcs_backend": "git"
+}

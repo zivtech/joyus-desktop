@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: Session Handoff API
+  version: 1.0.0
+  description: |
+    Control-plane contracts for desktop-to-cloud session handoff.
+    MCP tool calls handle coordination; HTTP endpoints handle payload transfer.
+
+paths:
+  /mcp:
+    post:
+      summary: MCP Tool Call - initiate_handoff
+      description: |
+        Initiates a session handoff. Returns a handoff_id, cloud's ephemeral
+        X25519 public key for E2E encryption, and artifact upload URLs.
+        Desktop must have a valid policy authorization token from verify_before_action.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, id, method, params]
+              properties:
+                jsonrpc:
+                  type: string
+                  const: "2.0"
+                id:
+                  type: string
+                method:
+                  type: string
+                  const: tools/call
+                params:
+                  type: object
+                  required: [name, arguments]
+                  properties:
+                    name:
+                      type: string
+                      const: initiate_handoff
+                    arguments:
+                      type: object
+                      required:
+                        - session_id
+                        - tenant_id
+                        - workspace_id
+                        - policy_token
+                        - manifest
+                      properties:
+                        session_id:
+                          type: string
+                          description: Desktop session being handed off
+                        tenant_id:
+                          type: string
+                        workspace_id:
+                          type: string
+                        policy_token:
+                          type: string
+                          description: Authorization token from verify_before_action
+                        manifest:
+                          $ref: "#/components/schemas/SnapshotManifest"
+      responses:
+        "200":
+          description: Handoff initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              const: text
+                            text:
+                              type: string
+                              description: |
+                                JSON string containing:
+                                - handoff_id: string
+                                - cloud_public_key: string (base64 X25519 public key)
+                                - manifest_upload_url: string (tus endpoint for encrypted manifest)
+                                - artifact_upload_urls: Array<{ artifact_id, upload_url }>
+                                - expires_at: string (ISO 8601)
+
+  /mcp#complete_handoff:
+    post:
+      summary: MCP Tool Call - complete_handoff
+      description: |
+        Called by the desktop after all chunks and artifacts are uploaded.
+        Cloud verifies integrity, decrypts, reconstructs session, and returns receipt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, id, method, params]
+              properties:
+                jsonrpc:
+                  type: string
+                  const: "2.0"
+                id:
+                  type: string
+                method:
+                  type: string
+                  const: tools/call
+                params:
+                  type: object
+                  required: [name, arguments]
+                  properties:
+                    name:
+                      type: string
+                      const: complete_handoff
+                    arguments:
+                      type: object
+                      required:
+                        - handoff_id
+                        - ephemeral_public_key
+                      properties:
+                        handoff_id:
+                          type: string
+                        ephemeral_public_key:
+                          type: string
+                          description: Base64-encoded desktop ephemeral X25519 public key
+      responses:
+        "200":
+          description: Handoff completion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              const: text
+                            text:
+                              type: string
+                              description: |
+                                JSON string containing HandoffReceipt:
+                                - handoff_id: string
+                                - cloud_session_id: string
+                                - status: "completed" | "failed"
+                                - pickup_url: string (optional)
+                                - completed_at: string (ISO 8601)
+                                - error: string (optional)
+
+  /mcp#handoff_status:
+    post:
+      summary: MCP Tool Call - handoff_status
+      description: Query current state of a handoff (for polling during transfer).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, id, method, params]
+              properties:
+                jsonrpc:
+                  type: string
+                  const: "2.0"
+                id:
+                  type: string
+                method:
+                  type: string
+                  const: tools/call
+                params:
+                  type: object
+                  required: [name, arguments]
+                  properties:
+                    name:
+                      type: string
+                      const: handoff_status
+                    arguments:
+                      type: object
+                      required: [handoff_id]
+                      properties:
+                        handoff_id:
+                          type: string
+      responses:
+        "200":
+          description: Current handoff state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              const: text
+                            text:
+                              type: string
+                              description: |
+                                JSON string containing:
+                                - handoff_id: string
+                                - state: "initiated" | "authorizing" | "encrypting" | "transferring" | "completed" | "failed"
+                                - chunks_received: number
+                                - chunks_total: number
+                                - artifacts_received: number
+                                - artifacts_total: number
+                                - error: string (optional, if failed)
+
+  /session-handoff/{handoff_id}/upload:
+    patch:
+      summary: tus resumable upload - encrypted snapshot chunks
+      description: |
+        tus 1.0 endpoint for uploading encrypted snapshot chunks.
+        Created by initiate_handoff, supports HEAD for offset discovery
+        and PATCH for chunk upload.
+      parameters:
+        - name: handoff_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/offset+octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: Encrypted chunk data (nonce + ciphertext + auth_tag)
+      responses:
+        "204":
+          description: Chunk received
+          headers:
+            Upload-Offset:
+              schema:
+                type: integer
+              description: New offset after this chunk
+        "409":
+          description: Offset mismatch - client must HEAD to rediscover offset
+
+  /session-handoff/{handoff_id}/artifacts/{artifact_id}:
+    patch:
+      summary: tus resumable upload - individual artifact
+      description: |
+        Per-artifact tus upload endpoint. Each artifact is encrypted independently
+        with the same CEK and uploaded via tus. Supports parallel uploads.
+      parameters:
+        - name: handoff_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/offset+octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Chunk received
+        "409":
+          description: Offset mismatch
+
+components:
+  schemas:
+    SnapshotManifest:
+      type: object
+      required:
+        - snapshot_id
+        - total_size_bytes
+        - chunk_count
+        - chunk_size_bytes
+        - artifact_count
+        - artifacts
+        - schema_version
+      properties:
+        snapshot_id:
+          type: string
+          format: uuid
+        total_size_bytes:
+          type: integer
+          description: Total snapshot size (metadata + artifacts)
+        chunk_count:
+          type: integer
+          description: Number of encrypted chunks for the metadata payload
+        chunk_size_bytes:
+          type: integer
+          description: Fixed chunk size in bytes (default 5242880 = 5 MiB)
+        artifact_count:
+          type: integer
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactReference"
+        schema_version:
+          type: string
+          description: Snapshot format version (e.g., "1.0")
+
+    ArtifactReference:
+      type: object
+      required: [artifact_id, content_hash, size_bytes, content_type]
+      properties:
+        artifact_id:
+          type: string
+        content_hash:
+          type: string
+          description: SHA-256 hash of plaintext artifact content
+        size_bytes:
+          type: integer
+        content_type:
+          type: string
+          description: MIME type
+        label:
+          type: string

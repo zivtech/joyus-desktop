@@ -1,0 +1,11 @@
+{
+  "name": "@joyus/skill-sync",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cli": "./src/cli.ts"
+  }
+}

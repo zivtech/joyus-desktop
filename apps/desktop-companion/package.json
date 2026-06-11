@@ -1,0 +1,46 @@
+{
+  "name": "@joyus/desktop-companion",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build:frontend": "vite build",
+    "build:sidecar": "node scripts/bundle-sidecar.mjs",
+    "download:node": "node scripts/download-node.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "dev:build": "node scripts/bundle-sidecar.mjs && node scripts/download-node.mjs && cargo tauri build",
+    "dev:mock": "node ../../scripts/mock-control-plane.mjs"
+  },
+  "dependencies": {
+    "@joyus/desktop-sync": "workspace:*",
+    "@joyus/mcp-governance": "workspace:*",
+    "@joyus/mcp-registry": "workspace:*",
+    "@joyus/policy-client": "workspace:*",
+    "@joyus/drift-detector": "workspace:*",
+    "@joyus/session-agent": "workspace:*",
+    "@joyus/session-manager": "workspace:*",
+    "@joyus/local-provisioner": "workspace:*",
+    "@joyus/skill-sync": "workspace:*",
+    "@joyus/settings-reconciler": "workspace:*",
+    "@joyus/environment-monitor": "workspace:*",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-shell": "^2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1",
+    "tus-js-client": "^4.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "esbuild": "^0.27.4",
+    "tar": "^7.4.3",
+    "vite": "^6.3.1"
+  }
+}

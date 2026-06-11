@@ -1,0 +1,44 @@
+node_modules/
+dist/
+dist-ui/
+build/
+.DS_Store
+
+# Tauri
+apps/desktop-companion/src-tauri/target/
+apps/desktop-companion/binaries/node-*
+apps/desktop-companion/binaries/sidecar-main.mjs
+.env
+.env.*
+coverage/
+
+# Added by Spec Kitty CLI (auto-managed)
+.claude/
+.codex/
+.opencode/
+.windsurf/
+.gemini/
+.cursor/
+.qwen/
+.kilocode/
+.augment/
+.roo/
+.amazonq/
+.github/copilot/
+.kittify/.dashboard
+.pnpm-store/
+# Excluded via sparse-checkout
+.omc/
+.kittify/runtime/
+.kittify/events/
+.kittify/dossiers/
+kitty-specs/**/.kittify/dossiers/
+.omx/
+.kittify/derived/
+.kittify/.migration-backup/
+
+# Private internal content (org-specific config, rollout docs, evidence)
+_private/
+
+# Tauri generated schemas
+apps/desktop-companion/src-tauri/gen/schemas/

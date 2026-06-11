@@ -1,0 +1,47 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Joyus Desktop",
+  "version": "0.1.0",
+  "identifier": "com.joyus.desktop-companion",
+  "build": {
+    "beforeBuildCommand": "pnpm --filter @joyus/desktop-companion run build:frontend",
+    "frontendDist": "../dist-ui"
+  },
+  "bundle": {
+    "active": true,
+    "copyright": "© 2024 Joyus Inc.",
+    "category": "DeveloperTool",
+    "targets": ["dmg", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["../binaries/node"],
+    "resources": ["../binaries/sidecar-main.mjs", "../resources/scan-sensitive-output.mjs"],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": "-",
+      "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerHooks": "nsis/installer.nsi"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/zivtech/joyus-desktop/releases/latest/download/update-manifest.json"
+      ],
+      "pubkey": "$TAURI_UPDATER_PUBKEY"
+    }
+  }
+}

@@ -1,0 +1,126 @@
+# build-desktop.yml — Self-signed desktop builds for dogfooding
+#
+# Produces ad-hoc signed macOS DMG and Windows NSIS EXE as downloadable
+# GitHub Actions artifacts. No Apple Developer or Windows signing certs needed.
+#
+# For production notarized builds, set these GitHub Secrets:
+#   APPLE_SIGNING_IDENTITY, APPLE_CERTIFICATE_P12, APPLE_CERTIFICATE_PASSWORD,
+#   APPLE_TEAM_ID, APPLE_ID, APPLE_ID_PASSWORD
+
+name: Build Desktop
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'desktop/v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust-targets: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bundle sidecar
+        working-directory: apps/desktop-companion
+        run: node scripts/bundle-sidecar.mjs
+
+      - name: Download Node.js sidecar binary
+        working-directory: apps/desktop-companion
+        run: node scripts/download-node.mjs
+
+      - name: Import signing certificate (macOS)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE_P12 != ''
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          rm certificate.p12
+
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      - name: Build Tauri app
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        working-directory: apps/desktop-companion
+        run: pnpm tauri build --ignore-version-mismatches
+
+      - name: Notarize DMG (macOS, production only)
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          DMG_PATH=$(find apps/desktop-companion/src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
+          echo "Notarizing: $DMG_PATH"
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG_PATH"
+
+      - name: Upload macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: apps/desktop-companion/src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: Upload Windows EXE
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.exe
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/desktop/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop-companion/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop-companion/src-tauri/target/release/bundle/nsis/*.exe

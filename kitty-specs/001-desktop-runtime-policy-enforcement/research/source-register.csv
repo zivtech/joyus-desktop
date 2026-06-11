@@ -1,0 +1,8 @@
+source_id,type,location,description,accessed
+S001,spec,kitty-specs/001-desktop-runtime-policy-enforcement/spec.md,Feature specification with 9 FRs and 3 user stories,2026-03-05
+S002,spec,kitty-specs/001-desktop-runtime-policy-enforcement/plan.md,Implementation plan with work breakdown and risks,2026-03-05
+S003,analysis,kitty-specs/001-desktop-runtime-policy-enforcement/ANALYSIS-NOTES.md,Cross-artifact analysis identifying 4 edge case gaps,2026-03-10
+S004,code,apps/desktop-companion/src/authorization.ts,Authorization decision matrix implementation,2026-03-05
+S005,code,packages/session-agent/src/runtimeRouting.ts,Runtime routing and fail-closed implementation,2026-03-05
+S006,code,packages/policy-client/src/policyClient.ts,Policy client with token validation and risk levels,2026-03-05
+S007,doc,docs/threat-model.md,Threat model covering token replay and cross-tenant access,2026-03-05
