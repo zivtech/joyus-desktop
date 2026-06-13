@@ -22,6 +22,7 @@ export default defineConfig({
         "packages/**/src/**/*.ts",
         "apps/desktop-companion/src/ui/components/BranchCountBadge.tsx",
         "apps/desktop-companion/src/ui/components/SiteActivityIndicator.tsx",
+        "apps/desktop-companion/src/ui/pages/Servers.tsx",
       ],
       exclude: [
         "packages/mcp-governance/src/types.ts",
