@@ -4,6 +4,8 @@
 
 The desktop UI is not fully protected by the root verification gates. Root TypeScript checking excludes TSX, and coverage excludes the whole UI source tree. The project has UI tests, but the main gates do not force the UI surface to stay typed and covered.
 
+Execution note from 2026-06-13: the full TSX coverage expansion tripped this plan's STOP condition. Running coverage with `apps/desktop-companion/src/ui/**/*.tsx` included dropped overall coverage to about 67.5%, with dozens of uncovered UI pages/components/hooks. The first executable slice is therefore root TSX typecheck plus a narrow UI coverage seed for already-tested UI utilities/components. Plan 006 owns the broader route-by-route coverage expansion.
+
 ## Priority
 
 - Priority: P1
@@ -73,6 +75,7 @@ If a STOP condition triggers, write a smaller follow-up plan that restores TSX t
 - `pnpm typecheck` checks TSX in `apps/desktop-companion/src/ui`.
 - The root coverage config no longer excludes the entire `apps/**/src/ui/**` tree.
 - Coverage includes at least one `apps/desktop-companion/src/ui` row.
+- Full page/component UI coverage is either completed or explicitly deferred to the staged follow-up plan created when the STOP condition triggers.
 - `pnpm coverage` still enforces 100% for the included surface.
 - No UI test relies on timing sleeps where an event/mock assertion would be deterministic.
 

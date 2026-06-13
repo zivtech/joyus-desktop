@@ -10,7 +10,8 @@ These plans are source-code read-only audit outputs. They are written for a foll
 3. `004-run-integration-tests-in-github-ci.md`
 4. `001-register-production-sidecar-ipc.md`
 5. `003-restore-ui-typecheck-and-coverage.md`
-6. `005-refresh-status-and-readiness-docs.md`
+6. `006-expand-ui-coverage-by-route.md`
+7. `005-refresh-status-and-readiness-docs.md`
 
 ## Why This Order
 
@@ -24,6 +25,8 @@ The production sidecar IPC registration gap remains important, but sync IPC has 
 
 The UI typecheck/coverage and docs plans remain valuable, but they should not outrank known production correctness/security defects.
 
+Plan 003 hit its own STOP condition during execution: adding the full TSX UI tree to coverage dropped overall coverage to about 67.5% with dozens of page/component rows uncovered. The honest first slice is TSX typecheck plus a small, already-tested UI coverage surface. Plan 006 owns the route-by-route UI coverage expansion.
+
 ## Evidence Snapshot
 
 - `pnpm typecheck` passed at audit time.
@@ -31,6 +34,7 @@ The UI typecheck/coverage and docs plans remain valuable, but they should not ou
 - `pnpm coverage` had no non-100 rows under the current coverage include surface.
 - The coverage surface excludes UI source, and root typecheck excludes TSX.
 - Harsh-critic verdict: REVISE. The major critique was stale prioritization after SEC-01 through SEC-03 and COR-01 through COR-03 arrived.
+- Broad TSX coverage probe on 2026-06-13 passed tests but showed `All files` near 67.5% coverage, with low rows across `src/ui/pages`, `src/ui/hooks`, and many components.
 
 ## Considered But Deferred
 

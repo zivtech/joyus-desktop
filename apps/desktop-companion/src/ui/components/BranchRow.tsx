@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<TaskBranchStatus, string> = {
 
 interface BranchRowProps {
   readonly branch: TaskBranch;
-  readonly driftSignal?: DriftSignalPayload;
+  readonly driftSignal?: DriftSignalPayload | undefined;
   readonly onResume: (id: string) => void | Promise<void>;
   readonly onDelete: (id: string) => void;
   readonly onOpenGitHub: (repoPath: string, branchName: string) => void;

@@ -8,7 +8,9 @@
   "scripts": {
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "pnpm run typecheck:core && pnpm run typecheck:ui",
+    "typecheck:core": "tsc --noEmit",
+    "typecheck:ui": "tsc --noEmit -p apps/desktop-companion/tsconfig.json",
     "ci": "pnpm typecheck && pnpm coverage && pnpm test:integration",
     "skill-sync:hook:install": "node scripts/skill-sync/install-hook.mjs",
     "skill-sync:hook:preview": "node scripts/skill-sync/install-hook.mjs --dry-run",

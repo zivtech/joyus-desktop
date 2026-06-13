@@ -17,12 +17,17 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       all: true,
-      include: ["apps/**/src/**/*.ts", "packages/**/src/**/*.ts"],
+      include: [
+        "apps/**/src/**/*.ts",
+        "packages/**/src/**/*.ts",
+        "apps/desktop-companion/src/ui/components/BranchCountBadge.tsx",
+        "apps/desktop-companion/src/ui/components/SiteActivityIndicator.tsx",
+      ],
       exclude: [
         "packages/mcp-governance/src/types.ts",
         "packages/mcp-registry/src/types.ts",
         "packages/desktop-sync/src/types.ts",
-        "apps/**/src/ui/**",
+        "apps/desktop-companion/src/ui/hooks/**",
       ],
       thresholds: {
         lines: 100,

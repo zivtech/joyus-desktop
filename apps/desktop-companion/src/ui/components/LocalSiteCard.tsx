@@ -106,11 +106,11 @@ function ActionButton({ label, disabled, pending, onClick, destructive = false }
 interface LocalSiteCardProps {
   site: LocalSite;
   onRemoved: () => void;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
-  branchCounts?: { active: number; total: number };
-  lastBranchActivity?: number;
-  children?: React.ReactNode;
+  expanded?: boolean | undefined;
+  onToggleExpand?: (() => void) | undefined;
+  branchCounts?: { active: number; total: number } | undefined;
+  lastBranchActivity?: number | undefined;
+  children?: React.ReactNode | undefined;
 }
 
 export function LocalSiteCard({

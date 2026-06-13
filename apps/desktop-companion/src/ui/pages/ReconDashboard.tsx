@@ -81,7 +81,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
   Cancelled: { bg: "#6b7280", color: "#fff" },
 };
 
-function EngagementStatusBadge({ status }: { status?: string }) {
+function EngagementStatusBadge({ status }: { status?: string | undefined }) {
   const label = status ?? "Unknown";
   const cfg = STATUS_BADGE[label] ?? { bg: "#e5e7eb", color: "#374151" };
   return (

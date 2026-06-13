@@ -124,7 +124,7 @@ export function CredentialForm({ onComplete }: CredentialFormProps) {
   }
 
   async function handleSave(key: string) {
-    const value = values[key];
+    const value = values[key] ?? "";
     if (value.trim() === "") return;
     setSaving((prev) => ({ ...prev, [key]: true }));
     await safeInvoke("credentials_save", { key, value });
@@ -176,73 +176,78 @@ export function CredentialForm({ onComplete }: CredentialFormProps) {
         </p>
       </div>
 
-      {CREDENTIAL_FIELDS.map((field) => (
-        <div
-          key={field.key}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.375rem",
-            padding: "0.75rem",
-            border: "1px solid #e5e7eb",
-            borderRadius: "6px",
-            background: "#fff",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <label
-              style={{ fontSize: "0.813rem", fontWeight: 600, color: "#374151" }}
-              htmlFor={`cred-${field.key}`}
-            >
-              {field.label}
-            </label>
-            <StatusIndicator status={statuses[field.key]} />
+      {CREDENTIAL_FIELDS.map((field) => {
+        const value = values[field.key] ?? "";
+        const status = statuses[field.key] ?? "unchecked";
+        const isSaving = saving[field.key] ?? false;
+        const isSaveDisabled = isSaving || value.trim() === "";
+
+        return (
+          <div
+            key={field.key}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.375rem",
+              padding: "0.75rem",
+              border: "1px solid #e5e7eb",
+              borderRadius: "6px",
+              background: "#fff",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <label
+                style={{ fontSize: "0.813rem", fontWeight: 600, color: "#374151" }}
+                htmlFor={`cred-${field.key}`}
+              >
+                {field.label}
+              </label>
+              <StatusIndicator status={status} />
+            </div>
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>{field.description}</p>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <input
+                id={`cred-${field.key}`}
+                type="password"
+                value={value}
+                onChange={(e) => { handleValueChange(field.key, e.currentTarget.value); }}
+                placeholder="Enter value…"
+                style={{
+                  flex: 1,
+                  padding: "0.5rem 0.75rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  fontSize: "0.875rem",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                onClick={() => { void handleSave(field.key); }}
+                disabled={isSaveDisabled}
+                style={{
+                  padding: "0.5rem 0.875rem",
+                  background: isSaveDisabled ? "#d1d5db" : "#1a73e8",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "0.813rem",
+                  fontWeight: 600,
+                  cursor: isSaveDisabled ? "not-allowed" : "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {isSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+            {status === "failed" && (
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#ef4444" }}>
+                Verification failed. Check the value and try again.
+              </p>
+            )}
           </div>
-          <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>{field.description}</p>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <input
-              id={`cred-${field.key}`}
-              type="password"
-              value={values[field.key]}
-              onChange={(e) => { handleValueChange(field.key, e.currentTarget.value); }}
-              placeholder="Enter value…"
-              style={{
-                flex: 1,
-                padding: "0.5rem 0.75rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <button
-              onClick={() => { void handleSave(field.key); }}
-              disabled={saving[field.key] || values[field.key].trim() === ""}
-              style={{
-                padding: "0.5rem 0.875rem",
-                background:
-                  saving[field.key] || values[field.key].trim() === "" ? "#d1d5db" : "#1a73e8",
-                color: "#fff",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "0.813rem",
-                fontWeight: 600,
-                cursor:
-                  saving[field.key] || values[field.key].trim() === "" ? "not-allowed" : "pointer",
-                flexShrink: 0,
-              }}
-            >
-              {saving[field.key] ? "Saving…" : "Save"}
-            </button>
-          </div>
-          {statuses[field.key] === "failed" && (
-            <p style={{ margin: 0, fontSize: "0.75rem", color: "#ef4444" }}>
-              Verification failed. Check the value and try again.
-            </p>
-          )}
-        </div>
-      ))}
+        );
+      })}
 
       {verifyError !== undefined && (
         <div
