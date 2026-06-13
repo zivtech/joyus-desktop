@@ -41,11 +41,7 @@ function statusColor(status: string): string {
 
 function formatTimestamp(epochMs: number | undefined): string {
   if (epochMs === undefined) return "\u2014";
-  try {
-    return new Date(epochMs).toLocaleString();
-  } catch {
-    return String(epochMs);
-  }
+  return new Date(epochMs).toLocaleString();
 }
 
 interface RemoteEnvironmentCardProps {

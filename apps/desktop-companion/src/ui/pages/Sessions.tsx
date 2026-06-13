@@ -14,7 +14,7 @@ async function safeInvoke<T>(
 ): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch (err) {
     console.error(`[safeInvoke] ${cmd} failed:`, err);
     return undefined;
@@ -27,9 +27,20 @@ async function safeListen<T>(
 ): Promise<() => void> {
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return listen<T>(event, handler);
+    return await listen<T>(event, handler);
   } catch {
     return () => undefined;
+  }
+}
+
+async function deleteSession(taskBranchId: string, force: boolean): Promise<boolean> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("session_delete", { taskBranchId, force });
+    return true;
+  } catch (err) {
+    console.error("[deleteSession] session_delete failed:", err);
+    return false;
   }
 }
 
@@ -115,10 +126,12 @@ export function Sessions() {
   }
 
   async function confirmDelete(id: string, force: boolean) {
-    await safeInvoke("session_delete", { taskBranchId: id, force });
-    setBranches((prev) => prev.filter((b) => b.id !== id));
-    setPendingDelete(undefined);
-    setPendingDeleteHasChanges(false);
+    const deleted = await deleteSession(id, force);
+    if (deleted) {
+      setBranches((prev) => prev.filter((b) => b.id !== id));
+      setPendingDelete(undefined);
+      setPendingDeleteHasChanges(false);
+    }
   }
 
   function cancelDelete() {
@@ -134,13 +147,10 @@ export function Sessions() {
     const failed: BatchCleanupResult["failed"] = [];
 
     for (const b of stale) {
-      try {
-        await safeInvoke("session_delete", {
-          taskBranchId: b.id,
-          force: false,
-        });
+      const deleted = await deleteSession(b.id, false);
+      if (deleted) {
         removed++;
-      } catch {
+      } else {
         failed.push({ missionLabel: b.missionLabel, reason: "Could not be removed." });
       }
     }

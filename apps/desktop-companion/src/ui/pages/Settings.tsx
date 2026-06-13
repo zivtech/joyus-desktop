@@ -10,10 +10,15 @@ interface AppConfig {
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
+}
+
+async function invokeOrThrow<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return await invoke<T>(cmd, args);
 }
 
 function Toggle({
@@ -261,7 +266,7 @@ export function Settings() {
   const handleResetConfirm = useCallback(() => {
     setResetStep("running");
     setBusy(true);
-    void safeInvoke<void>("reset_desktop_companion", { deleteData: resetDeleteData }).then(() => {
+    void invokeOrThrow<void>("reset_desktop_companion", { deleteData: resetDeleteData }).then(() => {
       setResetStep("done");
       setBusy(false);
     }).catch((err: unknown) => {

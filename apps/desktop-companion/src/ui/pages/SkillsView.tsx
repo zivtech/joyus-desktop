@@ -28,7 +28,7 @@ export function SkillsView({
   const filtered = skills.filter((s) =>
     s.name.toLowerCase().includes(filter.toLowerCase())
   );
-  const syncStateLabel = status.state.replace("_", " ");
+  const syncStateLabel = status.state.replaceAll("_", " ");
   const isSyncing = status.state === "syncing" || syncing;
 
   return (

@@ -10,7 +10,7 @@ import { useReconSetup } from "../hooks/useRecon";
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -65,11 +65,7 @@ function truncate(str: string, max: number): string {
 
 function formatDate(iso?: string): string {
   if (iso === undefined) return "—";
-  try {
-    return new Date(iso).toLocaleDateString();
-  } catch {
-    return iso;
-  }
+  return new Date(iso).toLocaleDateString();
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────

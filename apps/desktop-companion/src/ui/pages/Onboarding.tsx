@@ -8,7 +8,7 @@ import type { ServerInfo } from "../hooks/useServerStatus";
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -20,7 +20,7 @@ async function safeListen(
 ): Promise<() => void> {
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return listen(event, (e) => handler(e.payload));
+    return await listen(event, (e) => handler(e.payload));
   } catch {
     return () => undefined;
   }
@@ -33,6 +33,19 @@ type StepStatus = "pending" | "active" | "success" | "error";
 interface SyncCompletedPayload {
   skillCount: number;
   version: string;
+}
+
+interface OnboardingStartResult {
+  success: boolean;
+  serversStarted: number;
+  skillsSynced: boolean;
+  errors: string[];
+}
+
+function errorsWithPrefix(errors: string[], prefix: string): string[] {
+  return errors
+    .filter((error) => error.startsWith(prefix))
+    .map((error) => error.slice(prefix.length).trim());
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -234,6 +247,7 @@ export function Onboarding() {
   const [mcpServers, setMcpServers] = useState<ServerOnboardingStatus[]>([]);
   const [mcpError, setMcpError] = useState<string | undefined>(undefined);
   const [mcpProgress, setMcpProgress] = useState(0);
+  const [expectedMcpServerCount, setExpectedMcpServerCount] = useState<number | undefined>(undefined);
 
   // Step 3 — Sync
   const [syncError, setSyncError] = useState<string | undefined>(undefined);
@@ -294,19 +308,13 @@ export function Onboarding() {
           server,
           failed: server.status === "error",
         };
+        const next = idx >= 0 ? [...prev] : [...prev, entry];
         if (idx >= 0) {
-          const next = [...prev];
           next[idx] = entry;
-          return next;
         }
-        return [...prev, entry];
-      });
-      // Derive progress from running servers
-      setMcpServers((prev) => {
-        const running = prev.filter((s) => s.server.status === "running").length;
-        const pct = prev.length > 0 ? (running / prev.length) * 100 : 0;
-        setMcpProgress(pct);
-        return prev;
+        const running = next.filter((s) => s.server.status === "running").length;
+        setMcpProgress((running / next.length) * 100);
+        return next;
       });
     });
 
@@ -326,9 +334,38 @@ export function Onboarding() {
       setSyncProgress(pct);
     });
 
+    const syncFailedUnlisten = safeListen("state:sync-failed", (payload) => {
+      const message = typeof payload === "string" ? payload : "Skill sync failed.";
+      setSyncError(message);
+      setPhase("sync");
+    });
+
     void mcpUnlisten.then((fn) => unlistenRefs.current.push(fn));
     void syncUnlisten.then((fn) => unlistenRefs.current.push(fn));
     void syncProgressUnlisten.then((fn) => unlistenRefs.current.push(fn));
+    void syncFailedUnlisten.then((fn) => unlistenRefs.current.push(fn));
+  }, []);
+
+  const applyOnboardingResult = useCallback((result: OnboardingStartResult | undefined) => {
+    if (result === undefined || result.success) return;
+
+    const serverErrors = errorsWithPrefix(result.errors, "servers:");
+    if (serverErrors.length > 0) {
+      setMcpError(serverErrors.join(" "));
+    }
+
+    const syncErrors = errorsWithPrefix(result.errors, "sync:");
+    if (syncErrors.length > 0 || !result.skillsSynced) {
+      setSyncError(syncErrors.length > 0 ? syncErrors.join(" ") : "Skill sync did not complete.");
+      setSyncProgress(0);
+      setPhase("sync");
+    }
+  }, []);
+
+  const applyMcpExpectation = useCallback((result: OnboardingStartResult | undefined) => {
+    if (result?.success === true && result.serversStarted > 0) {
+      setExpectedMcpServerCount(result.serversStarted);
+    }
   }, []);
 
   // ── Step 1: Auth submit ───────────────────────────────────────────────────
@@ -341,27 +378,24 @@ export function Onboarding() {
     setAuthBusy(true);
     setAuthError(undefined);
 
-    try {
-      await safeInvoke("set_config", { key: "org_name", value: orgName });
-      await safeInvoke("set_config", { key: "auth_token", value: authToken });
-      await safeInvoke("set_config", { key: "tenant_id", value: tenantId });
-      await safeInvoke("set_config", { key: "workspace_id", value: workspaceId });
-      await safeInvoke("set_config", { key: "onboarding_phase", value: "mcp" });
+    await safeInvoke("set_config", { key: "org_name", value: orgName });
+    await safeInvoke("set_config", { key: "auth_token", value: authToken });
+    await safeInvoke("set_config", { key: "tenant_id", value: tenantId });
+    await safeInvoke("set_config", { key: "workspace_id", value: workspaceId });
+    await safeInvoke("set_config", { key: "onboarding_phase", value: "mcp" });
 
-      attachEventListeners();
-      setPhase("mcp");
-      setMcpProgress(0);
+    attachEventListeners();
+    setPhase("mcp");
+    setMcpProgress(0);
+    setExpectedMcpServerCount(undefined);
 
-      const result = await safeInvoke("start_onboarding", { authToken, tenantId, workspaceId });
-      if (result === undefined) {
-        // Proceed even if invoke returns undefined (non-Tauri env)
-      }
-    } catch (err) {
-      setAuthError(String(err));
-    } finally {
-      setAuthBusy(false);
+    const result = await safeInvoke<OnboardingStartResult>("start_onboarding", { authToken, tenantId, workspaceId });
+    if (result !== undefined) {
+      applyMcpExpectation(result);
+      applyOnboardingResult(result);
     }
-  }, [orgName, authToken, tenantId, workspaceId, attachEventListeners]);
+    setAuthBusy(false);
+  }, [orgName, authToken, tenantId, workspaceId, attachEventListeners, applyMcpExpectation, applyOnboardingResult]);
 
   // ── Step 1b: GitHub OAuth login ────────────────────────────────────────
 
@@ -369,38 +403,37 @@ export function Onboarding() {
     setGithubBusy(true);
     setAuthError(undefined);
 
-    try {
-      const result = await safeInvoke<{
-        authToken: string;
-        tenantId: string;
-        workspaceId: string;
-      }>("github_auth_start", {});
+    const authResult = await safeInvoke<{
+      authToken: string;
+      tenantId: string;
+      workspaceId: string;
+    }>("github_auth_start", {});
 
-      if (result === undefined) {
-        setAuthError("GitHub login unavailable outside of Joyus Desktop.");
-        return;
-      }
-
-      await safeInvoke("set_config", { key: "auth_token", value: result.authToken });
-      await safeInvoke("set_config", { key: "tenant_id", value: result.tenantId });
-      await safeInvoke("set_config", { key: "workspace_id", value: result.workspaceId });
-      await safeInvoke("set_config", { key: "onboarding_phase", value: "mcp" });
-
-      attachEventListeners();
-      setPhase("mcp");
-      setMcpProgress(0);
-
-      await safeInvoke("start_onboarding", {
-        authToken: result.authToken,
-        tenantId: result.tenantId,
-        workspaceId: result.workspaceId,
-      });
-    } catch (err) {
-      setAuthError(String(err));
-    } finally {
+    if (authResult === undefined) {
+      setAuthError("GitHub login unavailable outside of Joyus Desktop.");
       setGithubBusy(false);
+      return;
     }
-  }, [attachEventListeners]);
+
+    await safeInvoke("set_config", { key: "auth_token", value: authResult.authToken });
+    await safeInvoke("set_config", { key: "tenant_id", value: authResult.tenantId });
+    await safeInvoke("set_config", { key: "workspace_id", value: authResult.workspaceId });
+    await safeInvoke("set_config", { key: "onboarding_phase", value: "mcp" });
+
+    attachEventListeners();
+    setPhase("mcp");
+    setMcpProgress(0);
+    setExpectedMcpServerCount(undefined);
+
+    const onboardingResult = await safeInvoke<OnboardingStartResult>("start_onboarding", {
+      authToken: authResult.authToken,
+      tenantId: authResult.tenantId,
+      workspaceId: authResult.workspaceId,
+    });
+    applyMcpExpectation(onboardingResult);
+    applyOnboardingResult(onboardingResult);
+    setGithubBusy(false);
+  }, [attachEventListeners, applyMcpExpectation, applyOnboardingResult]);
 
   const handleCancelGitHubLogin = useCallback(() => {
     void safeInvoke("github_auth_cancel", {});
@@ -416,6 +449,7 @@ export function Onboarding() {
 
   const handleSkipMcp = useCallback(() => {
     void safeInvoke("set_config", { key: "onboarding_phase", value: "sync" });
+    setExpectedMcpServerCount(undefined);
     setPhase("sync");
     setSyncProgress(0);
   }, []);
@@ -443,6 +477,7 @@ export function Onboarding() {
 
   useEffect(() => {
     if (phase !== "mcp" || mcpServers.length === 0) return;
+    if (expectedMcpServerCount !== undefined && mcpServers.length < expectedMcpServerCount) return;
     const allDone = mcpServers.every(
       (s) => s.server.status === "running" || s.server.status === "error"
     );
@@ -456,7 +491,7 @@ export function Onboarding() {
         setSyncProgress(0);
       }
     }
-  }, [phase, mcpServers]);
+  }, [expectedMcpServerCount, phase, mcpServers]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 

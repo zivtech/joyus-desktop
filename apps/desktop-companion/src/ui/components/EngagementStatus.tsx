@@ -6,7 +6,7 @@ import { ScanFailurePanel, TimeoutAlert } from "./ErrorRecovery";
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -18,7 +18,7 @@ async function safeListen(
 ): Promise<() => void> {
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return listen(event, (e) => handler(e.payload));
+    return await listen(event, (e) => handler(e.payload));
   } catch {
     return () => undefined;
   }

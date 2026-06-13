@@ -25,7 +25,7 @@ interface RankedItem {
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -107,8 +107,8 @@ function BarChart({ data }: { data: DailyActivity[] }) {
           paddingRight: "2px",
         }}
       >
-        <span>{data[0]?.date ?? ""}</span>
-        <span>{data[data.length - 1]?.date ?? ""}</span>
+        <span>{data[0]!.date}</span>
+        <span>{data[data.length - 1]!.date}</span>
       </div>
     </div>
   );

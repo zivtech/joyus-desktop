@@ -2,10 +2,28 @@ import { useEffect, useState } from "react";
 
 // ─── Tauri helpers ────────────────────────────────────────────────────────────
 
-async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
+type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T | undefined>;
+
+interface UseReconSetupDeps {
+  readonly invoke?: InvokeFn;
+}
+
+async function defaultInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
+  } catch {
+    return undefined;
+  }
+}
+
+async function safeInvoke<T>(
+  invokeFn: InvokeFn,
+  cmd: string,
+  args?: Record<string, unknown>
+): Promise<T | undefined> {
+  try {
+    return await invokeFn<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -45,7 +63,8 @@ export interface ReconSetupStatus {
  * TODO(WP06): Wire this hook into a route guard so unauthenticated users are
  *   redirected to /recon/setup before accessing /recon.
  */
-export function useReconSetup(): ReconSetupStatus {
+export function useReconSetup(deps: UseReconSetupDeps = {}): ReconSetupStatus {
+  const invokeFn = deps.invoke ?? defaultInvoke;
   const [loading, setLoading] = useState(true);
   const [missingSteps, setMissingSteps] = useState<string[]>([]);
 
@@ -54,7 +73,7 @@ export function useReconSetup(): ReconSetupStatus {
       const missing: string[] = [];
 
       // 1. Check credential keys
-      const credentials = await safeInvoke<CredentialListItem[]>("credentials_list");
+      const credentials = await safeInvoke<CredentialListItem[]>(invokeFn, "credentials_list");
       if (credentials === undefined) {
         // Sidecar unavailable — treat all credentials as missing
         missing.push("credentials");
@@ -69,7 +88,7 @@ export function useReconSetup(): ReconSetupStatus {
       }
 
       // 2. Check skill file
-      const skillResult = await safeInvoke<SkillFileResult>("check_skill_file");
+      const skillResult = await safeInvoke<SkillFileResult>(invokeFn, "check_skill_file");
       if (skillResult === undefined || !skillResult.found) {
         missing.push("skill-file");
       }
@@ -79,7 +98,7 @@ export function useReconSetup(): ReconSetupStatus {
     }
 
     void check();
-  }, []);
+  }, [invokeFn]);
 
   return {
     setupComplete: !loading && missingSteps.length === 0,

@@ -1,10 +1,16 @@
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BranchRow } from "../../../src/ui/components/BranchRow";
 import type { TaskBranch } from "../../../src/ui/components/TaskBranchCard";
 
 const noop = () => {};
+let dom: JSDOM;
+let root: Root | undefined;
+let container: HTMLElement;
 
 function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
   return {
@@ -27,6 +33,24 @@ function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
 }
 
 describe("BranchRow", () => {
+  beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>");
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    container = dom.window.document.getElementById("root")!;
+  });
+
+  afterEach(() => {
+    if (root !== undefined) {
+      act(() => {
+        root?.unmount();
+      });
+      root = undefined;
+    }
+    dom.window.close();
+  });
+
   it("renders mission label and branch name", () => {
     const html = renderToStaticMarkup(
       createElement(BranchRow, {
@@ -130,6 +154,31 @@ describe("BranchRow", () => {
     expect(html).toContain("https://github.com/acme/web/pull/99");
   });
 
+  it("stops propagation when the PR link is clicked", () => {
+    const onParentClick = vi.fn();
+
+    act(() => {
+      root = createRoot(container);
+      root.render(createElement("div", { onClick: onParentClick },
+        createElement(BranchRow, {
+          branch: makeBranch({ prUrl: "https://github.com/acme/web/pull/99", prNumber: 99 }),
+          onResume: noop,
+          onDelete: noop,
+          onOpenGitHub: noop,
+          onDriftDismiss: noop,
+          onDriftNewSession: noop,
+        }),
+      ));
+    });
+
+    const prLink = container.querySelector("a")!;
+    act(() => {
+      prLink.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onParentClick).not.toHaveBeenCalled();
+  });
+
   it("always renders GitHub and Remove buttons", () => {
     const html = renderToStaticMarkup(
       createElement(BranchRow, {
@@ -143,5 +192,133 @@ describe("BranchRow", () => {
     );
     expect(html).toContain("GitHub");
     expect(html).toContain("Remove");
+  });
+
+  it("shows a resume error when resume rejects", async () => {
+    const onResume = vi.fn().mockRejectedValue(new Error("no session"));
+
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(BranchRow, {
+        branch: makeBranch(),
+        onResume,
+        onDelete: noop,
+        onOpenGitHub: noop,
+        onDriftDismiss: noop,
+        onDriftNewSession: noop,
+      }));
+    });
+
+    const resume = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Resume")!;
+    await act(async () => {
+      resume.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(onResume).toHaveBeenCalledWith("tb-1");
+    expect(container.textContent).toContain("Could not resume this session.");
+  });
+
+  it("resumes without showing an error when resume resolves", async () => {
+    const onResume = vi.fn().mockResolvedValue(undefined);
+
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(BranchRow, {
+        branch: makeBranch(),
+        onResume,
+        onDelete: noop,
+        onOpenGitHub: noop,
+        onDriftDismiss: noop,
+        onDriftNewSession: noop,
+      }));
+    });
+
+    const resume = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Resume")!;
+    await act(async () => {
+      resume.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(onResume).toHaveBeenCalledWith("tb-1");
+    expect(container.textContent).not.toContain("Could not resume this session.");
+  });
+
+  it("confirms and cancels removal inline", () => {
+    const onDelete = vi.fn();
+
+    act(() => {
+      root = createRoot(container);
+      root.render(createElement(BranchRow, {
+        branch: makeBranch(),
+        onResume: noop,
+        onDelete,
+        onOpenGitHub: noop,
+        onDriftDismiss: noop,
+        onDriftNewSession: noop,
+      }));
+    });
+
+    const remove = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Remove")!;
+    act(() => {
+      remove.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    expect(container.textContent).toContain("Confirm");
+
+    const cancel = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Cancel")!;
+    act(() => {
+      cancel.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    expect(container.textContent).toContain("Remove");
+
+    const removeAgain = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Remove")!;
+    act(() => {
+      removeAgain.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    const confirm = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Confirm")!;
+    act(() => {
+      confirm.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onDelete).toHaveBeenCalledWith("tb-1");
+  });
+
+  it("routes GitHub and drift actions to their callbacks", () => {
+    const onOpenGitHub = vi.fn();
+    const onDriftDismiss = vi.fn();
+    const onDriftNewSession = vi.fn();
+
+    act(() => {
+      root = createRoot(container);
+      root.render(createElement(BranchRow, {
+        branch: makeBranch(),
+        driftSignal: {
+          taskBranchId: "tb-1",
+          confidence: "high",
+          heuristics: { directoryCount: 2, topicDomainCount: 3, elapsedMinutes: 90 },
+          explanation: "Wide-ranging task",
+        },
+        onResume: noop,
+        onDelete: noop,
+        onOpenGitHub,
+        onDriftDismiss,
+        onDriftNewSession,
+      }));
+    });
+
+    const clickButton = (label: string) => {
+      const target = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === label)!;
+      act(() => {
+        target.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      });
+    };
+
+    clickButton("GitHub");
+    clickButton("Start Fresh Task");
+    clickButton("Keep Going");
+
+    expect(onOpenGitHub).toHaveBeenCalledWith("/repos/acme", "feat-x");
+    expect(onDriftNewSession).toHaveBeenCalledWith("tb-1");
+    expect(onDriftDismiss).toHaveBeenCalledWith("tb-1");
   });
 });

@@ -1,11 +1,17 @@
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SiteCardExpanded } from "../../../src/ui/components/SiteCardExpanded";
 import type { TaskBranch } from "../../../src/ui/components/TaskBranchCard";
 import type { DriftSignalPayload } from "../../../src/ui/components/DriftBanner";
 
 const noop = () => {};
+let dom: JSDOM;
+let root: Root | undefined;
+let container: HTMLElement;
 
 function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
   return {
@@ -41,6 +47,24 @@ const defaultProps = {
 };
 
 describe("SiteCardExpanded", () => {
+  beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>");
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    container = dom.window.document.getElementById("root")!;
+  });
+
+  afterEach(() => {
+    if (root !== undefined) {
+      act(() => {
+        root?.unmount();
+      });
+      root = undefined;
+    }
+    dom.window.close();
+  });
+
   it("renders loading skeleton when loading is true", () => {
     const html = renderToStaticMarkup(
       createElement(SiteCardExpanded, { ...defaultProps, loading: true }),
@@ -114,5 +138,27 @@ describe("SiteCardExpanded", () => {
     expect(html).toContain("Task 9");
     expect(html).not.toContain("Task 10");
     expect(html).toContain("Show 2 more");
+  });
+
+  it("reveals hidden branches after Show more is clicked", () => {
+    const branches = Array.from({ length: 12 }, (_, i) =>
+      makeBranch({ id: `tb-${i}`, missionLabel: `Task ${i}` }),
+    );
+
+    act(() => {
+      root = createRoot(container);
+      root.render(createElement(SiteCardExpanded, { ...defaultProps, branches }));
+    });
+
+    expect(container.textContent).not.toContain("Task 10");
+    const showMore = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Show 2 more")
+    )!;
+    act(() => {
+      showMore.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain("Task 10");
+    expect(container.textContent).toContain("Task 11");
   });
 });

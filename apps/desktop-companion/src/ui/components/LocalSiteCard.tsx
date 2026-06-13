@@ -22,7 +22,7 @@ async function safeInvoke<T>(
 ): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -148,12 +148,6 @@ export function LocalSiteCard({
     void safeInvoke(`site_${op}`, { siteId: site.id }).finally(() => {
       setPendingOp(undefined);
     });
-  }
-
-  function handleOpen() {
-    const url = site.httpsUrl ?? site.httpUrl;
-    if (url === undefined) return;
-    void openUrl(url);
   }
 
   function handleRemove() {
@@ -300,7 +294,7 @@ export function LocalSiteCard({
             label="Open"
             disabled={isBusy}
             pending={false}
-            onClick={handleOpen}
+            onClick={() => { void openUrl(openableUrl); }}
           />
         )}
         <ActionButton

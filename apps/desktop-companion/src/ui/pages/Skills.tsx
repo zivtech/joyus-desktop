@@ -6,7 +6,7 @@ import { SkillsView } from "./SkillsView";
 async function safeInvoke<T>(cmd: string): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd);
+    return await invoke<T>(cmd);
   } catch {
     return undefined;
   }

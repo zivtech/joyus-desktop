@@ -294,18 +294,18 @@ describe("syncSkills", () => {
     await mkdir(cache, { recursive: true });
     const lockPath = join(cache, ".sync.lock");
     await writeFile(lockPath, "locked", "utf8");
-    setTimeout(() => {
-      void rm(lockPath, { force: true });
-    }, 10);
 
-    const result = await syncSkills({
+    const resultPromise = syncSkills({
       repoUrl: repoPath,
       targetVersion: "v1.0.0",
       destDir: dest,
       cacheDir: cache,
-      lockRetries: 10,
-      lockRetryDelayMs: 5
+      lockRetries: 20,
+      lockRetryDelayMs: 10
     });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await rm(lockPath, { force: true });
+    const result = await resultPromise;
 
     expect(result.status).toBe("success");
   });

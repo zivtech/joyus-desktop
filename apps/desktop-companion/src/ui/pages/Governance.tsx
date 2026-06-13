@@ -2,10 +2,13 @@ import { useState } from "react";
 import { useGovernance, type GovernanceDecision } from "../hooks/useGovernance";
 
 type DecisionFilter = "all" | "allow" | "deny" | "escalate";
+type ModeStyle = { bg: string; text: string; border: string };
 
-const MODE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+const STANDARD_MODE_STYLE: ModeStyle = { bg: "#fffbeb", text: "#92400e", border: "#fcd34d" };
+
+const MODE_COLORS: Record<string, ModeStyle> = {
   strict: { bg: "#fef2f2", text: "#991b1b", border: "#fca5a5" },
-  standard: { bg: "#fffbeb", text: "#92400e", border: "#fcd34d" },
+  standard: STANDARD_MODE_STYLE,
   permissive: { bg: "#f0fdf4", text: "#166534", border: "#86efac" },
 };
 
@@ -23,12 +26,20 @@ const OUTCOME_STYLES: Record<GovernanceDecision["outcome"], { color: string; bg:
 
 const PAGE_SIZE = 20;
 
-function formatTimestamp(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
+export function formatGovernanceTimestamp(ts: string): string {
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) {
     return ts;
   }
+  return date.toLocaleString();
+}
+
+function getServerName(action: string): string {
+  return action.split(":")[0] || "unknown";
+}
+
+function getModeStyle(mode: string): ModeStyle {
+  return MODE_COLORS[mode] ?? STANDARD_MODE_STYLE;
 }
 
 export function Governance() {
@@ -37,19 +48,17 @@ export function Governance() {
   const [serverFilter, setServerFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
 
-  const servers = Array.from(new Set(decisions.map((d) => d.action.split(":")[0] ?? "unknown")));
+  const servers = Array.from(new Set(decisions.map((d) => getServerName(d.action))));
 
   const filtered = decisions.filter((d) => {
     const matchOutcome = filter === "all" || d.outcome === filter;
-    const serverName = d.action.split(":")[0] ?? "unknown";
+    const serverName = getServerName(d.action);
     const matchServer = serverFilter === "all" || serverName === serverFilter;
     return matchOutcome && matchServer;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageDecisions = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  const modeStyle = mode !== undefined ? (MODE_COLORS[mode] ?? MODE_COLORS["standard"]) : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -75,38 +84,41 @@ export function Governance() {
       <section>
         {mode === undefined ? (
           <div style={{ color: "#6b7280", fontSize: "0.875rem" }}>Loading governance mode…</div>
-        ) : (
-          <div
-            style={{
-              background: modeStyle?.bg,
-              border: `1px solid ${modeStyle?.border ?? "#e5e7eb"}`,
-              borderRadius: "10px",
-              padding: "1.25rem 1.5rem",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "1rem",
-            }}
-          >
+        ) : (() => {
+          const modeStyle = getModeStyle(mode);
+          return (
             <div
               style={{
-                background: modeStyle?.text,
-                color: "#fff",
-                borderRadius: "6px",
-                padding: "0.25rem 0.875rem",
-                fontSize: "0.875rem",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                whiteSpace: "nowrap",
+                background: modeStyle.bg,
+                border: `1px solid ${modeStyle.border}`,
+                borderRadius: "10px",
+                padding: "1.25rem 1.5rem",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "1rem",
               }}
             >
-              {mode}
+              <div
+                style={{
+                  background: modeStyle.text,
+                  color: "#fff",
+                  borderRadius: "6px",
+                  padding: "0.25rem 0.875rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {mode}
+              </div>
+              <p style={{ margin: 0, fontSize: "0.875rem", color: "#374151", lineHeight: 1.5 }}>
+                {MODE_DESCRIPTIONS[mode] ?? ""}
+              </p>
             </div>
-            <p style={{ margin: 0, fontSize: "0.875rem", color: "#374151", lineHeight: 1.5 }}>
-              {MODE_DESCRIPTIONS[mode] ?? ""}
-            </p>
-          </div>
-        )}
+          );
+        })()}
       </section>
 
       {/* Filters */}
@@ -206,7 +218,7 @@ export function Governance() {
                         }}
                       >
                         <td style={{ padding: "0.625rem 1rem", color: "#6b7280", whiteSpace: "nowrap" }}>
-                          {formatTimestamp(d.timestamp)}
+                          {formatGovernanceTimestamp(d.timestamp)}
                         </td>
                         <td style={{ padding: "0.625rem 1rem", color: "#111827", fontFamily: "monospace" }}>
                           {d.action}

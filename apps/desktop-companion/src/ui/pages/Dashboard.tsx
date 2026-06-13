@@ -12,7 +12,7 @@ interface UsageSummary {
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch {
     return undefined;
   }
@@ -135,7 +135,7 @@ export function Dashboard() {
           <div>
             <span style={{ color: "#6b7280" }}>State: </span>
             <span style={{ fontWeight: 500, color: "#111827", textTransform: "capitalize" }}>
-              {syncStatus.state.replace("_", " ")}
+              {syncStatus.state.replaceAll("_", " ")}
             </span>
           </div>
           <div>

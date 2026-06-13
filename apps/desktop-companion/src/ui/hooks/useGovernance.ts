@@ -16,50 +16,83 @@ interface UseGovernanceResult {
   refresh: () => void;
 }
 
-async function safeInvoke<T>(cmd: string): Promise<T | undefined> {
+type InvokeFn = <T>(cmd: string) => Promise<T | undefined>;
+type ListenFn = (
+  event: string,
+  handler: (payload: unknown) => void
+) => Promise<() => void>;
+
+interface UseGovernanceDeps {
+  readonly invoke?: InvokeFn;
+  readonly listen?: ListenFn;
+}
+
+async function defaultInvoke<T>(cmd: string): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd);
+    return await invoke<T>(cmd);
+  } catch {
+    return undefined;
+  }
+}
+
+async function defaultListen(
+  event: string,
+  handler: (payload: unknown) => void
+): Promise<() => void> {
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    return await listen(event, (e) => handler(e.payload));
+  } catch {
+    return () => undefined;
+  }
+}
+
+async function safeInvoke<T>(invokeFn: InvokeFn, cmd: string): Promise<T | undefined> {
+  try {
+    return await invokeFn<T>(cmd);
   } catch {
     return undefined;
   }
 }
 
 async function safeListen(
+  listenFn: ListenFn,
   event: string,
   handler: (payload: unknown) => void
 ): Promise<() => void> {
   try {
-    const { listen } = await import("@tauri-apps/api/event");
-    return listen(event, (e) => handler(e.payload));
+    return await listenFn(event, handler);
   } catch {
     return () => undefined;
   }
 }
 
-export function useGovernance(): UseGovernanceResult {
+export function useGovernance(deps: UseGovernanceDeps = {}): UseGovernanceResult {
+  const invokeFn = deps.invoke ?? defaultInvoke;
+  const listenFn = deps.listen ?? defaultListen;
   const [mode, setMode] = useState<GovernanceMode | undefined>(undefined);
   const [decisions, setDecisions] = useState<GovernanceDecision[]>([]);
 
   const refresh = useCallback(() => {
-    void safeInvoke<GovernanceMode>("get_governance_mode").then((result) => {
+    void safeInvoke<GovernanceMode>(invokeFn, "get_governance_mode").then((result) => {
       if (result !== undefined) {
         setMode(result);
       }
     });
-    void safeInvoke<GovernanceDecision[]>("get_governance_decisions").then((result) => {
+    void safeInvoke<GovernanceDecision[]>(invokeFn, "get_governance_decisions").then((result) => {
       if (result !== undefined) {
         setDecisions(result);
       }
     });
-  }, []);
+  }, [invokeFn]);
 
   useEffect(() => {
     refresh();
 
     let unlistenFn: (() => void) | undefined;
     let active = true;
-    void safeListen("state:governance-decision", (payload) => {
+    void safeListen(listenFn, "state:governance-decision", (payload) => {
       const decision = payload as GovernanceDecision;
       setDecisions((prev) => [decision, ...prev]);
     }).then((fn) => {
@@ -74,7 +107,7 @@ export function useGovernance(): UseGovernanceResult {
       active = false;
       unlistenFn?.();
     };
-  }, [refresh]);
+  }, [listenFn, refresh]);
 
   return { mode, decisions, refresh };
 }

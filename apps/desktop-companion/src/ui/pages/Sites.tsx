@@ -14,7 +14,7 @@ async function safeInvoke<T>(
 ): Promise<T | undefined> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return await invoke<T>(cmd, args);
   } catch (err) {
     console.error(`[safeInvoke] ${cmd} failed:`, err);
     return undefined;
@@ -27,7 +27,7 @@ async function safeListen<T>(
 ): Promise<(() => void) | undefined> {
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return listen<T>(event, (e) => handler(e.payload));
+    return await listen<T>(event, (e) => handler(e.payload));
   } catch {
     return undefined;
   }
