@@ -4,7 +4,7 @@
 
 Plan 003 restored TSX typechecking and added a narrow UI coverage seed. It did not honestly restore full UI coverage because a broad TSX coverage probe pulled in dozens of uncovered UI files and dropped overall coverage to about 67.5%. This plan stages the remaining UI coverage work by route and shared component, so the repo can move from "UI is visible to coverage" to "UI behavior is protected by coverage" without turning the test suite into shallow coverage theater.
 
-Execution note from 2026-06-13: the first route slice covered `apps/desktop-companion/src/ui/pages/Servers.tsx` with behavior tests for loading, empty, Chrome unavailable, error, and populated-list states. Remaining route groups still need staged coverage.
+Execution note from 2026-06-13: the first route slice covered `apps/desktop-companion/src/ui/pages/Servers.tsx` with behavior tests for loading, empty, Chrome unavailable, error, and populated-list states. The second route slice split the Skills route into a thin Tauri/hook container and covered `apps/desktop-companion/src/ui/pages/SkillsView.tsx` plus `apps/desktop-companion/src/ui/components/SkillList.tsx`. Remaining route groups still need staged coverage.
 
 ## Priority
 
