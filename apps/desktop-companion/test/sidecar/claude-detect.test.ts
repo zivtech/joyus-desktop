@@ -5,9 +5,9 @@ import type { ClaudeDetectDeps } from "../../src/sidecar/claude-detect";
 describe("detectClaude", () => {
   it("returns found: true with path and version when claude is on PATH", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: (cmd: string) => {
-        if (cmd === "which claude") return "/usr/local/bin/claude\n";
-        if (cmd === "claude --version") return "claude-code/1.2.3\n";
+      execFile: (command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/usr/local/bin/claude\n";
+        if (command === "/usr/local/bin/claude" && args[0] === "--version") return "claude-code/1.2.3\n";
         return "";
       },
       fileExists: () => true,
@@ -21,8 +21,8 @@ describe("detectClaude", () => {
 
   it("returns found: true without version when --version throws", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: (cmd: string) => {
-        if (cmd === "which claude") return "/usr/local/bin/claude\n";
+      execFile: (command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/usr/local/bin/claude\n";
         throw new Error("command failed");
       },
       fileExists: () => true,
@@ -36,7 +36,7 @@ describe("detectClaude", () => {
 
   it("returns found: false when which throws", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: () => {
+      execFile: () => {
         throw new Error("not found");
       },
       fileExists: () => false,
@@ -49,7 +49,7 @@ describe("detectClaude", () => {
 
   it("returns found: false when which returns empty string", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: () => "",
+      execFile: () => "",
       fileExists: () => false,
     };
 
@@ -59,8 +59,8 @@ describe("detectClaude", () => {
 
   it("returns found: false when which returns a path but fileExists returns false", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: (cmd: string) => {
-        if (cmd === "which claude") return "/usr/local/bin/claude\n";
+      execFile: (command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/usr/local/bin/claude\n";
         return "";
       },
       fileExists: () => false,
@@ -72,9 +72,9 @@ describe("detectClaude", () => {
 
   it("extracts version number from verbose output", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: (cmd: string) => {
-        if (cmd === "which claude") return "/opt/bin/claude\n";
-        if (cmd === "claude --version") return "Claude Code CLI version 2.0.15-beta\n";
+      execFile: (command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/opt/bin/claude\n";
+        if (command === "/opt/bin/claude" && args[0] === "--version") return "Claude Code CLI version 2.0.15-beta\n";
         return "";
       },
       fileExists: () => true,
@@ -87,9 +87,9 @@ describe("detectClaude", () => {
 
   it("handles version output with no parseable number", () => {
     const deps: ClaudeDetectDeps = {
-      execCommand: (cmd: string) => {
-        if (cmd === "which claude") return "/opt/bin/claude\n";
-        if (cmd === "claude --version") return "unknown version\n";
+      execFile: (command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/opt/bin/claude\n";
+        if (command === "/opt/bin/claude" && args[0] === "--version") return "unknown version\n";
         return "";
       },
       fileExists: () => true,
@@ -102,9 +102,9 @@ describe("detectClaude", () => {
 });
 
 describe("createDefaultClaudeDeps", () => {
-  it("returns an object with execCommand and fileExists functions", () => {
+  it("returns an object with execFile and fileExists functions", () => {
     const deps = createDefaultClaudeDeps();
-    expect(typeof deps.execCommand).toBe("function");
+    expect(typeof deps.execFile).toBe("function");
     expect(typeof deps.fileExists).toBe("function");
   });
 
@@ -113,9 +113,9 @@ describe("createDefaultClaudeDeps", () => {
     expect(deps.fileExists("/this/path/does/not/exist/at/all")).toBe(false);
   });
 
-  it("execCommand returns string output for a valid command", () => {
+  it("execFile returns string output for a valid command", () => {
     const deps = createDefaultClaudeDeps();
-    const result = deps.execCommand("echo hello");
+    const result = deps.execFile("echo", ["hello"]);
     expect(typeof result).toBe("string");
   });
 });

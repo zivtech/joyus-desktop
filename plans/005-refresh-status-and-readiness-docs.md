@@ -4,6 +4,8 @@
 
 Several high-level status documents describe older project state than the code and spec status files show. This creates handoff risk: future agents or maintainers may plan from stale prose instead of current implementation.
 
+Harsh-critic revision note: execute this after Plan 000, Plan 002, Plan 004, and the resolved parts of Plan 001. Status prose should describe the implementation that actually landed, not the pre-critique plan order.
+
 ## Priority
 
 - Priority: P2
@@ -76,6 +78,7 @@ Recon follow-up still appears incomplete:
 ```bash
 pnpm typecheck
 pnpm test
+pnpm test:integration
 ```
 
 Then inspect the docs for stale phrasing:

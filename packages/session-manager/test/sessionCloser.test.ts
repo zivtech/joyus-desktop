@@ -136,6 +136,39 @@ describe("createSessionCloser", () => {
     });
   });
 
+  it("reuses existing PR association instead of creating a duplicate draft PR", async () => {
+    store = makeStore({
+      findById: vi.fn().mockReturnValue(makeBranch({
+        prNumber: 99,
+        prUrl: "https://github.com/zivtech/repo/pull/99",
+        prTitle: "Existing PR",
+      })),
+    });
+    const onPrCreated = vi.fn().mockResolvedValue(undefined);
+    closer = createSessionCloser({
+      store,
+      gitPusher,
+      prCreator,
+      execGit,
+      onPrCreated,
+    });
+
+    const result = await closer.close("branch-1", { createPr: true });
+
+    expect(result).toEqual({
+      taskBranchId: "branch-1",
+      branchName: "joyus/2026-04-01-feature",
+      pushed: true,
+      prNumber: 99,
+      prUrl: "https://github.com/zivtech/repo/pull/99",
+      prTitle: "Existing PR",
+    });
+    expect(gitPusher.push).toHaveBeenCalledWith("/repo", "joyus/2026-04-01-feature");
+    expect(prCreator.createDraftPr).not.toHaveBeenCalled();
+    expect(store.updatePrAssociation).not.toHaveBeenCalled();
+    expect(onPrCreated).not.toHaveBeenCalled();
+  });
+
   it("uses missionLabel as default PR title", async () => {
     await closer.close("branch-1", { createPr: true });
 

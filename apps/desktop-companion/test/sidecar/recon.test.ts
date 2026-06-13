@@ -25,7 +25,7 @@ import {
 } from "vitest";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, existsSync as realExistsSync } from "node:fs";
-import { readFile, writeFile, mkdir, writeFile as realWriteFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, symlink, writeFile as realWriteFile } from "node:fs/promises";
 import { promises as mockedFsPromises } from "node:fs";
 import { execSync } from "node:child_process";
 import * as path from "node:path";
@@ -155,6 +155,17 @@ async function getSpawnMock(): Promise<MockInstance> {
   const mod = await import("node:child_process");
   return mod.spawn as unknown as MockInstance;
 }
+
+async function waitForSpawn(spawnMock: MockInstance): Promise<void> {
+  await vi.waitFor(() => {
+    expect(spawnMock).toHaveBeenCalled();
+  });
+}
+
+beforeEach(async () => {
+  const spawnMock = await getSpawnMock();
+  spawnMock.mockClear();
+});
 
 // ---------------------------------------------------------------------------
 // Helper: set up spawn to return a "clean" result (no findings)
@@ -372,15 +383,21 @@ describe("recon.create", () => {
 
 describe("resolveScanScript", () => {
   let ipc: InvokableMockIpc;
+  let tmpRoot: string;
+  let engagementDir: string;
   const existsSyncMock = vi.mocked(realExistsSync);
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    tmpRoot = makeTempDir();
+    engagementDir = path.join(tmpRoot, "engagement");
+    await mkdir(engagementDir, { recursive: true });
     ipc = makeIpc();
-    registerReconMethods(ipc);
+    registerReconMethods(ipc, undefined, { engagementRoot: tmpRoot });
   });
 
   afterEach(() => {
     existsSyncMock.mockReturnValue(true);
+    removeTempDir(tmpRoot);
   });
 
   it("uses fallback path when primary candidate does not exist", async () => {
@@ -391,7 +408,8 @@ describe("resolveScanScript", () => {
     // First existsSync (primary candidate) → false, second (fallback) → true
     existsSyncMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
-    const promise = ipc._invoke("recon.scan", { engagementDir: "/tmp/fake-engagement" });
+    const promise = ipc._invoke("recon.scan", { engagementDir });
+    await waitForSpawn(spawnMock);
     resolveCleanChild(fakeChild);
     const result = (await promise) as { passed: boolean };
 
@@ -403,7 +421,7 @@ describe("resolveScanScript", () => {
     existsSyncMock.mockReturnValueOnce(false).mockReturnValueOnce(false);
 
     await expect(
-      ipc._invoke("recon.scan", { engagementDir: "/tmp/fake-engagement" }),
+      ipc._invoke("recon.scan", { engagementDir }),
     ).rejects.toThrow("scan-sensitive-output.mjs not found");
   });
 });
@@ -414,10 +432,19 @@ describe("resolveScanScript", () => {
 
 describe("recon.scan", () => {
   let ipc: InvokableMockIpc;
+  let tmpRoot: string;
+  let engagementDir: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    tmpRoot = makeTempDir();
+    engagementDir = path.join(tmpRoot, "engagement");
+    await mkdir(engagementDir, { recursive: true });
     ipc = makeIpc();
-    registerReconMethods(ipc);
+    registerReconMethods(ipc, undefined, { engagementRoot: tmpRoot });
+  });
+
+  afterEach(() => {
+    removeTempDir(tmpRoot);
   });
 
   it("rejects null params", async () => {
@@ -438,10 +465,11 @@ describe("recon.scan", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const scanPromise = ipc._invoke("recon.scan", {
-      engagementDir: "/tmp/clean-engagement",
+      engagementDir,
     });
 
     // Drive the mock process: no stderr output, exit 0
+    await waitForSpawn(spawnMock);
     resolveCleanChild(fakeChild);
 
     const result = (await scanPromise) as {
@@ -454,15 +482,15 @@ describe("recon.scan", () => {
   });
 
   it("returns passed: false with findings when scan detects a credential string", async () => {
-    const engDir = "/tmp/test-cred-engagement";
-    const credFile = `${engDir}/output.json`;
+    const credFile = path.join(engagementDir, "output.json");
     const spawnMock = await getSpawnMock();
     const fakeChild = makeFakeChild();
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
-    const scanPromise = ipc._invoke("recon.scan", { engagementDir: engDir });
+    const scanPromise = ipc._invoke("recon.scan", { engagementDir });
 
     // Simulate scanner detecting a labeled-secret finding
+    await waitForSpawn(spawnMock);
     setImmediate(() => {
       fakeChild.emitStderr(
         `Sensitive output scan failed with 1 finding(s).\n` +
@@ -491,9 +519,10 @@ describe("recon.scan", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const scanPromise = ipc._invoke("recon.scan", {
-      engagementDir: "/tmp/broken-engagement",
+      engagementDir,
     });
 
+    await waitForSpawn(spawnMock);
     setImmediate(() => {
       fakeChild.emitStderr("Error: permission denied\n");
       fakeChild.emitClose(1);
@@ -511,14 +540,54 @@ describe("recon.scan", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const scanPromise = ipc._invoke("recon.scan", {
-      engagementDir: "/tmp/error-engagement",
+      engagementDir,
     });
 
+    await waitForSpawn(spawnMock);
     setImmediate(() => {
       fakeChild.emit("error", new Error("ENOENT: node not found"));
     });
 
     await expect(scanPromise).rejects.toThrow("Failed to spawn scan script");
+  });
+
+  it("rejects engagementDir outside the configured recon root", async () => {
+    const outsideRoot = makeTempDir();
+    const outsideEngagement = path.join(outsideRoot, "outside");
+    await mkdir(outsideEngagement, { recursive: true });
+
+    try {
+      await expect(
+        ipc._invoke("recon.scan", { engagementDir: outsideEngagement }),
+      ).rejects.toThrow("engagementDir must be under");
+    } finally {
+      removeTempDir(outsideRoot);
+    }
+  });
+
+  it("uses the default recon engagement root when no runtime root is injected", async () => {
+    const defaultRoot = path.join(os.homedir(), "Documents", "joyus-recon-engagements");
+    const defaultEngagementDir = path.join(defaultRoot, `coverage-${Date.now()}`);
+    const defaultIpc = makeIpc();
+    const spawnMock = await getSpawnMock();
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    await mkdir(defaultEngagementDir, { recursive: true });
+    registerReconMethods(defaultIpc);
+
+    try {
+      const scanPromise = defaultIpc._invoke("recon.scan", {
+        engagementDir: defaultEngagementDir,
+      });
+
+      await waitForSpawn(spawnMock);
+      resolveCleanChild(fakeChild);
+
+      await expect(scanPromise).resolves.toMatchObject({ passed: true });
+    } finally {
+      removeTempDir(defaultEngagementDir);
+    }
   });
 });
 
@@ -534,8 +603,8 @@ describe("recon.export", () => {
 
   beforeEach(async () => {
     ipc = makeIpc();
-    registerReconMethods(ipc);
     tmpRoot = makeTempDir();
+    registerReconMethods(ipc, undefined, { engagementRoot: tmpRoot });
     engagementDir = path.join(tmpRoot, "engagement");
     await mkdir(engagementDir, { recursive: true });
     spawnMock = await getSpawnMock();
@@ -564,6 +633,7 @@ describe("recon.export", () => {
     const credFile = path.join(engagementDir, "output.json");
     const exportPromise = ipc._invoke("recon.export", { engagementDir });
 
+    await waitForSpawn(spawnMock);
     setImmediate(() => {
       fakeChild.emitStderr(
         `Sensitive output scan failed with 1 finding(s).\n` +
@@ -592,6 +662,7 @@ describe("recon.export", () => {
       overrideScan: true,
     });
 
+    await waitForSpawn(spawnMock);
     setImmediate(() => {
       fakeChild.emitStderr(
         `Sensitive output scan failed with 1 finding(s).\n` +
@@ -629,6 +700,7 @@ describe("recon.export", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
     resolveCleanChild(fakeChild);
 
     const result = (await exportPromise) as {
@@ -662,6 +734,7 @@ describe("recon.export", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
     resolveCleanChild(fakeChild);
 
     const result = (await exportPromise) as { zipPath: string; size: number };
@@ -714,6 +787,7 @@ describe("recon.export", () => {
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
 
     const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
     resolveCleanChild(fakeChild);
 
     const result = (await exportPromise) as { zipPath: string; size: number };
@@ -737,6 +811,46 @@ describe("recon.export", () => {
 
     expect(unzipOutput).toContain("notes.txt");
     expect(unzipOutput).toContain("summary.txt");
+  });
+
+  it("does not include symlink targets outside the engagement directory", async () => {
+    await writeFile(path.join(engagementDir, "notes.txt"), "safe content");
+    const outsideRoot = makeTempDir();
+    const externalSecret = path.join(outsideRoot, "external-secret.txt");
+    await writeFile(externalSecret, "do not archive");
+    await symlink(externalSecret, path.join(engagementDir, "linked-secret.txt"));
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+
+    const result = (await exportPromise) as { zipPath: string; size: number };
+
+    let unzipOutput: string;
+    try {
+      unzipOutput = execSync(`unzip -l "${result.zipPath}"`, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (err) {
+      const isUnavailable =
+        err instanceof Error &&
+        (err.message.includes("ENOENT") || err.message.includes("not found"));
+      if (isUnavailable) {
+        removeTempDir(outsideRoot);
+        return;
+      }
+      throw err;
+    }
+
+    expect(unzipOutput).toContain("notes.txt");
+    expect(unzipOutput).not.toContain("linked-secret.txt");
+    expect(unzipOutput).not.toContain("external-secret.txt");
+
+    removeTempDir(outsideRoot);
   });
 });
 

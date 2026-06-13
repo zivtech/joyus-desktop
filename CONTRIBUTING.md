@@ -15,7 +15,7 @@ pnpm install              # Install all workspace dependencies
 pnpm typecheck            # TypeScript strict checking (tsc --noEmit)
 pnpm test                 # Run tests (vitest run)
 pnpm coverage             # Run tests with 100% coverage enforcement
-pnpm ci                   # Full CI pipeline: typecheck + coverage
+pnpm run ci               # Full CI pipeline: typecheck + coverage + integration tests
 ```
 
 Run a single test file:
@@ -43,7 +43,7 @@ Coverage includes all `apps/**/src/**/*.ts` and `packages/**/src/**/*.ts`. Tests
    ```
 3. **Make your changes**, keeping commits small and focused.
 4. **Use conventional commit messages**: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
-5. **Run `pnpm ci`** locally and make sure it passes.
+5. **Run `pnpm run ci`** locally and make sure it passes.
 6. **Open a pull request** against `main` describing what changed and why.
 
 ## Reporting Issues

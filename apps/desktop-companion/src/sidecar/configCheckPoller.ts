@@ -41,6 +41,21 @@ export function startConfigCheckPoller(config: ConfigCheckConfig): PollerHandle 
       let responseText: string;
       try {
         const response = await fetcher(config.manifestUrl);
+        if (!response.ok) {
+          const statusText =
+            "statusText" in response && typeof response.statusText === "string"
+              ? response.statusText
+              : "";
+          const suffix = statusText === "" ? "" : ` ${statusText}`;
+          state.consecutiveFailures++;
+          state.lastCheckAt = nowFn().toISOString();
+          config.onPollError?.(
+            new Error(
+              `Config check request failed with HTTP ${response.status}${suffix}`,
+            ),
+          );
+          return;
+        }
         responseText = await response.text();
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));

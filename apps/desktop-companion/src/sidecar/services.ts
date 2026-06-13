@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import type { ProcessManager } from "@joyus/mcp-registry";
 import type { Registry } from "@joyus/mcp-registry";
 import type { ConfigPoller } from "@joyus/mcp-governance";
@@ -8,8 +10,8 @@ import {
   registerUsageMethods,
   type UsageCollector,
 } from "./usage-collector";
-import { detectChrome, type ChromeDetectDeps } from "./chrome-detect";
-import { detectClaude, type ClaudeDetectDeps } from "./claude-detect";
+import { createDefaultChromeDeps, detectChrome, type ChromeDetectDeps } from "./chrome-detect";
+import { createDefaultClaudeDeps, detectClaude, type ClaudeDetectDeps } from "./claude-detect";
 import { scanSkills, type SkillScannerDeps } from "./skill-scanner";
 import { registerReconMethods } from "./recon";
 import { registerCredentialMethods } from "./credentials";
@@ -421,6 +423,34 @@ export function registerErrorReporting(ipc: IpcHandler, deps: TelemetryErrorDeps
 
     return { ok: true };
   });
+}
+
+export interface OperationalMethodDeps {
+  chromeDeps?: ChromeDetectDeps;
+  claudeDeps?: ClaudeDetectDeps;
+  skillFileCheckDeps?: SkillFileCheckDeps;
+  decisionLog?: GovernanceDecisionEntry[];
+  telemetryDeps?: TelemetryErrorDeps;
+}
+
+export function registerOperationalMethods(
+  ipc: IpcHandler,
+  container: ServiceContainer,
+  deps: OperationalMethodDeps = {},
+): void {
+  registerServerMethods(ipc, container.registry);
+  registerServerNotifications(ipc, container.processManager, container.registry);
+  registerChromeDetect(ipc, deps.chromeDeps ?? createDefaultChromeDeps());
+  registerClaudeDetect(ipc, deps.claudeDeps ?? createDefaultClaudeDeps());
+  registerSkillFileCheck(
+    ipc,
+    deps.skillFileCheckDeps ?? { fileExists: existsSync, homedir },
+  );
+  registerGovernanceMethods(ipc, container, deps.decisionLog ?? []);
+
+  if (deps.telemetryDeps !== undefined) {
+    registerErrorReporting(ipc, deps.telemetryDeps);
+  }
 }
 
 // ---------------------------------------------------------------------------

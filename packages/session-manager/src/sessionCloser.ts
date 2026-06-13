@@ -109,6 +109,17 @@ export function createSessionCloser(deps: SessionCloserDeps): SessionCloser {
         };
       }
 
+      if (branch.prNumber !== undefined) {
+        return {
+          taskBranchId,
+          branchName: branch.branchName,
+          pushed: true,
+          prNumber: branch.prNumber,
+          prUrl: branch.prUrl,
+          prTitle: branch.prTitle,
+        };
+      }
+
       // Create draft PR
       const result = await prCreator.createDraftPr(
         branch.repoPath,

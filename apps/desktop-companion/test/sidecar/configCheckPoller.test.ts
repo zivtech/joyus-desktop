@@ -20,6 +20,8 @@ const VALID_MANIFEST_V2 = JSON.stringify({
 function makeFetch(body: string, ok = true): typeof fetch {
   return vi.fn().mockResolvedValue({
     ok,
+    status: ok ? 200 : 503,
+    statusText: ok ? "OK" : "Service Unavailable",
     text: () => Promise.resolve(body),
   } as unknown as Response);
 }
@@ -121,6 +123,36 @@ describe("startConfigCheckPoller", () => {
     expect(state.consecutiveFailures).toBe(1);
     expect(onPollError).toHaveBeenCalledWith(fetchError);
     expect(state.lastVersionHash).toBe(hashAfterFirst);
+  });
+
+  it("non-OK HTTP response is treated as transport failure before parsing", async () => {
+    const onPollError = vi.fn();
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve(VALID_MANIFEST) } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: vi.fn().mockResolvedValue("{\"schema_version\":\"1.0\"}"),
+      } as unknown as Response);
+
+    const config = makeConfig({ fetchImpl, onPollError });
+
+    const handle = startConfigCheckPoller(config);
+    await flushPoller();
+
+    const hashAfterFirst = handle.getState().lastVersionHash;
+    await flushPoller(1000);
+
+    const state = handle.getState();
+    expect(state.consecutiveFailures).toBe(1);
+    expect(state.lastVersionHash).toBe(hashAfterFirst);
+    expect(onPollError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Config check request failed with HTTP 503 Service Unavailable",
+      }),
+    );
+    expect(config.onChangeDetected).not.toHaveBeenCalledTimes(2);
   });
 
   it("invalid JSON response is treated as error, state preserved", async () => {

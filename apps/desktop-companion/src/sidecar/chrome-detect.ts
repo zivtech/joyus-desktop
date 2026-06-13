@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export interface ChromeDetectResult {
   available: boolean;
@@ -10,7 +10,7 @@ export interface ChromeDetectResult {
 export interface ChromeDetectDeps {
   platform: string;
   fileExists: (path: string) => boolean;
-  execCommand: (cmd: string) => string;
+  execFile: (command: string, args: string[]) => string;
 }
 
 const CHROME_PATHS: Record<string, string[]> = {
@@ -34,7 +34,7 @@ export function detectChrome(deps: ChromeDetectDeps): ChromeDetectResult {
     if (deps.fileExists(chromePath)) {
       let version: string | undefined;
       try {
-        const raw = deps.execCommand(`"${chromePath}" --version`).trim();
+        const raw = deps.execFile(chromePath, ["--version"]).trim();
         // Output format: "Google Chrome 120.0.6099.109" or "Chromium 120.0.6099.109"
         const match = /[\d]+\.[\d.]+/.exec(raw);
         version = match?.[0];
@@ -52,6 +52,7 @@ export function createDefaultChromeDeps(): ChromeDetectDeps {
   return {
     platform: process.platform,
     fileExists: existsSync,
-    execCommand: (cmd: string) => execSync(cmd, { encoding: "utf8" }),
+    execFile: (command: string, args: string[]) =>
+      execFileSync(command, args, { encoding: "utf8" }),
   };
 }

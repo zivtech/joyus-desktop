@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export interface ClaudeDetectResult {
   found: boolean;
@@ -8,14 +8,14 @@ export interface ClaudeDetectResult {
 }
 
 export interface ClaudeDetectDeps {
-  execCommand: (cmd: string) => string;
+  execFile: (command: string, args: string[]) => string;
   fileExists: (path: string) => boolean;
 }
 
 export function detectClaude(deps: ClaudeDetectDeps): ClaudeDetectResult {
   let whichPath: string | undefined;
   try {
-    whichPath = deps.execCommand("which claude").trim();
+    whichPath = deps.execFile("which", ["claude"]).trim();
   } catch {
     return { found: false };
   }
@@ -26,7 +26,7 @@ export function detectClaude(deps: ClaudeDetectDeps): ClaudeDetectResult {
 
   let version: string | undefined;
   try {
-    const raw = deps.execCommand("claude --version").trim();
+    const raw = deps.execFile(whichPath, ["--version"]).trim();
     const match = /[\d]+\.[\d.]+/.exec(raw);
     version = match?.[0];
   } catch {
@@ -42,7 +42,8 @@ export function detectClaude(deps: ClaudeDetectDeps): ClaudeDetectResult {
 
 export function createDefaultClaudeDeps(): ClaudeDetectDeps {
   return {
-    execCommand: (cmd: string) => execSync(cmd, { encoding: "utf8" }),
+    execFile: (command: string, args: string[]) =>
+      execFileSync(command, args, { encoding: "utf8" }),
     fileExists: existsSync,
   };
 }

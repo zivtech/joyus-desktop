@@ -1,7 +1,12 @@
 import { createInterface } from "node:readline";
 import { createIpcHandler } from "./ipc-handler";
-import { createServices, registerAllMethods, registerSessionMethods } from "./services";
-import type { ServiceDeps } from "./services";
+import {
+  createServices,
+  registerAllMethods,
+  registerOperationalMethods,
+  registerSessionMethods,
+} from "./services";
+import type { OperationalMethodDeps, ServiceDeps } from "./services";
 import {
   createConfigChangeHandler,
   createConfigCheckWiring,
@@ -30,6 +35,7 @@ export interface SidecarDeps {
     message: string;
   }) => Promise<void>;
   managedToolingConfig?: SidecarManagedToolingConfig;
+  operationalMethodDeps?: OperationalMethodDeps;
   createConfigCheckWiringFn?: (
     config: ConfigCheckWiringConfig,
   ) => PollerHandle;
@@ -59,6 +65,13 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
   const services = createServices(deps.serviceDeps);
 
   registerAllMethods(ipc, services, startTime, deps.nowFn);
+  registerOperationalMethods(ipc, services, {
+    ...(deps.operationalMethodDeps ?? {}),
+    telemetryDeps: {
+      emitTelemetry: deps.emitTelemetry,
+      isOptedOut: deps.isOptedOut,
+    },
+  });
 
   const managedToolingConfig =
     deps.managedToolingConfig ?? resolveSidecarManagedToolingConfigFromEnv();

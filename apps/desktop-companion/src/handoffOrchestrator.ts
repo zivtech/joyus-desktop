@@ -9,6 +9,7 @@ import type {
   SnapshotManifest,
   FetchLike,
   HandoffReceipt,
+  ArtifactUploadEntry,
 } from "@joyus/policy-client";
 import {
   HandoffError,
@@ -121,6 +122,51 @@ function checkAborted(signal: AbortSignal | undefined): void {
   }
 }
 
+function findMissingArtifactPayloadIds(
+  artifacts: readonly ArtifactReference[],
+  artifactData: ReadonlyMap<string, Uint8Array>,
+): string[] {
+  const missing: string[] = [];
+
+  for (const artifact of artifacts) {
+    if (!artifactData.has(artifact.artifact_id)) {
+      missing.push(artifact.artifact_id);
+    }
+  }
+
+  return missing;
+}
+
+function resolveArtifactUploadUrls(
+  artifacts: readonly EncryptedArtifact[],
+  uploadEntries: readonly ArtifactUploadEntry[],
+): string[] {
+  const byArtifactId = new Map<string, string>();
+
+  for (const entry of uploadEntries) {
+    byArtifactId.set(entry.artifact_id, entry.upload_url);
+  }
+
+  const missing: string[] = [];
+  const urls = artifacts.map((artifact) => {
+    const uploadUrl = byArtifactId.get(artifact.artifact_id);
+    if (uploadUrl === undefined) {
+      missing.push(artifact.artifact_id);
+      return "";
+    }
+    return uploadUrl;
+  });
+
+  if (missing.length > 0) {
+    throw new HandoffError(
+      "INVALID_RESPONSE",
+      `Missing artifact upload URL for artifact payload(s): ${missing.join(", ")}`
+    );
+  }
+
+  return urls;
+}
+
 // ---------------------------------------------------------------------------
 // Helper: safe transition to failed
 // ---------------------------------------------------------------------------
@@ -227,6 +273,17 @@ export async function executeHandoff(
   }
 
   try {
+    const missingArtifactPayloadIds = findMissingArtifactPayloadIds(
+      artifacts,
+      artifactData,
+    );
+    if (missingArtifactPayloadIds.length > 0) {
+      throw new HandoffError(
+        "INVALID_SNAPSHOT",
+        `Missing artifact payload(s): ${missingArtifactPayloadIds.join(", ")}`
+      );
+    }
+
     // =====================================================================
     // Step 1: Authorize
     // =====================================================================
@@ -359,16 +416,14 @@ export async function executeHandoff(
     // Encrypt artifacts
     const encryptedArtifacts: EncryptedArtifact[] = [];
     for (const artifactRef of artifacts) {
-      const rawData = artifactData.get(artifactRef.artifact_id);
-      if (rawData) {
-        encryptedArtifacts.push(
-          encryptArtifact(
-            contentEncryptionKey,
-            artifactRef.artifact_id,
-            Buffer.from(rawData)
-          )
-        );
-      }
+      const rawData = artifactData.get(artifactRef.artifact_id) as Uint8Array;
+      encryptedArtifacts.push(
+        encryptArtifact(
+          contentEncryptionKey,
+          artifactRef.artifact_id,
+          Buffer.from(rawData)
+        )
+      );
     }
 
     checkAborted(internalSignal);
@@ -393,8 +448,9 @@ export async function executeHandoff(
       signal: internalSignal,
     };
 
-    const artifactUploadUrls = initiateResponse.artifact_upload_urls.map(
-      (entry) => entry.upload_url
+    const artifactUploadUrls = resolveArtifactUploadUrls(
+      encryptedArtifacts,
+      initiateResponse.artifact_upload_urls
     );
 
     // Upload snapshot and artifacts in parallel

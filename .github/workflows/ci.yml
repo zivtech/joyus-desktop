@@ -31,6 +31,9 @@ jobs:
       - name: Coverage (must meet 100% thresholds)
         run: pnpm coverage
 
+      - name: Integration tests
+        run: pnpm test:integration
+
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4

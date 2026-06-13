@@ -129,15 +129,29 @@ describe("sidecar lifecycle — servers.list", () => {
     startSidecar(deps);
     await waitMs();
 
-    // servers.list is not registered by registerAllMethods — it needs registerServerMethods.
-    // The sidecar's registerAllMethods only registers health.check, usage.*, onboarding.start.
-    // Verify the response is well-formed JSON-RPC (either result or method-not-found error).
     expect(deps.stdoutWrite).toHaveBeenCalled();
     const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
     expect(response.jsonrpc).toBe("2.0");
     expect(response.id).toBe(2);
-    // servers.list may return method-not-found since only health/usage/onboarding are wired in registerAllMethods
-    expect(response.result !== undefined || response.error !== undefined).toBe(true);
+    expect(response.error).toBeUndefined();
+    const result = response.result as Array<Record<string, unknown>>;
+    expect(result).toHaveLength(2);
+    expect(result[0]?.["name"]).toBe("atlassian-mcp");
+  });
+});
+
+describe("sidecar lifecycle — governance.getMode", () => {
+  it("responds to governance.getMode from production startup wiring", async () => {
+    const deps = makeDeps([makeRequest("governance.getMode", undefined, 4)]);
+    startSidecar(deps);
+    await waitMs();
+
+    expect(deps.stdoutWrite).toHaveBeenCalled();
+    const response = parseResponse(deps.stdoutWrite.mock.calls[0]![0] as string);
+    expect(response.jsonrpc).toBe("2.0");
+    expect(response.id).toBe(4);
+    expect(response.error).toBeUndefined();
+    expect(response.result).toEqual({ mode: "off" });
   });
 });
 

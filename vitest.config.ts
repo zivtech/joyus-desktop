@@ -4,7 +4,15 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/test/**/*.test.ts"],
-    exclude: [".worktrees/**", "**/**.integration.test.ts"],
+    exclude: [
+      ".worktrees/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/dist-ui/**",
+      "**/coverage/**",
+      "apps/**/src-tauri/target/**",
+      "**/**.integration.test.ts",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],

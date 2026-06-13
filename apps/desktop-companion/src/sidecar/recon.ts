@@ -53,6 +53,10 @@ type ReconExportResult =
   | { blocked: true; findings: ScanFinding[] }
   | { zipPath: string; size: number; scanPassed: boolean; overridden?: boolean };
 
+export interface ReconRuntimeDeps {
+  engagementRoot?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -99,6 +103,39 @@ function slugify(name: string): string {
  */
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+function defaultEngagementRoot(): string {
+  return path.join(os.homedir(), "Documents", "joyus-recon-engagements");
+}
+
+function isWithinPath(root: string, candidate: string): boolean {
+  const relativePath = path.relative(root, candidate);
+  return (
+    relativePath === "" ||
+    (relativePath !== "" &&
+      !relativePath.startsWith("..") &&
+      !path.isAbsolute(relativePath))
+  );
+}
+
+async function resolveAllowedEngagementDir(
+  engagementDir: string,
+  deps: ReconRuntimeDeps,
+): Promise<string> {
+  const configuredRoot = deps.engagementRoot ?? defaultEngagementRoot();
+  const [rootRealPath, engagementRealPath] = await Promise.all([
+    fs.realpath(configuredRoot),
+    fs.realpath(engagementDir),
+  ]);
+
+  if (!isWithinPath(rootRealPath, engagementRealPath)) {
+    throw new Error(
+      `recon: engagementDir must be under ${rootRealPath}`,
+    );
+  }
+
+  return engagementRealPath;
 }
 
 /**
@@ -182,7 +219,11 @@ export interface ReconSyncDeps {
  *                 the gate is a no-op (fail-open) — e.g. in test environments
  *                 where sync wiring has not been set up.
  */
-export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps): void {
+export function registerReconMethods(
+  ipc: IpcHandler,
+  syncDeps?: ReconSyncDeps,
+  runtimeDeps: ReconRuntimeDeps = {},
+): void {
   // -------------------------------------------------------------------------
   // T002: recon.create
   // -------------------------------------------------------------------------
@@ -305,7 +346,11 @@ export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps):
       throw new Error("recon.scan: missing required field: engagementDir");
     }
 
-    const result: ScanResult = await runScan(p["engagementDir"]);
+    const engagementDir = await resolveAllowedEngagementDir(
+      p["engagementDir"],
+      runtimeDeps,
+    );
+    const result: ScanResult = await runScan(engagementDir);
     return result;
   });
 
@@ -321,7 +366,10 @@ export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps):
       throw new Error("recon.export: missing required field: engagementDir");
     }
 
-    const engagementDir = p["engagementDir"] as string;
+    const engagementDir = await resolveAllowedEngagementDir(
+      p["engagementDir"] as string,
+      runtimeDeps,
+    );
     const overrideScan = p["overrideScan"] === true;
 
     // Step 1: run scan
@@ -382,11 +430,15 @@ export function registerReconMethods(ipc: IpcHandler, syncDeps?: ReconSyncDeps):
         const fullPath = path.join(dir, entry.name);
         const archivePath = path.join(base, entry.name);
 
+        if (entry.isSymbolicLink()) {
+          continue;
+        }
+
         if (entry.isDirectory()) {
           if (EXCLUDED_DIRS.has(entry.name)) continue;
           const nested = await collectFiles(fullPath, archivePath);
           results.push(...nested);
-        } else {
+        } else if (entry.isFile()) {
           if (EXCLUDED_FILENAMES.has(entry.name)) continue;
           if (CREDENTIALS_RE.test(entry.name)) continue;
           results.push([fullPath, archivePath]);

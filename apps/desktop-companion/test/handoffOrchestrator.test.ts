@@ -516,6 +516,30 @@ describe("executeHandoff", () => {
   // -----------------------------------------------------------------------
 
   describe("encryption failure", () => {
+    it("fails before authorization when an artifact payload is missing", async () => {
+      setupHappyMocks();
+      const opts = makeOptions({
+        artifacts: [
+          ...makeArtifacts(),
+          {
+            artifact_id: "art-missing",
+            content_hash: "def456",
+            size_bytes: 50,
+            content_type: "text/plain",
+          },
+        ],
+        artifactData: makeArtifactData(),
+      });
+
+      await expect(executeHandoff(opts, makeDeps())).rejects.toMatchObject({
+        code: "INVALID_SNAPSHOT",
+        message: expect.stringContaining("art-missing"),
+      });
+
+      expect(mockRequestAuth).not.toHaveBeenCalled();
+      expect(mockEncryptArtifact).not.toHaveBeenCalled();
+    });
+
     it("transitions to failed when assembleAndSignSnapshot throws", async () => {
       setupHappyMocks();
       mockAssembleAndSign.mockImplementation(() => {
@@ -558,6 +582,26 @@ describe("executeHandoff", () => {
   // -----------------------------------------------------------------------
 
   describe("upload failure", () => {
+    it("fails before upload when artifact upload URLs do not match encrypted artifact IDs", async () => {
+      setupHappyMocks();
+      mockInitiateHandoff.mockResolvedValue({
+        ...fakeInitiateResponse,
+        artifact_upload_urls: [
+          {
+            artifact_id: "wrong-artifact",
+            upload_url: "https://upload.example.com/wrong-artifact",
+          },
+        ],
+      });
+
+      await expect(executeHandoff(makeOptions(), makeDeps())).rejects.toMatchObject({
+        code: "INVALID_RESPONSE",
+        message: expect.stringContaining("art-1"),
+      });
+
+      expect(mockUploadArtifacts).not.toHaveBeenCalled();
+    });
+
     it("transitions to failed when uploadEncryptedSnapshot throws", async () => {
       setupHappyMocks();
       mockUploadSnapshot.mockRejectedValue(

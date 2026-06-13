@@ -334,7 +334,7 @@ describe("registerChromeDetect", () => {
     const chromeDeps: ChromeDetectDeps = {
       platform: "darwin",
       fileExists: vi.fn().mockReturnValue(true),
-      execCommand: vi.fn().mockReturnValue("Google Chrome 120.0.6099.109"),
+      execFile: vi.fn().mockReturnValue("Google Chrome 120.0.6099.109"),
     };
     const { ipc, methods } = makeMockIpc();
 
@@ -350,7 +350,7 @@ describe("registerChromeDetect", () => {
     const chromeDeps: ChromeDetectDeps = {
       platform: "darwin",
       fileExists: vi.fn().mockReturnValue(false),
-      execCommand: vi.fn() as never,
+      execFile: vi.fn() as never,
     };
     const { ipc, methods } = makeMockIpc();
 
@@ -366,7 +366,7 @@ describe("registerChromeDetect", () => {
     const chromeDeps: ChromeDetectDeps = {
       platform: "linux",
       fileExists: vi.fn().mockImplementation((p: string) => p === "/usr/bin/google-chrome"),
-      execCommand: vi.fn().mockImplementation(() => { throw new Error("spawn error"); }),
+      execFile: vi.fn().mockImplementation(() => { throw new Error("spawn error"); }),
     };
     const { ipc, methods } = makeMockIpc();
 
@@ -382,7 +382,7 @@ describe("registerChromeDetect", () => {
     const chromeDeps: ChromeDetectDeps = {
       platform: "freebsd",
       fileExists: vi.fn().mockReturnValue(false),
-      execCommand: vi.fn() as never,
+      execFile: vi.fn() as never,
     };
     const { ipc, methods } = makeMockIpc();
 
@@ -398,7 +398,7 @@ describe("registerChromeDetect", () => {
       fileExists: vi.fn().mockImplementation((p: string) =>
         p === "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
       ),
-      execCommand: vi.fn().mockReturnValue("Google Chrome 120.0.0.0"),
+      execFile: vi.fn().mockReturnValue("Google Chrome 120.0.0.0"),
     };
     const { ipc, methods } = makeMockIpc();
 
@@ -413,11 +413,11 @@ describe("registerChromeDetect", () => {
 // ---------- createDefaultChromeDeps ----------
 
 describe("createDefaultChromeDeps", () => {
-  it("returns an object with platform, fileExists, and execCommand", () => {
+  it("returns an object with platform, fileExists, and execFile", () => {
     const deps = createDefaultChromeDeps();
     expect(typeof deps.platform).toBe("string");
     expect(typeof deps.fileExists).toBe("function");
-    expect(typeof deps.execCommand).toBe("function");
+    expect(typeof deps.execFile).toBe("function");
   });
 
   it("fileExists returns false for a non-existent path", () => {
@@ -425,9 +425,9 @@ describe("createDefaultChromeDeps", () => {
     expect(deps.fileExists("/this/path/does/not/exist/at/all")).toBe(false);
   });
 
-  it("execCommand returns string output for a valid command", () => {
+  it("execFile returns string output for a valid command", () => {
     const deps = createDefaultChromeDeps();
-    const result = deps.execCommand("echo hello");
+    const result = deps.execFile("echo", ["hello"]);
     expect(typeof result).toBe("string");
   });
 });
@@ -437,9 +437,9 @@ describe("createDefaultChromeDeps", () => {
 describe("registerClaudeDetect", () => {
   it("returns found: true when claude is on PATH", async () => {
     const claudeDeps: ClaudeDetectDeps = {
-      execCommand: vi.fn().mockImplementation((cmd: string) => {
-        if (cmd === "which claude") return "/usr/local/bin/claude\n";
-        if (cmd === "claude --version") return "claude-code/1.2.3\n";
+      execFile: vi.fn().mockImplementation((command: string, args: string[]) => {
+        if (command === "which" && args[0] === "claude") return "/usr/local/bin/claude\n";
+        if (command === "/usr/local/bin/claude" && args[0] === "--version") return "claude-code/1.2.3\n";
         return "";
       }),
       fileExists: vi.fn().mockReturnValue(true),
@@ -456,7 +456,7 @@ describe("registerClaudeDetect", () => {
 
   it("returns found: false when claude is not on PATH", async () => {
     const claudeDeps: ClaudeDetectDeps = {
-      execCommand: vi.fn().mockImplementation(() => { throw new Error("not found"); }),
+      execFile: vi.fn().mockImplementation(() => { throw new Error("not found"); }),
       fileExists: vi.fn().mockReturnValue(false),
     };
     const { ipc, methods } = makeMockIpc();

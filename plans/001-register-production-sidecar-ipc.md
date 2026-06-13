@@ -6,6 +6,8 @@ Production sidecar startup registers only part of the sidecar IPC surface. The m
 
 This is not a cosmetic gap. The architecture decision was never fully interrogated end to end: implementation, Rust command proxy, UI consumer, and lifecycle test all exist, but the production registration path is incomplete.
 
+Harsh-critic revision note: execute Plan 000 first. Also do not implement the sync IPC portion until the sync adapter design below is made explicit. The original plan correctly found the IPC gap, but it under-specified sync state ownership.
+
 ## Priority
 
 - Priority: P1
@@ -90,6 +92,8 @@ Tests currently mask the production gap:
    - Do not invent persistence in this plan.
 
 6. Wire sync methods carefully.
+   - First write the adapter design in this plan or in source comments/tests.
+   - Define the source of current version, pinned/target version, `bundleName`, expanded destination path, trigger lifecycle, and error behavior.
    - Identify the real production source for `SyncIpcDeps`: repo URL, target version, destination directory, cache directory, scanner, and status.
    - Prefer the existing managed tooling configuration if it already carries those values.
    - Thread an optional `syncIpcDeps` through `SidecarDeps` for tests if needed.
@@ -114,6 +118,7 @@ Tests currently mask the production gap:
 Stop and surface the issue instead of guessing if:
 
 - No existing production source can be found for sync repo/version/destination/cache configuration.
+- The current code cannot expose current/pinned version without duplicating private state inside `createConfigChangeHandler`.
 - Registering sync methods would require choosing a new on-disk location or network policy.
 - A method name collision appears after wiring the method families into startup.
 - Any method requires credentials or secrets that are not already modeled through environment/config.
@@ -146,7 +151,7 @@ If Plan 004 has already landed, also run:
 
 ```bash
 pnpm test:integration
-pnpm ci
+pnpm run ci
 ```
 
 ## Adversarial Self-Check
