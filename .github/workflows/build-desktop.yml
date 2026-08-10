@@ -31,6 +31,9 @@ jobs:
             rust-targets: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform }}
+    env:
+      HAS_APPLE_SIGNING: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_CERTIFICATE_P12 != '' }}
+      HAS_APPLE_NOTARIZATION: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_ID_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
 
     steps:
       - name: Checkout
@@ -62,7 +65,7 @@ jobs:
         run: node scripts/download-node.mjs
 
       - name: Import signing certificate (macOS)
-        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE_P12 != ''
+        if: runner.os == 'macOS' && env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -80,14 +83,25 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install create-dmg
 
-      - name: Build Tauri app
+      - name: Build Tauri app (macOS, signed)
+        if: runner.os == 'macOS' && env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         working-directory: apps/desktop-companion
         run: pnpm tauri build --ignore-version-mismatches
 
+      - name: Build Tauri app (macOS, ad-hoc signed)
+        if: runner.os == 'macOS' && env.HAS_APPLE_SIGNING != 'true'
+        working-directory: apps/desktop-companion
+        run: pnpm tauri build --ignore-version-mismatches
+
+      - name: Build Tauri app (Windows)
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop-companion
+        run: pnpm tauri build --ignore-version-mismatches
+
       - name: Notarize DMG (macOS, production only)
-        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
+        if: runner.os == 'macOS' && env.HAS_APPLE_NOTARIZATION == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}

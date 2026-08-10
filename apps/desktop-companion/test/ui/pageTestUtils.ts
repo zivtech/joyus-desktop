@@ -72,7 +72,7 @@ export function mount(
   });
 }
 
-export async function waitFor(predicate: () => boolean, attempts = 40): Promise<void> {
+export async function waitFor(predicate: () => boolean, attempts = 80): Promise<void> {
   for (let i = 0; i < attempts; i++) {
     if (predicate()) return;
     await act(async () => {

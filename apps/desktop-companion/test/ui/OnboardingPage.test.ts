@@ -122,7 +122,15 @@ describe("Onboarding page", () => {
     await waitFor(() => harness.container.textContent?.includes("5 skills synced at version 1.2.3.") === true);
 
     await clickButton(harness, "Open Dashboard");
-    expect(tauri.invoke).toHaveBeenCalledWith("set_config", { key: "onboarding_complete", value: "true" }, undefined);
+    await waitFor(() => tauri.invoke.mock.calls.some(([cmd, payload]) => (
+      cmd === "set_config" &&
+      typeof payload === "object" &&
+      payload !== null &&
+      "key" in payload &&
+      payload.key === "onboarding_complete" &&
+      "value" in payload &&
+      payload.value === "true"
+    )));
   });
 
   it("surfaces start-onboarding sync failures and supports retry or skip", async () => {

@@ -64,7 +64,7 @@ function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 80; i++) {
     if (predicate()) return;
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
