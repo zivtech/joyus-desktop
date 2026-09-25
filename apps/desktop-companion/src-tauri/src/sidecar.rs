@@ -95,11 +95,27 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<(), String> {
         .resource_dir()
         .map_err(|e| format!("Failed to get resource dir: {}", e))?;
 
-    let sidecar_script = resource_dir.join("binaries").join("sidecar-main.mjs");
-    let node_binary = resource_dir.join("binaries").join("node");
+    // Resources declared as "../binaries/..." are bundled under "_up_/binaries/".
+    let sidecar_script = [
+        resource_dir.join("_up_").join("binaries").join("sidecar-main.mjs"),
+        resource_dir.join("binaries").join("sidecar-main.mjs"),
+    ]
+    .into_iter()
+    .find(|p| p.exists())
+    .ok_or_else(|| format!("sidecar-main.mjs not found under {}", resource_dir.display()))?;
+
+    // externalBin binaries are bundled next to the main executable.
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("Failed to get current exe: {}", e))?
+        .parent()
+        .ok_or("Executable has no parent directory")?
+        .to_path_buf();
+
+    #[cfg(not(target_os = "windows"))]
+    let node_binary = exe_dir.join("node");
 
     #[cfg(target_os = "windows")]
-    let node_binary = resource_dir.join("binaries").join("node.exe");
+    let node_binary = exe_dir.join("node.exe");
 
     let mut child = Command::new(&node_binary)
         .arg(&sidecar_script)
