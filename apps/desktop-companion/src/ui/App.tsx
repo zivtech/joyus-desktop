@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
@@ -29,11 +29,15 @@ interface AppRoutesProps {
 function AppRoutes({ initialOnboardingComplete = false }: AppRoutesProps) {
   const navigate = useNavigate();
   const [checked, setChecked] = useState(initialOnboardingComplete);
+  // Check once at startup. `navigate` changes identity on every route change,
+  // so without this guard the check re-runs and bounces the user back to onboarding.
+  const onboardingChecked = useRef(false);
 
   useEffect(() => {
-    if (initialOnboardingComplete) {
+    if (initialOnboardingComplete || onboardingChecked.current) {
       return;
     }
+    onboardingChecked.current = true;
     void safeInvoke<string>("get_config", { key: "onboarding_complete" }).then((value) => {
       if (value !== "true") {
         navigate("/onboarding", { replace: true });

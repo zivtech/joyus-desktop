@@ -22,6 +22,8 @@ export interface ServiceContainer {
   registry: Registry;
   configPoller: ConfigPoller;
   periodicSync: PeriodicSync;
+  /** False when no skill distribution source is configured, so sync has nothing to do. */
+  syncConfigured: boolean;
 }
 
 export interface ServiceConfig {
@@ -43,6 +45,7 @@ export interface ServiceDeps {
   createRegistry: (processManager: ProcessManager) => Registry;
   createConfigPoller: (configPath: string, intervalMs: number) => ConfigPoller;
   createPeriodicSync: () => PeriodicSync;
+  isSyncConfigured?: () => boolean;
 }
 
 export interface OnboardingParams {
@@ -54,7 +57,9 @@ export interface OnboardingParams {
 export interface OnboardingResult {
   success: boolean;
   serversStarted: number;
+  serversConfigured: number;
   skillsSynced: boolean;
+  syncConfigured: boolean;
   errors: string[];
 }
 
@@ -71,6 +76,7 @@ export function createServices(
     registry,
     configPoller,
     periodicSync,
+    syncConfigured: deps.isSyncConfigured?.() ?? true,
   };
 }
 
@@ -114,6 +120,7 @@ export function registerOnboarding(
     const p = parseOnboardingParams(params);
     const errors: string[] = [];
     let serversStarted = 0;
+    let serversConfigured = 0;
     let skillsSynced = false;
 
     // Step 1: store auth credentials by recording a usage event
@@ -142,6 +149,7 @@ export function registerOnboarding(
 
     // Step 2: start all MCP servers
     try {
+      serversConfigured = container.registry.listServers().length;
       const infos = container.registry.startAll();
       serversStarted = infos.filter((i: { status: string }) => i.status === "running").length;
     } catch (err) {
@@ -150,10 +158,12 @@ export function registerOnboarding(
       );
     }
 
-    // Step 3: trigger skill sync
+    // Step 3: trigger skill sync (skipped when no distribution source is configured)
     try {
-      container.periodicSync.start();
-      skillsSynced = true;
+      if (container.syncConfigured) {
+        container.periodicSync.start();
+        skillsSynced = true;
+      }
     } catch (err) {
       errors.push(
         `sync: ${err instanceof Error ? err.message : String(err)}`,
@@ -169,7 +179,9 @@ export function registerOnboarding(
     const result: OnboardingResult = {
       success: errors.length === 0,
       serversStarted,
+      serversConfigured,
       skillsSynced,
+      syncConfigured: container.syncConfigured,
       errors,
     };
 

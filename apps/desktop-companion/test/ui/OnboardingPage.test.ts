@@ -195,7 +195,26 @@ describe("Onboarding page", () => {
     act(() => {
       resolveLogin?.(undefined);
     });
-    await waitFor(() => harness.container.textContent?.includes("GitHub login unavailable outside of Joyus Desktop.") === true);
+    await waitFor(() => harness.container.textContent?.includes("GitHub login is unavailable. The Joyus Desktop background service may not be running.") === true);
+  });
+
+  it.each([
+    ["a string rejection", "github-auth.start: clientId required", "github-auth.start: clientId required"],
+    ["an Error rejection", new Error("Control plane returned 404"), "Control plane returned 404"],
+  ])("shows the sidecar error when GitHub auth fails with %s", async (_label, rejection, expected) => {
+    const tauri = installTauriInternals(harness.dom.window, (cmd) => {
+      if (cmd === "github_auth_start") {
+        throw rejection;
+      }
+      return undefined;
+    });
+
+    mount(harness, createElement(Onboarding));
+    await waitFor(() => harness.container.textContent?.includes("Login with GitHub") === true);
+    await clickButton(harness, "Login with GitHub");
+    await waitFor(() => harness.container.textContent?.includes(`GitHub login failed: ${expected}`) === true);
+    // The Rust command takes a single `params: Value` argument.
+    expect(tauri.invoke).toHaveBeenCalledWith("github_auth_start", { params: {} }, undefined);
   });
 
   it("supports successful GitHub auth and auto-advances when expected MCP servers are running", async () => {
@@ -269,6 +288,48 @@ describe("Onboarding page", () => {
     await fillManualCredentials();
     await clickButton(harness, "Connect");
     await waitFor(() => harness.container.textContent?.includes("Registering and starting MCP servers") === true);
+  });
+
+  it.each([
+    ["sync is not configured", false, "complete"],
+    ["sync is configured", true, "sync"],
+  ])("skips MCP when no servers are configured and %s", async (_label, syncConfigured, expectedPhase) => {
+    const tauri = installTauriInternals(harness.dom.window, (cmd) => {
+      if (cmd === "start_onboarding") {
+        return { success: true, serversStarted: 0, serversConfigured: 0, skillsSynced: syncConfigured, syncConfigured, errors: [] };
+      }
+      return undefined;
+    });
+
+    mount(harness, createElement(Onboarding));
+    await waitFor(() => harness.container.textContent?.includes("Connect") === true);
+    await fillManualCredentials();
+    await clickButton(harness, "Connect");
+    await waitFor(() => tauri.invoke.mock.calls.some(
+      ([cmd, args]) => cmd === "set_config" && (args as Record<string, unknown>)["value"] === expectedPhase,
+    ));
+    const marker = expectedPhase === "complete" ? "Open Dashboard" : "Downloading skills";
+    await waitFor(() => harness.container.textContent?.includes(marker) === true);
+  });
+
+  it("lets the user skip MCP and sync when no progress events arrive", async () => {
+    const tauri = installTauriInternals(harness.dom.window, (cmd, args) => {
+      if (cmd === "get_config" && args["key"] === "onboarding_phase") {
+        return "mcp";
+      }
+      return undefined;
+    });
+
+    mount(harness, createElement(Onboarding));
+    await waitFor(() => harness.container.textContent?.includes("Registering and starting MCP servers") === true);
+    expect(harness.container.textContent).not.toContain("Retry Failed");
+    await clickButton(harness, "Skip");
+    await waitFor(() => harness.container.textContent?.includes("Downloading skills") === true);
+    expect(harness.container.textContent).not.toContain("Retry Sync");
+    await clickButton(harness, "Skip");
+    await waitFor(() => tauri.invoke.mock.calls.some(
+      ([cmd, args]) => cmd === "set_config" && (args as Record<string, unknown>)["key"] === "onboarding_complete",
+    ));
   });
 
   it("resumes saved onboarding phases", async () => {
