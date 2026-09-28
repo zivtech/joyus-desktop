@@ -127,7 +127,7 @@ export function CredentialForm({ onComplete }: CredentialFormProps) {
     const value = values[key] ?? "";
     if (value.trim() === "") return;
     setSaving((prev) => ({ ...prev, [key]: true }));
-    await safeInvoke("credentials_save", { key, value });
+    await safeInvoke("credentials_save", { params: { key, value } });
     setSaving((prev) => ({ ...prev, [key]: false }));
     // Do not mark verified here — only verify_all can confirm validity.
   }

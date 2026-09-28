@@ -476,6 +476,30 @@ describe("registerOnboarding", () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it("reports configured server count and skips sync when no distribution source exists", async () => {
+    const start = vi.fn();
+    const container = makeContainer({
+      isSyncConfigured: () => false,
+      createPeriodicSync: () => ({
+        start: start as never,
+        stop: vi.fn() as never,
+        getStatus: vi.fn().mockReturnValue("idle" as const) as never,
+      }),
+    });
+    expect(container.syncConfigured).toBe(false);
+
+    registerOnboarding(ipc, container, makeCollector());
+
+    const params: OnboardingParams = { authToken: "tok", tenantId: "t1", workspaceId: "w1" };
+    const result = await ipc._invoke("onboarding.start", params) as OnboardingResult;
+
+    expect(result.success).toBe(true);
+    expect(result.serversConfigured).toBe(0);
+    expect(result.syncConfigured).toBe(false);
+    expect(result.skillsSynced).toBe(false);
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("sends onboarding_complete config.set notification on success", async () => {
     const container = makeContainer();
     registerOnboarding(ipc, container, makeCollector());

@@ -150,9 +150,9 @@ describe("ReconDashboard page", () => {
       params: { clientName: "New Client", url: "https://new.example.com", accessMode: "full" },
     }, undefined);
     expect(tauri.invoke).toHaveBeenCalledWith("launch_recon", {
-      client_name: "New Client",
-      engagement_dir: "/tmp/eng-new",
-      engagement_id: "eng-new",
+      clientName: "New Client",
+      engagementDir: "/tmp/eng-new",
+      engagementId: "eng-new",
     }, undefined);
 
     await clickButton(harness, "Back");

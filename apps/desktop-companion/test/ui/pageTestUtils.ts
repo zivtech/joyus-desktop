@@ -72,14 +72,19 @@ export function mount(
   });
 }
 
-export async function waitFor(predicate: () => boolean, attempts = 80): Promise<void> {
-  for (let i = 0; i < attempts; i++) {
-    if (predicate()) return;
+// Deadline-based, yielding with setImmediate: tests may mock setTimeout to run
+// callbacks synchronously, and a tick-counted loop then gives up before pending
+// work (e.g. the first dynamic import) has had any real time to finish.
+export async function waitFor(predicate: () => boolean, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error("Timed out waiting for condition");
+    }
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setImmediate(resolve));
     });
   }
-  throw new Error("Timed out waiting for condition");
 }
 
 export function findButton(harness: PageHarness, label: string, index = 0): HTMLButtonElement {

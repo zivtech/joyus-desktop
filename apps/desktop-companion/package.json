@@ -12,7 +12,7 @@
     "build:sidecar": "node scripts/bundle-sidecar.mjs",
     "download:node": "node scripts/download-node.mjs",
     "generate:icons": "node scripts/generate-icons.mjs",
-    "dev:build": "node scripts/bundle-sidecar.mjs && node scripts/download-node.mjs && cargo tauri build",
+    "dev:build": "node scripts/bundle-sidecar.mjs && node scripts/download-node.mjs && node scripts/tauri-build.mjs",
     "dev:mock": "node ../../scripts/mock-control-plane.mjs"
   },
   "dependencies": {
@@ -27,7 +27,7 @@
     "@joyus/skill-sync": "workspace:*",
     "@joyus/settings-reconciler": "workspace:*",
     "@joyus/environment-monitor": "workspace:*",
-    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-shell": "^2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

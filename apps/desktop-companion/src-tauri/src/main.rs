@@ -63,8 +63,11 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                sidecar::shutdown_sidecar(window.app_handle());
+            // Closing the dashboard hides it; the app keeps running in the tray.
+            // Sidecar shutdown happens via the tray's Quit item.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
             }
         })
         .invoke_handler(tauri::generate_handler![

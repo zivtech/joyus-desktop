@@ -23,6 +23,18 @@ const TARGETS = [
     ext: "",
   },
   {
+    triple: "aarch64-unknown-linux-gnu",
+    archive: `node-${NODE_VERSION}-linux-arm64.tar.gz`,
+    binaryPath: `node-${NODE_VERSION}-linux-arm64/bin/node`,
+    ext: "",
+  },
+  {
+    triple: "x86_64-unknown-linux-gnu",
+    archive: `node-${NODE_VERSION}-linux-x64.tar.gz`,
+    binaryPath: `node-${NODE_VERSION}-linux-x64/bin/node`,
+    ext: "",
+  },
+  {
     triple: "x86_64-pc-windows-msvc",
     archive: `node-${NODE_VERSION}-win-x64.zip`,
     binaryPath: `node-${NODE_VERSION}-win-x64/node.exe`,
