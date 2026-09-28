@@ -550,7 +550,13 @@ export function Onboarding() {
       <Card>
         {/* Step indicator */}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <OnboardingStep stepNumber={1} totalSteps={4} label="Welcome & Authentication" status={stepStatuses.auth} />
+          <OnboardingStep
+            stepNumber={1}
+            totalSteps={4}
+            label="Welcome & Authentication"
+            status={stepStatuses.auth}
+            busy={authBusy || githubBusy}
+          />
           <OnboardingStep stepNumber={2} totalSteps={4} label="MCP Configuration" status={stepStatuses.mcp} />
           <OnboardingStep stepNumber={3} totalSteps={4} label="Skill Sync" status={stepStatuses.sync} />
           <OnboardingStep stepNumber={4} totalSteps={4} label="Complete" status={stepStatuses.complete} />

@@ -332,6 +332,23 @@ describe("Onboarding page", () => {
     ));
   });
 
+  it("spins the auth step only while authentication is in progress", async () => {
+    installTauriInternals(harness.dom.window, (cmd) => {
+      if (cmd === "github_auth_start") {
+        return new Promise(() => {});
+      }
+      return undefined;
+    });
+    const spinners = () => harness.container.querySelectorAll('span[style*="spin"]').length;
+
+    mount(harness, createElement(Onboarding));
+    await waitFor(() => harness.container.textContent?.includes("Login with GitHub") === true);
+    expect(spinners()).toBe(0);
+
+    await clickButton(harness, "Login with GitHub");
+    await waitFor(() => spinners() === 1);
+  });
+
   it("resumes saved onboarding phases", async () => {
     installTauriInternals(harness.dom.window, (cmd, args) => {
       if (cmd === "get_config" && args["key"] === "onboarding_phase") {

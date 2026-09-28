@@ -3,9 +3,11 @@ interface OnboardingStepProps {
   totalSteps: number;
   label: string;
   status: "pending" | "active" | "success" | "error";
+  /** Whether an active step is doing work. An active step that is waiting on the user shows its number, not a spinner. */
+  busy?: boolean;
 }
 
-export function OnboardingStep({ stepNumber, totalSteps, label, status }: OnboardingStepProps) {
+export function OnboardingStep({ stepNumber, totalSteps, label, status, busy = true }: OnboardingStepProps) {
   const isActive = status === "active";
   const isSuccess = status === "success";
   const isError = status === "error";
@@ -46,7 +48,7 @@ export function OnboardingStep({ stepNumber, totalSteps, label, status }: Onboar
           transition: "background 0.2s",
         }}
       >
-        {isActive ? (
+        {isActive && busy ? (
           <span
             style={{
               width: "1rem",
