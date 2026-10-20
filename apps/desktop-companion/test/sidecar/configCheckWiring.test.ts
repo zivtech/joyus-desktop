@@ -1545,6 +1545,93 @@ describe("resolveSidecarManagedToolingConfigFromEnv", () => {
     });
   });
 
+  describe("device id", () => {
+    const TOKEN = "tok_env_789";
+    const MANIFEST = "https://api.example.com/v1/manifest.json";
+    const API_URL = "https://api.example.com";
+
+    async function sentDeviceId(
+      resolver: ((env: NodeJS.ProcessEnv, logger: { warn: (m: string) => void }) => string | undefined) | null,
+      extraEnv: NodeJS.ProcessEnv = {},
+    ): Promise<string | null> {
+      const config = resolveSidecarManagedToolingConfigFromEnv(
+        {
+          JOYUS_MANAGED_TOOLING_MANIFEST_URL: MANIFEST,
+          SKILL_SYNC_REPO_URL: "file:///repo.git",
+          JOYUS_API_URL: API_URL,
+          JOYUS_API_TOKEN: TOKEN,
+          ...extraEnv,
+        },
+        { error: vi.fn(), warn: vi.fn() },
+        // null means "pass nothing", so the default persisted-id resolver runs.
+        resolver ?? undefined,
+      );
+      const fake = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      vi.stubGlobal("fetch", fake);
+      const fetcher = config?.fetchImpl ?? fetch;
+      await fetcher(MANIFEST);
+      const init = fake.mock.calls[0]?.[1] as RequestInit | undefined;
+      const headers = new Headers(init?.headers);
+      expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+      return headers.get("X-Joyus-Device-Id");
+    }
+
+    it("sends the id the resolver returns, next to the bearer", async () => {
+      expect(await sentDeviceId(() => "device-42")).toBe("device-42");
+    });
+
+    it("sends no device id when the resolver has none", async () => {
+      expect(await sentDeviceId(() => undefined)).toBeNull();
+    });
+
+    it("hands the resolver the env and the logger", async () => {
+      const resolver = vi.fn(() => "device-42");
+      const logger = { error: vi.fn(), warn: vi.fn() };
+      const env = {
+        JOYUS_MANAGED_TOOLING_MANIFEST_URL: MANIFEST,
+        SKILL_SYNC_REPO_URL: "file:///repo.git",
+        JOYUS_API_URL: API_URL,
+        JOYUS_API_TOKEN: TOKEN,
+      };
+
+      resolveSidecarManagedToolingConfigFromEnv(env, logger, resolver);
+
+      expect(resolver).toHaveBeenCalledTimes(1);
+      expect(resolver).toHaveBeenCalledWith(env, logger);
+    });
+
+    it("uses the persisted-id resolver by default, honouring JOYUS_DEVICE_ID", async () => {
+      // The override path returns before any file is read or written.
+      expect(await sentDeviceId(null, { JOYUS_DEVICE_ID: "  device-from-env  " })).toBe("device-from-env");
+    });
+
+    it.each([
+      ["the token is unset", { JOYUS_API_TOKEN: undefined }],
+      ["JOYUS_API_URL is unset", { JOYUS_API_URL: undefined }],
+      ["the origin differs", { JOYUS_API_URL: "https://other.example.com" }],
+    ])("does not consult the resolver when %s", (_label, override) => {
+      const resolver = vi.fn(() => "device-42");
+      const env: NodeJS.ProcessEnv = {
+        JOYUS_MANAGED_TOOLING_MANIFEST_URL: MANIFEST,
+        SKILL_SYNC_REPO_URL: "file:///repo.git",
+        JOYUS_API_URL: API_URL,
+        JOYUS_API_TOKEN: TOKEN,
+      };
+      for (const [key, value] of Object.entries(override)) {
+        if (value === undefined) {
+          delete env[key];
+        } else {
+          env[key] = value;
+        }
+      }
+
+      const config = resolveSidecarManagedToolingConfigFromEnv(env, { error: vi.fn(), warn: vi.fn() }, resolver);
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(resolver).not.toHaveBeenCalled();
+    });
+  });
+
   it("omits interval when the env does not provide one", () => {
     const config = resolveSidecarManagedToolingConfigFromEnv({
       JOYUS_MANAGED_TOOLING_MANIFEST_URL: "https://example.com/manifest.json",

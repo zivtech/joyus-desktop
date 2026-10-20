@@ -8,6 +8,7 @@ import {
   type ReconcileConfig,
 } from "@joyus/settings-reconciler";
 import { startConfigCheckPoller, type PollerHandle } from "./configCheckPoller";
+import { resolveDeviceId } from "./deviceId";
 
 export interface ConfigCheckWiringConfig {
   readonly manifestUrl: string;
@@ -373,10 +374,23 @@ function getTokenWithholdReason(
   return undefined;
 }
 
+/**
+ * Supplies the `X-Joyus-Device-Id` value, or undefined for no header. The
+ * default persists a UUID (see `deviceId.ts`); tests inject a stand-in.
+ */
+export type DeviceIdResolver = (
+  env: NodeJS.ProcessEnv,
+  logger: ConfigChangeHandlerLogger,
+) => string | undefined;
+
+const defaultDeviceIdResolver: DeviceIdResolver = (env, logger) =>
+  resolveDeviceId({ env, logger });
+
 function resolveManifestFetch(
   env: NodeJS.ProcessEnv,
   manifestUrl: string,
   logger: ConfigChangeHandlerLogger,
+  deviceIdResolver: DeviceIdResolver,
 ): typeof fetch | undefined {
   const token = env["JOYUS_API_TOKEN"];
   if (token === undefined || token === "") {
@@ -389,12 +403,22 @@ function resolveManifestFetch(
     return undefined;
   }
 
-  return createAuthenticatedFetch({ token });
+  // Resolved only once the token is known to be sent, so an unmanaged or
+  // misconfigured desktop never creates a device-id file.
+  return createAuthenticatedFetch({
+    token,
+    ...withOptionalValue("deviceId", deviceIdResolver(env, logger)),
+  });
 }
 
+/**
+ * `deviceIdResolver` exists so tests can pin the device id without touching
+ * the filesystem; production callers leave the default.
+ */
 export function resolveSidecarManagedToolingConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
   logger: ConfigChangeHandlerLogger = NOOP_LOGGER,
+  deviceIdResolver: DeviceIdResolver = defaultDeviceIdResolver,
 ): SidecarManagedToolingConfig | undefined {
   const manifestUrl = env["JOYUS_MANAGED_TOOLING_MANIFEST_URL"];
   const repoUrl = env["SKILL_SYNC_REPO_URL"];
@@ -409,7 +433,12 @@ export function resolveSidecarManagedToolingConfigFromEnv(
   }
 
   const intervalMs = parseIntervalMs(env["JOYUS_MANAGED_TOOLING_INTERVAL_MS"]);
-  const fetchImpl = resolveManifestFetch(env, manifestUrl, logger);
+  const fetchImpl = resolveManifestFetch(
+    env,
+    manifestUrl,
+    logger,
+    deviceIdResolver,
+  );
 
   return {
     manifestUrl,
