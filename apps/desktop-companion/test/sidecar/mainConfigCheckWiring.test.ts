@@ -178,6 +178,29 @@ describe("startSidecar managed tooling wiring", () => {
     );
   });
 
+  it("resolves managed tooling from env and writes a withheld-token warning to stderr", () => {
+    vi.stubEnv("JOYUS_MANAGED_TOOLING_MANIFEST_URL", "https://example.com/manifest.json");
+    vi.stubEnv("SKILL_SYNC_REPO_URL", "file:///repo.git");
+    vi.stubEnv("JOYUS_API_TOKEN", "tok_main_789");
+    vi.stubEnv("JOYUS_API_URL", "");
+    const createConfigCheckWiringFn = vi.fn(() => ({
+      stop: vi.fn(),
+      getState: () => ({ consecutiveFailures: 0 }),
+    }));
+    const deps = makeDeps({ createConfigCheckWiringFn });
+
+    try {
+      startSidecar(deps);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(createConfigCheckWiringFn).toHaveBeenCalledOnce();
+    expect(deps.stderr.write).toHaveBeenCalledWith(
+      "configCheckWiring: JOYUS_API_URL is unset or not a valid URL; not sending API token.\n",
+    );
+  });
+
   it("stops the config-check wiring on SIGTERM", async () => {
     let sigtermHandler: (() => void) | undefined;
     const stop = vi.fn();

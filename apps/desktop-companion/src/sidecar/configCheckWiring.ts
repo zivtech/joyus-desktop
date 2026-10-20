@@ -329,8 +329,72 @@ export function createAuthenticatedFetch(
   };
 }
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function parseUrl(value: string | undefined): URL | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Returns the reason the API token must not be sent to the manifest URL, or
+ * undefined when it may be. The token is the control-plane credential, so it
+ * goes only to the control-plane origin, over https (or loopback http).
+ * Reasons carry origins at most, never full URLs or the token.
+ */
+function getTokenWithholdReason(
+  manifestUrl: string,
+  apiUrl: string | undefined,
+): string | undefined {
+  const api = parseUrl(apiUrl);
+  if (api === undefined) {
+    return "JOYUS_API_URL is unset or not a valid URL";
+  }
+
+  const manifest = parseUrl(manifestUrl);
+  if (manifest === undefined || manifest.origin !== api.origin) {
+    return "manifest URL origin differs from JOYUS_API_URL";
+  }
+
+  const isHttps = manifest.protocol === "https:";
+  const isLoopbackHttp =
+    manifest.protocol === "http:" && LOOPBACK_HOSTS.has(manifest.hostname);
+  if (!isHttps && !isLoopbackHttp) {
+    return `origin ${manifest.origin} is not https or loopback http`;
+  }
+
+  return undefined;
+}
+
+function resolveManifestFetch(
+  env: NodeJS.ProcessEnv,
+  manifestUrl: string,
+  logger: ConfigChangeHandlerLogger,
+): typeof fetch | undefined {
+  const token = env["JOYUS_API_TOKEN"];
+  if (token === undefined || token === "") {
+    return undefined;
+  }
+
+  const reason = getTokenWithholdReason(manifestUrl, env["JOYUS_API_URL"]);
+  if (reason !== undefined) {
+    logger.warn(`configCheckWiring: ${reason}; not sending API token.`);
+    return undefined;
+  }
+
+  return createAuthenticatedFetch({ token });
+}
+
 export function resolveSidecarManagedToolingConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
+  logger: ConfigChangeHandlerLogger = NOOP_LOGGER,
 ): SidecarManagedToolingConfig | undefined {
   const manifestUrl = env["JOYUS_MANAGED_TOOLING_MANIFEST_URL"];
   const repoUrl = env["SKILL_SYNC_REPO_URL"];
@@ -345,7 +409,7 @@ export function resolveSidecarManagedToolingConfigFromEnv(
   }
 
   const intervalMs = parseIntervalMs(env["JOYUS_MANAGED_TOOLING_INTERVAL_MS"]);
-  const fetchImpl = createAuthenticatedFetch({ token: env["JOYUS_API_TOKEN"] });
+  const fetchImpl = resolveManifestFetch(env, manifestUrl, logger);
 
   return {
     manifestUrl,

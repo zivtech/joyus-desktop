@@ -73,8 +73,15 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
     },
   });
 
+  const writeLine = (message: string): void => {
+    deps.stderr.write(message + "\n");
+  };
   const managedToolingConfig =
-    deps.managedToolingConfig ?? resolveSidecarManagedToolingConfigFromEnv();
+    deps.managedToolingConfig ??
+    resolveSidecarManagedToolingConfigFromEnv(process.env, {
+      error: writeLine,
+      warn: writeLine,
+    });
   const configCheckWiringFn =
     deps.createConfigCheckWiringFn ?? createConfigCheckWiring;
   const configCheckHandle =

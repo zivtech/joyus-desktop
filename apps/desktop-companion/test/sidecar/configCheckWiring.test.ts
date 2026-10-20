@@ -1407,23 +1407,142 @@ describe("resolveSidecarManagedToolingConfigFromEnv", () => {
     expect(config).not.toHaveProperty("fetchImpl");
   });
 
-  it("picks up JOYUS_API_TOKEN and sends it as a bearer on fetch", async () => {
-    const fake = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
-    vi.stubGlobal("fetch", fake);
-    const config = resolveSidecarManagedToolingConfigFromEnv({
-      JOYUS_MANAGED_TOOLING_MANIFEST_URL: "https://example.com/manifest.json",
-      SKILL_SYNC_REPO_URL: "file:///repo.git",
-      JOYUS_API_TOKEN: "tok_env_456",
+  describe("API token origin check", () => {
+    const TOKEN = "tok_env_456";
+    const MANIFEST = "https://api.example.com/v1/manifest.json?x=secret-query";
+
+    function resolve(
+      manifestUrl: string,
+      apiUrl: string | undefined,
+      token: string | null = TOKEN,
+    ): { config: ReturnType<typeof resolveSidecarManagedToolingConfigFromEnv>; warn: ReturnType<typeof vi.fn> } {
+      const warn = vi.fn();
+      const config = resolveSidecarManagedToolingConfigFromEnv(
+        {
+          JOYUS_MANAGED_TOOLING_MANIFEST_URL: manifestUrl,
+          SKILL_SYNC_REPO_URL: "file:///repo.git",
+          ...(apiUrl !== undefined ? { JOYUS_API_URL: apiUrl } : {}),
+          ...(token !== null ? { JOYUS_API_TOKEN: token } : {}),
+        },
+        { error: vi.fn(), warn },
+      );
+      return { config, warn };
+    }
+
+    async function sentAuthorization(
+      config: ReturnType<typeof resolveSidecarManagedToolingConfigFromEnv>,
+    ): Promise<string | null> {
+      const fake = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      vi.stubGlobal("fetch", fake);
+      const fetcher = config?.fetchImpl ?? fetch;
+      await fetcher(config?.manifestUrl ?? "");
+      const init = fake.mock.calls[0]?.[1] as RequestInit | undefined;
+      return new Headers(init?.headers).get("Authorization");
+    }
+
+    it("sends the bearer to the same https origin", async () => {
+      const { config, warn } = resolve(MANIFEST, "https://api.example.com/");
+
+      expect(await sentAuthorization(config)).toBe(`Bearer ${TOKEN}`);
+      expect(warn).not.toHaveBeenCalled();
+      expect(JSON.stringify({ ...config, fetchImpl: undefined })).not.toContain(TOKEN);
     });
 
-    expect(config?.fetchImpl).toBeTypeOf("function");
-    await config?.fetchImpl?.("https://example.com/manifest.json");
+    it("sends the bearer to http on a loopback host", async () => {
+      for (const host of ["localhost", "127.0.0.1", "[::1]"]) {
+        const { config, warn } = resolve(
+          `http://${host}:8080/manifest.json`,
+          `http://${host}:8080`,
+        );
 
-    const init = fake.mock.calls[0]?.[1] as RequestInit;
-    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tok_env_456");
-    expect(JSON.stringify({ ...config, fetchImpl: undefined })).not.toContain(
-      "tok_env_456",
-    );
+        expect(await sentAuthorization(config)).toBe(`Bearer ${TOKEN}`);
+        expect(warn).not.toHaveBeenCalled();
+      }
+    });
+
+    it.each([
+      ["a different host", "https://evil.example.net/manifest.json", "https://api.example.com"],
+      ["a different port", "https://api.example.com:8443/manifest.json", "https://api.example.com"],
+      ["a different scheme", "http://api.example.com/manifest.json", "https://api.example.com"],
+    ])("sends no bearer for %s", async (_label, manifestUrl, apiUrl) => {
+      const { config, warn } = resolve(manifestUrl, apiUrl);
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(await sentAuthorization(config)).toBeNull();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        "configCheckWiring: manifest URL origin differs from JOYUS_API_URL; not sending API token.",
+      );
+    });
+
+    it("sends no bearer for an unparseable manifest URL", () => {
+      const { config, warn } = resolve("not a url", "https://api.example.com");
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends no bearer for http on a non-loopback host, even on the same origin", () => {
+      const { config, warn } = resolve(
+        "http://api.example.com/manifest.json",
+        "http://api.example.com",
+      );
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        "configCheckWiring: origin http://api.example.com is not https or loopback http; not sending API token.",
+      );
+    });
+
+    it.each([
+      ["unset", undefined],
+      ["empty", ""],
+      ["unparseable", "not a url"],
+    ])("sends no bearer when JOYUS_API_URL is %s", (_label, apiUrl) => {
+      const { config, warn } = resolve(MANIFEST, apiUrl);
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        "configCheckWiring: JOYUS_API_URL is unset or not a valid URL; not sending API token.",
+      );
+    });
+
+    it("warns with neither the token nor the full manifest URL", () => {
+      const cases: Array<[string, string | undefined]> = [
+        [MANIFEST, undefined],
+        [MANIFEST, "https://other.example.com"],
+        ["http://api.example.com/v1/manifest.json?x=secret-query", "http://api.example.com"],
+      ];
+
+      for (const [manifestUrl, apiUrl] of cases) {
+        const { warn } = resolve(manifestUrl, apiUrl);
+        const text = warn.mock.calls.map((call) => String(call[0])).join("\n");
+
+        expect(text).not.toBe("");
+        expect(text).not.toContain(TOKEN);
+        expect(text).not.toContain("secret-query");
+        expect(text).not.toContain("/v1/manifest.json");
+      }
+    });
+
+    it("stays silent and unauthenticated when no token is set", () => {
+      const { config, warn } = resolve(MANIFEST, "https://api.example.com", null);
+
+      expect(config?.fetchImpl).toBeUndefined();
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("works with the default no-op logger", () => {
+      const config = resolveSidecarManagedToolingConfigFromEnv({
+        JOYUS_MANAGED_TOOLING_MANIFEST_URL: MANIFEST,
+        SKILL_SYNC_REPO_URL: "file:///repo.git",
+        JOYUS_API_TOKEN: TOKEN,
+      });
+
+      expect(config?.fetchImpl).toBeUndefined();
+    });
   });
 
   it("omits interval when the env does not provide one", () => {
