@@ -182,6 +182,21 @@ For mediation, `JOYUS_MEDIATION_BASE_URL` overrides the control-plane URL,
 `JOYUS_MEDIATION_API_KEY` overrides `API_KEY`, and
 `JOYUS_MEDIATION_BEARER_TOKEN` overrides `JOYUS_DEV_JWT_TOKEN`.
 
+### Desktop Build
+
+Install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/),
+including Rust and Cargo, then run:
+
+```bash
+cargo install tauri-cli --version "^2.0.0" --locked
+pnpm install
+pnpm desktop:build
+```
+
+Build each installer on its target operating system. Linux builds bundle a Node
+runtime for x64 or ARM64 and produce an AppImage under
+`apps/desktop-companion/src-tauri/target/release/bundle/appimage/`.
+
 ## Repo Notes
 
 - The original architecture and threat-model docs are still light and should be expanded alongside the active feature work.

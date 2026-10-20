@@ -480,7 +480,7 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
 
     const poll = setInterval(() => {
       void safeInvoke<{ status?: string }>("get_engagement_status", {
-        engagement_id: engagementId,
+        engagementId,
       }).then((result) => {
         if (result?.status !== undefined) {
           const s = result.status as EngagementStatusValue;
@@ -505,7 +505,7 @@ export function EngagementStatus({ engagementId, engagementDir, onBack }: Engage
 
   async function handleCancel() {
     setCancelling(true);
-    await safeInvoke("cancel_engagement", { engagement_id: engagementId });
+    await safeInvoke("cancel_engagement", { engagementId });
     setStatus("cancelled");
     setCancelling(false);
   }

@@ -132,9 +132,9 @@ function NewEngagementForm({ onSuccess, onCancel }: NewEngagementFormProps) {
     const { engagementDir, engagementId } = createResult;
 
     const launchResult = await safeInvoke<LaunchReconResult>("launch_recon", {
-      client_name: clientName.trim(),
-      engagement_dir: engagementDir,
-      engagement_id: engagementId,
+      clientName: clientName.trim(),
+      engagementDir,
+      engagementId,
     });
 
     if (launchResult === undefined) {

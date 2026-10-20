@@ -32,14 +32,19 @@ function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
   };
 }
 
-async function waitFor(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 80; i++) {
-    if (predicate()) return;
+// Deadline-based, yielding with setImmediate: one test mocks setTimeout to run
+// callbacks synchronously, so a tick-counted loop gave up before the page's first
+// dynamic import had any real time to finish.
+async function waitFor(predicate: () => boolean, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error("Timed out waiting for condition");
+    }
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setImmediate(resolve));
     });
   }
-  throw new Error("Timed out waiting for condition");
 }
 
 function click(label: string): void {

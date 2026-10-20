@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalSiteCard, type LocalSite } from "../../../src/ui/components/LocalSiteCard";
 
 const noop = () => {};
@@ -16,11 +16,17 @@ interface ReactButtonProps {
   onClick?: () => void;
 }
 
-async function waitForInvokeCount(count: number): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    if (invokeMock.mock.calls.length >= count) return;
+// Time-bounded rather than tick-bounded: under CI load the component's first dynamic
+// import can outlast a fixed number of ticks. Throws on timeout so a slow call fails
+// here instead of landing in the next test's mock.
+async function waitForInvokeCount(count: number, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (invokeMock.mock.calls.length < count) {
+    if (Date.now() > deadline) {
+      throw new Error(`Timed out waiting for ${count} invoke call(s); got ${invokeMock.mock.calls.length}`);
+    }
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 5));
     });
   }
 }
@@ -46,6 +52,12 @@ function getReactButtonProps(button: HTMLButtonElement): ReactButtonProps {
 }
 
 describe("LocalSiteCard", () => {
+  beforeAll(async () => {
+    // Warm the module the component loads with a dynamic import, so its first use
+    // doesn't resolve after the test that triggered it has finished.
+    await import("@tauri-apps/plugin-shell");
+  });
+
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>");

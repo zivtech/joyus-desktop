@@ -38,7 +38,11 @@ interface SyncCompletedPayload {
 interface OnboardingStartResult {
   success: boolean;
   serversStarted: number;
+  /** Servers in the registry; 0 means there is nothing to configure. */
+  serversConfigured?: number;
   skillsSynced: boolean;
+  /** False when no skill distribution source exists, so sync is skipped. */
+  syncConfigured?: boolean;
   errors: string[];
 }
 
@@ -248,6 +252,7 @@ export function Onboarding() {
   const [mcpError, setMcpError] = useState<string | undefined>(undefined);
   const [mcpProgress, setMcpProgress] = useState(0);
   const [expectedMcpServerCount, setExpectedMcpServerCount] = useState<number | undefined>(undefined);
+  const [syncConfigured, setSyncConfigured] = useState(true);
 
   // Step 3 — Sync
   const [syncError, setSyncError] = useState<string | undefined>(undefined);
@@ -362,11 +367,31 @@ export function Onboarding() {
     }
   }, []);
 
-  const applyMcpExpectation = useCallback((result: OnboardingStartResult | undefined) => {
-    if (result?.success === true && result.serversStarted > 0) {
-      setExpectedMcpServerCount(result.serversStarted);
+  // Leave the MCP step: go to sync, or straight to complete when sync has nothing to do.
+  const advancePastMcp = useCallback((syncOn: boolean) => {
+    if (syncOn) {
+      void safeInvoke("set_config", { key: "onboarding_phase", value: "sync" });
+      setPhase("sync");
+      setSyncProgress(0);
+    } else {
+      void safeInvoke("set_config", { key: "onboarding_phase", value: "complete" });
+      void safeInvoke("set_config", { key: "onboarding_complete", value: "true" });
+      setPhase("complete");
     }
   }, []);
+
+  const applyMcpExpectation = useCallback((result: OnboardingStartResult | undefined) => {
+    if (result?.success !== true) return;
+    const syncOn = result.syncConfigured !== false;
+    setSyncConfigured(syncOn);
+    if (result.serversConfigured === 0) {
+      advancePastMcp(syncOn);
+      return;
+    }
+    if (result.serversStarted > 0) {
+      setExpectedMcpServerCount(result.serversStarted);
+    }
+  }, [advancePastMcp]);
 
   // ── Step 1: Auth submit ───────────────────────────────────────────────────
 
@@ -389,7 +414,7 @@ export function Onboarding() {
     setMcpProgress(0);
     setExpectedMcpServerCount(undefined);
 
-    const result = await safeInvoke<OnboardingStartResult>("start_onboarding", { authToken, tenantId, workspaceId });
+    const result = await safeInvoke<OnboardingStartResult>("start_onboarding", { params: { authToken, tenantId, workspaceId } });
     if (result !== undefined) {
       applyMcpExpectation(result);
       applyOnboardingResult(result);
@@ -403,14 +428,20 @@ export function Onboarding() {
     setGithubBusy(true);
     setAuthError(undefined);
 
-    const authResult = await safeInvoke<{
-      authToken: string;
-      tenantId: string;
-      workspaceId: string;
-    }>("github_auth_start", {});
+    // Invoke directly (not safeInvoke) so the sidecar's error reaches the user.
+    let authResult: { authToken: string; tenantId: string; workspaceId: string } | undefined;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      authResult = await invoke<typeof authResult>("github_auth_start", { params: {} });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setAuthError(`GitHub login failed: ${message}`);
+      setGithubBusy(false);
+      return;
+    }
 
     if (authResult === undefined) {
-      setAuthError("GitHub login unavailable outside of Joyus Desktop.");
+      setAuthError("GitHub login is unavailable. The Joyus Desktop background service may not be running.");
       setGithubBusy(false);
       return;
     }
@@ -426,9 +457,11 @@ export function Onboarding() {
     setExpectedMcpServerCount(undefined);
 
     const onboardingResult = await safeInvoke<OnboardingStartResult>("start_onboarding", {
-      authToken: authResult.authToken,
-      tenantId: authResult.tenantId,
-      workspaceId: authResult.workspaceId,
+      params: {
+        authToken: authResult.authToken,
+        tenantId: authResult.tenantId,
+        workspaceId: authResult.workspaceId,
+      },
     });
     applyMcpExpectation(onboardingResult);
     applyOnboardingResult(onboardingResult);
@@ -448,11 +481,9 @@ export function Onboarding() {
   }, [mcpServers]);
 
   const handleSkipMcp = useCallback(() => {
-    void safeInvoke("set_config", { key: "onboarding_phase", value: "sync" });
     setExpectedMcpServerCount(undefined);
-    setPhase("sync");
-    setSyncProgress(0);
-  }, []);
+    advancePastMcp(syncConfigured);
+  }, [advancePastMcp, syncConfigured]);
 
   // ── Step 3: Retry sync ────────────────────────────────────────────────────
 
@@ -486,12 +517,10 @@ export function Onboarding() {
       if (hasFailures) {
         setMcpError(`${mcpServers.filter((s) => s.failed).length} server(s) failed to start.`);
       } else {
-        void safeInvoke("set_config", { key: "onboarding_phase", value: "sync" });
-        setPhase("sync");
-        setSyncProgress(0);
+        advancePastMcp(syncConfigured);
       }
     }
-  }, [expectedMcpServerCount, phase, mcpServers]);
+  }, [expectedMcpServerCount, phase, mcpServers, advancePastMcp, syncConfigured]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -521,7 +550,13 @@ export function Onboarding() {
       <Card>
         {/* Step indicator */}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <OnboardingStep stepNumber={1} totalSteps={4} label="Welcome & Authentication" status={stepStatuses.auth} />
+          <OnboardingStep
+            stepNumber={1}
+            totalSteps={4}
+            label="Welcome & Authentication"
+            status={stepStatuses.auth}
+            busy={authBusy || githubBusy}
+          />
           <OnboardingStep stepNumber={2} totalSteps={4} label="MCP Configuration" status={stepStatuses.mcp} />
           <OnboardingStep stepNumber={3} totalSteps={4} label="Skill Sync" status={stepStatuses.sync} />
           <OnboardingStep stepNumber={4} totalSteps={4} label="Complete" status={stepStatuses.complete} />
@@ -650,12 +685,13 @@ export function Onboarding() {
             {mcpError !== undefined && (
               <ErrorBox message={mcpError} onRetry={handleRetryMcp} />
             )}
-            {failedServers.length > 0 && (
-              <div style={{ display: "flex", gap: "0.75rem" }}>
+            {/* Skip is always available: with no servers configured, no progress events ever arrive. */}
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              {failedServers.length > 0 && (
                 <PrimaryButton onClick={handleRetryMcp}>Retry Failed</PrimaryButton>
-                <SecondaryButton onClick={handleSkipMcp}>Skip</SecondaryButton>
-              </div>
-            )}
+              )}
+              <SecondaryButton onClick={handleSkipMcp}>Skip</SecondaryButton>
+            </div>
           </div>
         )}
 
@@ -675,12 +711,13 @@ export function Onboarding() {
             {syncError !== undefined && (
               <ErrorBox message={syncError} onRetry={handleRetrySync} />
             )}
-            {syncError !== undefined && (
-              <div style={{ display: "flex", gap: "0.75rem" }}>
+            {/* Skip is always available: sync may never report completion (e.g. no distribution repo). */}
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              {syncError !== undefined && (
                 <PrimaryButton onClick={handleRetrySync}>Retry Sync</PrimaryButton>
-                <SecondaryButton onClick={handleSkipSync}>Skip</SecondaryButton>
-              </div>
-            )}
+              )}
+              <SecondaryButton onClick={handleSkipSync}>Skip</SecondaryButton>
+            </div>
           </div>
         )}
 

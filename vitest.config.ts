@@ -36,6 +36,8 @@ export default defineConfig({
         "packages/mcp-governance/src/types.ts",
         "packages/mcp-registry/src/types.ts",
         "packages/desktop-sync/src/types.ts",
+        // Composition root: only wires real process deps into startSidecar.
+        "apps/desktop-companion/src/sidecar/entry.ts",
       ],
       thresholds: {
         lines: 100,
