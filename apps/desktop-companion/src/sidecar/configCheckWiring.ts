@@ -15,6 +15,7 @@ export interface ConfigCheckWiringConfig {
   readonly onSync: (manifest: DistributionManifest) => Promise<void>;
   readonly onPollError?: (error: Error) => void;
   readonly startConfigCheckPollerFn?: typeof startConfigCheckPoller;
+  readonly fetchImpl?: typeof fetch;
 }
 
 export interface ManagedToolingSyncConfig
@@ -43,6 +44,7 @@ export interface ConfigChangeHandlerConfig {
 export interface SidecarManagedToolingConfig extends ConfigChangeHandlerConfig {
   readonly manifestUrl: string;
   readonly intervalMs?: number;
+  readonly fetchImpl?: typeof fetch;
 }
 
 const NOOP_LOGGER: ConfigChangeHandlerLogger = {
@@ -149,6 +151,7 @@ export function createConfigCheckWiring(
     onChangeDetected: config.onSync,
     ...withOptionalValue("intervalMs", config.intervalMs),
     ...withOptionalValue("onPollError", config.onPollError),
+    ...withOptionalValue("fetchImpl", config.fetchImpl),
   });
 }
 
@@ -282,6 +285,50 @@ function withOptionalValue<K extends string, V>(
   return { [key]: value } as Partial<Record<K, V>>;
 }
 
+const DEVICE_ID_MAX_LENGTH = 128;
+const HEADER_TOKEN_PATTERN = /^[\x21-\x7e]+$/;
+
+export interface AuthenticatedFetchOptions {
+  readonly token: string | undefined;
+  readonly deviceId?: string;
+  readonly fetchFn?: typeof fetch;
+}
+
+/**
+ * Wraps fetch so manifest polls send the user's API token as a bearer
+ * credential. Returns undefined when there is no usable token, so the caller
+ * keeps the unauthenticated behavior. The token is never logged or put in an
+ * error message or URL.
+ */
+export function createAuthenticatedFetch(
+  options: AuthenticatedFetchOptions,
+): typeof fetch | undefined {
+  const { token, deviceId } = options;
+  if (token === undefined || !HEADER_TOKEN_PATTERN.test(token)) {
+    return undefined;
+  }
+
+  const sendDeviceId =
+    deviceId !== undefined &&
+    deviceId !== "" &&
+    deviceId.length <= DEVICE_ID_MAX_LENGTH &&
+    HEADER_TOKEN_PATTERN.test(deviceId);
+
+  return (input, init) => {
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    if (!headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    if (sendDeviceId && !headers.has("X-Joyus-Device-Id")) {
+      headers.set("X-Joyus-Device-Id", deviceId);
+    }
+
+    return (options.fetchFn ?? fetch)(input, { ...init, headers });
+  };
+}
+
 export function resolveSidecarManagedToolingConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): SidecarManagedToolingConfig | undefined {
@@ -298,10 +345,12 @@ export function resolveSidecarManagedToolingConfigFromEnv(
   }
 
   const intervalMs = parseIntervalMs(env["JOYUS_MANAGED_TOOLING_INTERVAL_MS"]);
+  const fetchImpl = createAuthenticatedFetch({ token: env["JOYUS_API_TOKEN"] });
 
   return {
     manifestUrl,
     ...withOptionalValue("intervalMs", intervalMs),
+    ...withOptionalValue("fetchImpl", fetchImpl),
     syncConfig: {
       repoUrl,
       destDir: env["SKILL_SYNC_DEST_DIR"] ?? "~/.claude/skills",

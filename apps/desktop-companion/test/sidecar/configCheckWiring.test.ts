@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DistributionManifest, ReconcileResult } from "@joyus/settings-reconciler";
 import {
+  createAuthenticatedFetch,
   createConfigChangeHandler,
   createConfigCheckWiring,
   resolveSidecarManagedToolingConfigFromEnv,
@@ -179,6 +180,246 @@ describe("createConfigCheckWiring", () => {
     await vi.runAllTimersAsync();
 
     expect(typeof handle.getState).toBe("function");
+  });
+});
+
+describe("createConfigCheckWiring fetchImpl", () => {
+  const TOKEN = "tok_secret_123";
+
+  function emptyManifestResponse(): Response {
+    return new Response(
+      JSON.stringify({ schema_version: "1.0", tenant_id: "tenant-1", bundles: {} }),
+      { status: 200 },
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it("passes the configured fetchImpl to the poller", () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const startConfigCheckPollerFn = vi.fn(() => ({
+      stop: vi.fn(),
+      getState: () => ({ consecutiveFailures: 0 }),
+    }));
+
+    createConfigCheckWiring({
+      manifestUrl: "https://example.com/manifest.json",
+      onSync: vi.fn().mockResolvedValue(undefined),
+      fetchImpl,
+      startConfigCheckPollerFn,
+    });
+
+    expect(startConfigCheckPollerFn).toHaveBeenCalledWith(
+      expect.objectContaining({ fetchImpl }),
+    );
+  });
+
+  it("omits fetchImpl when none is configured", () => {
+    const startConfigCheckPollerFn = vi.fn(() => ({
+      stop: vi.fn(),
+      getState: () => ({ consecutiveFailures: 0 }),
+    }));
+
+    createConfigCheckWiring({
+      manifestUrl: "https://example.com/manifest.json",
+      onSync: vi.fn().mockResolvedValue(undefined),
+      startConfigCheckPollerFn,
+    });
+
+    expect(startConfigCheckPollerFn.mock.calls[0]?.[0]).not.toHaveProperty(
+      "fetchImpl",
+    );
+  });
+
+  it("sends bearer and device-id headers on the real poller's manifest GET", async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(emptyManifestResponse());
+    const fetchImpl = createAuthenticatedFetch({
+      token: TOKEN,
+      deviceId: "device-abc",
+      fetchFn: fakeFetch as unknown as typeof fetch,
+    });
+
+    const handle = createConfigCheckWiring({
+      manifestUrl: "https://example.com/manifest.json",
+      onSync: vi.fn().mockResolvedValue(undefined),
+      ...(fetchImpl !== undefined ? { fetchImpl } : {}),
+    });
+    handle.stop();
+    await vi.runAllTimersAsync();
+
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fakeFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://example.com/manifest.json");
+    const headers = new Headers(init.headers);
+    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+    expect(headers.get("X-Joyus-Device-Id")).toBe("device-abc");
+  });
+
+  it("does not leak the token into poll error messages", async () => {
+    const fakeFetch = vi
+      .fn()
+      .mockResolvedValue(new Response("nope", { status: 401, statusText: "Unauthorized" }));
+    const fetchImpl = createAuthenticatedFetch({
+      token: TOKEN,
+      fetchFn: fakeFetch as unknown as typeof fetch,
+    });
+    const messages: string[] = [];
+    const onPollError = vi.fn((error: Error) => {
+      messages.push(error.message);
+    });
+
+    const handle = createConfigCheckWiring({
+      manifestUrl: "https://example.com/manifest.json",
+      onSync: vi.fn().mockResolvedValue(undefined),
+      onPollError,
+      ...(fetchImpl !== undefined ? { fetchImpl } : {}),
+    });
+    handle.stop();
+    await vi.runAllTimersAsync();
+
+    expect(messages).toEqual(["Config check request failed with HTTP 401 Unauthorized"]);
+    expect(messages.join("\n")).not.toContain(TOKEN);
+  });
+});
+
+describe("createAuthenticatedFetch", () => {
+  const TOKEN = "tok_secret_123";
+
+  function makeFake(): ReturnType<typeof vi.fn> {
+    return vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  }
+
+  function headersOf(fake: ReturnType<typeof vi.fn>): Headers {
+    const init = fake.mock.calls[0]?.[1] as RequestInit;
+    return new Headers(init.headers);
+  }
+
+  it("returns undefined and never throws or calls fetch when the token is unset or empty", () => {
+    const fake = makeFake();
+    const fetchFn = fake as unknown as typeof fetch;
+
+    expect(createAuthenticatedFetch({ token: undefined, fetchFn })).toBeUndefined();
+    expect(createAuthenticatedFetch({ token: "", fetchFn })).toBeUndefined();
+    expect(fake).not.toHaveBeenCalled();
+  });
+
+  it("treats a token that is not a valid header value as unset without echoing it", () => {
+    const bad = "bad token\nX-Injected: 1";
+
+    expect(() => createAuthenticatedFetch({ token: bad })).not.toThrow();
+    expect(createAuthenticatedFetch({ token: bad })).toBeUndefined();
+  });
+
+  it("sends the bearer header and omits the device id when none is supplied", async () => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.("https://example.com/manifest.json");
+
+    expect(fake.mock.calls[0]?.[0]).toBe("https://example.com/manifest.json");
+    const headers = headersOf(fake);
+    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+    expect(headers.has("X-Joyus-Device-Id")).toBe(false);
+  });
+
+  it("sends the device id when it is valid", async () => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      deviceId: "d".repeat(128),
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.("https://example.com/manifest.json");
+
+    expect(headersOf(fake).get("X-Joyus-Device-Id")).toBe("d".repeat(128));
+  });
+
+  it.each([
+    ["empty", ""],
+    ["too long", "d".repeat(129)],
+    ["not a valid header value", "dev ice\n1"],
+  ])("omits a device id that is %s", async (_label, deviceId) => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      deviceId,
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.("https://example.com/manifest.json");
+
+    expect(headersOf(fake).has("X-Joyus-Device-Id")).toBe(false);
+  });
+
+  it("keeps the caller's headers", async () => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      deviceId: "device-abc",
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.("https://example.com/manifest.json", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+
+    const init = fake.mock.calls[0]?.[1] as RequestInit;
+    expect(init.method).toBe("GET");
+    const headers = headersOf(fake);
+    expect(headers.get("Accept")).toBe("application/json");
+    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it("does not overwrite an Authorization or device-id header the caller set", async () => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      deviceId: "device-abc",
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.("https://example.com/manifest.json", {
+      headers: { authorization: "Bearer caller", "x-joyus-device-id": "caller-device" },
+    });
+
+    const headers = headersOf(fake);
+    expect(headers.get("Authorization")).toBe("Bearer caller");
+    expect(headers.get("X-Joyus-Device-Id")).toBe("caller-device");
+  });
+
+  it("keeps the headers of a Request input", async () => {
+    const fake = makeFake();
+    const wrapped = createAuthenticatedFetch({
+      token: TOKEN,
+      fetchFn: fake as unknown as typeof fetch,
+    });
+
+    await wrapped?.(
+      new Request("https://example.com/manifest.json", {
+        headers: { Accept: "application/json" },
+      }),
+    );
+
+    const headers = headersOf(fake);
+    expect(headers.get("Accept")).toBe("application/json");
+    expect(headers.get("Authorization")).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it("falls back to the global fetch", async () => {
+    const globalFetch = makeFake();
+    vi.stubGlobal("fetch", globalFetch);
+    const wrapped = createAuthenticatedFetch({ token: TOKEN });
+
+    await wrapped?.("https://example.com/manifest.json");
+
+    expect(headersOf(globalFetch).get("Authorization")).toBe(`Bearer ${TOKEN}`);
   });
 });
 
@@ -1155,6 +1396,34 @@ describe("resolveSidecarManagedToolingConfigFromEnv", () => {
       },
       reconcileConfig: {},
     });
+  });
+
+  it("does not set fetchImpl when JOYUS_API_TOKEN is unset", () => {
+    const config = resolveSidecarManagedToolingConfigFromEnv({
+      JOYUS_MANAGED_TOOLING_MANIFEST_URL: "https://example.com/manifest.json",
+      SKILL_SYNC_REPO_URL: "file:///repo.git",
+    });
+
+    expect(config).not.toHaveProperty("fetchImpl");
+  });
+
+  it("picks up JOYUS_API_TOKEN and sends it as a bearer on fetch", async () => {
+    const fake = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fake);
+    const config = resolveSidecarManagedToolingConfigFromEnv({
+      JOYUS_MANAGED_TOOLING_MANIFEST_URL: "https://example.com/manifest.json",
+      SKILL_SYNC_REPO_URL: "file:///repo.git",
+      JOYUS_API_TOKEN: "tok_env_456",
+    });
+
+    expect(config?.fetchImpl).toBeTypeOf("function");
+    await config?.fetchImpl?.("https://example.com/manifest.json");
+
+    const init = fake.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tok_env_456");
+    expect(JSON.stringify({ ...config, fetchImpl: undefined })).not.toContain(
+      "tok_env_456",
+    );
   });
 
   it("omits interval when the env does not provide one", () => {

@@ -152,6 +152,32 @@ describe("startSidecar managed tooling wiring", () => {
     );
   });
 
+  it("forwards the managed-tooling fetchImpl to the config-check wiring", () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const createConfigCheckWiringFn = vi.fn(() => ({
+      stop: vi.fn(),
+      getState: () => ({ consecutiveFailures: 0 }),
+    }));
+    const deps = makeDeps({
+      managedToolingConfig: {
+        manifestUrl: "https://example.com/manifest.json",
+        fetchImpl,
+        syncConfig: {
+          repoUrl: "file:///repo.git",
+          destDir: "/tmp/skills",
+          cacheDir: "/tmp/cache",
+        },
+      },
+      createConfigCheckWiringFn,
+    });
+
+    startSidecar(deps);
+
+    expect(createConfigCheckWiringFn).toHaveBeenCalledWith(
+      expect.objectContaining({ fetchImpl }),
+    );
+  });
+
   it("stops the config-check wiring on SIGTERM", async () => {
     let sigtermHandler: (() => void) | undefined;
     const stop = vi.fn();

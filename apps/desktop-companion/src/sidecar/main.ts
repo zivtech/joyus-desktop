@@ -86,6 +86,11 @@ export function startSidecar(deps: SidecarDeps): SidecarHandle {
               ? { intervalMs: managedToolingConfig.intervalMs }
               : {}
           ),
+          ...(
+            managedToolingConfig.fetchImpl !== undefined
+              ? { fetchImpl: managedToolingConfig.fetchImpl }
+              : {}
+          ),
           onSync: createConfigChangeHandler({
             syncConfig: managedToolingConfig.syncConfig,
             ...(
