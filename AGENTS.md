@@ -9,7 +9,8 @@ pnpm install              # Install all workspace dependencies
 pnpm typecheck            # TypeScript strict checking (tsc --noEmit)
 pnpm test                 # Run tests (vitest run)
 pnpm coverage             # Run tests with 100% coverage enforcement
-pnpm ci                   # Full CI pipeline: typecheck + coverage
+pnpm run ci               # Full CI pipeline: typecheck + coverage + integration tests
+# Never run `pnpm ci` (without `run`): in pnpm that is clean-install, not this script.
 ```
 
 Run a single test file:
@@ -27,11 +28,12 @@ pnpm skill-sync:verify-pin      # Verify version pin propagation
 
 ## Quality Gates
 
-Both gates must pass for CI to merge:
+All three gates must pass for CI to merge:
 - **Typecheck**: `pnpm typecheck` — strict mode with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`
 - **Coverage**: `pnpm coverage` — **100% threshold** on lines, functions, branches, and statements (v8 provider)
+- **Integration**: `pnpm test:integration` — runs `*.integration.test.ts` files with `vitest.integration.config.ts`
 
-Coverage includes all `apps/**/src/**/*.ts` and `packages/**/src/**/*.ts`. Tests live in `{package}/test/*.test.ts`.
+Coverage includes all `apps/**/src/**/*.ts` and `packages/**/src/**/*.ts`, plus the UI files listed under `coverage.include` in `vitest.config.ts`. A UI component that is not in that list is not measured. Tests live in `{package}/test/*.test.ts`.
 
 ## Architecture
 
@@ -45,6 +47,14 @@ pnpm monorepo (workspaces: `apps/*`, `packages/*`). All packages are ESM (`"type
 - **`packages/drift-detector`** (`@joyus/drift-detector`) — Topic-domain heuristics engine, DriftDetector with per-session state and dismissal tracking
 - **`packages/skill-sync`** (`@joyus/skill-sync`) — Skill distribution CLI and library: sync engine with git operations, version pinning, distribution config management
 - **`packages/updater`** (`@joyus/updater`) — Update management
+- **`packages/desktop-sync`** (`@joyus/desktop-sync`) — Local clone lifecycle and sync orchestration helpers
+- **`packages/mcp-registry`** (`@joyus/mcp-registry`) — MCP registration, Claude Code integration, process management, and updater wiring
+- **`packages/mcp-governance`** (`@joyus/mcp-governance`) — Governance enforcement and MCP telemetry hooks
+- **`packages/mcp-tools-compat`** (`@joyus/mcp-tools-compat`) — Compatibility helpers for MCP tool wrappers
+- **`packages/telemetry`** (`@joyus/telemetry`) — CLI/Cowork telemetry collection, opt-out handling, and usage reporting
+- **`packages/local-provisioner`** (`@joyus/local-provisioner`) — Local site provisioning and runtime detection for DDEV/container workflows
+- **`packages/environment-monitor`** (`@joyus/environment-monitor`) — Remote environment discovery, polling, identity, and activity tracking
+- **`packages/settings-reconciler`** (`@joyus/settings-reconciler`) — Non-destructive managed settings and MCP entry reconciliation
 
 ### Application
 
@@ -55,6 +65,8 @@ pnpm monorepo (workspaces: `apps/*`, `packages/*`). All packages are ESM (`"type
 1. **Handoff flow**: `handoffAuthorization` -> `handoffOrchestrator` -> `handoffUpload` (tus-based resumable uploads) -> `snapshotAssembly`, governed by `handoffStateMachine` in policy-client
 2. **Runtime flow**: `authorization` -> `runtimeOrchestrator` -> `runtimeExecution`, with routing decisions from session-agent's `runtimeRouting`
 3. **Policy enforcement**: `policyClient` makes decisions using `controlPlaneContracts`, verified by `handoffVerification`
+
+**Integration status (checked 2026-11-17):** the three flows above are library code with unit tests. The desktop sidecar (`apps/desktop-companion/src/sidecar/`) and the UI do not import them, and the sidecar does not import `@joyus/policy-client` or `@joyus/session-agent`. Do not assume these flows run in the packaged app. Before relying on any cross-layer behavior, check that the UI command, the Rust command in `src-tauri/src/main.rs`, and the sidecar method all exist under the same name.
 
 ## Security Context
 
