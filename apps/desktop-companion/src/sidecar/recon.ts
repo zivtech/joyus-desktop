@@ -127,13 +127,16 @@ function defaultEngagementRoot(): string {
   return path.join(os.homedir(), "Documents", "joyus-recon-engagements");
 }
 
+/**
+ * True when `candidate` is strictly inside `root`. The root itself is not
+ * "within" the root: an engagement directory must be a child directory.
+ */
 function isWithinPath(root: string, candidate: string): boolean {
   const relativePath = path.relative(root, candidate);
   return (
-    relativePath === "" ||
-    (relativePath !== "" &&
-      !relativePath.startsWith("..") &&
-      !path.isAbsolute(relativePath))
+    relativePath !== "" &&
+    !relativePath.startsWith("..") &&
+    !path.isAbsolute(relativePath)
   );
 }
 

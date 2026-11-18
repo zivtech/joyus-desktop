@@ -655,6 +655,12 @@ describe("recon.scan", () => {
     }
   });
 
+  it("rejects the engagement root itself as an engagementDir", async () => {
+    await expect(
+      ipc._invoke("recon.scan", { engagementDir: tmpRoot }),
+    ).rejects.toThrow("engagementDir must be under");
+  });
+
   it("uses the default recon engagement root when no runtime root is injected", async () => {
     const defaultRoot = path.join(os.homedir(), "Documents", "joyus-recon-engagements");
     expect(defaultRoot).toBe(FAKE_DEFAULT_ROOT);
@@ -715,6 +721,14 @@ describe("recon.export", () => {
     await expect(ipc._invoke("recon.export", {})).rejects.toThrow(
       "missing required field: engagementDir",
     );
+  });
+
+  it("rejects the engagement root itself as an engagementDir", async () => {
+    await expect(
+      ipc._invoke("recon.export", { engagementDir: tmpRoot }),
+    ).rejects.toThrow("engagementDir must be under");
+    // The scan must not have been started for a rejected directory.
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 
   it("returns blocked: true when scan fails and overrideScan is falsy", async () => {
