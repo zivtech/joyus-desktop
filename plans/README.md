@@ -20,7 +20,7 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 007 | Agent and contributor docs give the correct CI command | P1 | S | — | DONE — executed and approved in review 2026-11-17; commit `5f8d31f` on branch `docs/007-correct-agent-docs` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#9, not merged yet |
-| 008 | Recon tests never touch the real home directory | P1 | S | 007 | TODO |
+| 008 | Recon tests never touch the real home directory | P1 | S | 007 | DONE — executed and approved in review 2026-11-17; commits `f274b22` and `1edaa59` on branch `fix/008-hermetic-recon-tests` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#10, not merged yet |
 | 009 | Settings reconciler never rewrites an unreadable settings file | P1 | S | 007, 008 | TODO |
 
 ### Wave 2 — no dependency on PR #5
