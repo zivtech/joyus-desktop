@@ -36,6 +36,7 @@
   3. `resolveTargetVersion` loses a branch that the new handler can no longer reach, and two tests cover the fallback to the earlier manifest. Without these the coverage gate fails at 98.3% for `configCheckWiring.ts`.
   4. The edits to the existing wiring tests are now a table of exact edits, not rules to interpret.
   The code in the Steps was run against the existing tests of both packages before this revision was published. See "What was run".
+- **Reviewed**: 2026-11-18 by an independent replay on top of plan 012’s result. It executed and the full gates pass. Four items are open: one bad settings file can block a revocation in the other, Step 2e does not say where its replacement ends, the `HOME`-based checks cannot run under the agent harness, and an empty manifest revokes everything. Read items 6–9 under "Independent replay of the revised plans" in `plans/README.md` before executing.
 
 ## Why this matters
 

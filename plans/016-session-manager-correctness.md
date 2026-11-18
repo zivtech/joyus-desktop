@@ -28,6 +28,7 @@
   3. **Merged detection needs a commit made on the branch** (review finding 4), read from the branch's reflog subjects. A fresh branch, and a branch that was only fast-forwarded, rebased or reset, are not marked. The rule was chosen with a real git repository; see "What git really prints". No database column is added: the experiment shows a recorded creation commit could not tell the two cases apart either.
   4. The test code that the first version left as `// ...` is written out, and a new test file runs the real git binary.
   Part A (one worktree per session) was not challenged and is unchanged in design. All of the code in the Steps was run against the package's existing tests before this revision was published. See "What was run".
+- **Reviewed**: 2026-11-18 by an independent replay with real git. It executed cleanly and the full gates pass. Three items are open, one of them a relative-path case in which a failed removal is still reported as success. Read items 10–12 under "Independent replay of the revised plans" in `plans/README.md` before executing.
 
 ## Why this matters
 

@@ -30,6 +30,7 @@
   3. Finding F18 is folded in: `repairRegistry` checks the shape of what it parsed, and `reconcile()` rebuilds a lost registry inside its `try`.
   4. A revocation removes at most one entry per owned command, and a group whose hook list cannot be read is never joined or rewritten.
   The code in the Steps was run against the package's existing tests before this revision was published. See "What was run".
+- **Reviewed**: 2026-11-18 by an independent replay. It executed cleanly and the full gates pass. Five items are open, one of them a narrower case of the defect that blocked the first version. Read items 1–5 under "Independent replay of the revised plans" in `plans/README.md` before executing or merging.
 
 ## Why this matters
 
