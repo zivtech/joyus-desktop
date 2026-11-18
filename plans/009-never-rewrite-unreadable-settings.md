@@ -20,6 +20,7 @@
 - **Depends on**: plans/007-correct-agent-and-contributor-docs.md, plans/008-make-recon-tests-hermetic.md (008 must land first because this plan runs the full test suite, which deletes a real user folder until 008 is in)
 - **Category**: bug
 - **Planned at**: commit `cea62f6`, 2026-11-17
+- **Revised**: 2026-11-17, after the first execution stopped. The first version missed one existing test that spies on the lenient reader and runs `reconcile()` with the real default paths. Step 2 now updates that test, and must do so before any test run.
 
 ## Why this matters
 
@@ -132,6 +133,32 @@ Existing tests that pin the lenient behavior, and must keep passing unchanged:
   });
 ```
 
+One existing test must change, and only this one. It is the only test that calls `reconcile()` with no config, so it uses the real default paths (`~/.claude/settings.json`). It stays away from the real file only because it replaces the lenient reader with a mock:
+
+```ts
+// packages/settings-reconciler/test/reconciler.test.ts:461-507
+  it("uses default paths and timestamps when config is omitted", async () => {
+    const workspace = await createWorkspace();
+    const previousCwd = process.cwd();
+    process.chdir(workspace.root);
+
+    const readRegistrySpy = vi.spyOn(registryModule, "readRegistry").mockResolvedValue({
+      schema_version: "1.0",
+      entries: {},
+      last_reconciled: FIXED_NOW.toISOString(),
+    });
+    const readSettingsSpy = vi.spyOn(settingsFileModule, "readSettingsFile").mockResolvedValue({});
+    const writeRegistrySpy = vi.spyOn(registryModule, "writeRegistry").mockResolvedValue();
+
+    try {
+      const result = await reconcile({ /* one bundle, no hooks, no MCP servers */ });
+      // ...
+      expect(readSettingsSpy).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"));
+      expect(readSettingsSpy).toHaveBeenCalledWith(".claude/settings.json");
+```
+
+Once the write path uses the strict reader, that mock no longer covers it. The test would then read the developer's real `~/.claude/settings.json`. If that file holds an empty `hooks` or `mcpServers` object, an empty event array, or any `joyus:` entry, the test would also rewrite it. Step 2 closes this before any test is run.
+
 Test helpers already defined in `test/reconciler.test.ts` that you will reuse: `createWorkspace()` (returns `globalSettingsPath`, `projectSettingsPath`, `registryPath`, `backupDir`, `now` under a temp dir that is removed in `afterEach`), `writeJson(path, value)`, `readJson(path)`, `createHook(overrides)`, `createMcp(overrides)`, `createManifest({ hooks, mcps })`, `createConfig(workspace)`. `createMcp({ target: "project" })` routes an MCP entry to the project settings file. The structural pattern to copy is the test at line 762, "rolls back global and project settings if registry persistence fails".
 
 Repo conventions: TypeScript strict with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Relative imports inside this package use the `.js` suffix in `reconciler.ts` (for example `from "./settingsFile.js"`). Error handling in this package checks `error.code === "ENOENT"` with the long-form guard shown above; match it. Coverage must stay at 100% lines, functions, branches and statements.
@@ -239,9 +266,36 @@ In `packages/settings-reconciler/src/reconciler.ts`:
 1. Add `readSettingsFileStrict` to the existing import from `"./settingsFile.js"` (lines 14–19). Keep `readSettingsFile` in that import; line 293 still uses it.
 2. In `reconcileSettingsTarget` (line 415), change `await readSettingsFile(options.settingsPath)` to `await readSettingsFileStrict(options.settingsPath)`.
 
-Change nothing else.
+Change nothing else in `reconciler.ts`.
 
-**Verify**: `pnpm typecheck` → exit 0. `grep -c 'readSettingsFileStrict' packages/settings-reconciler/src/reconciler.ts` → 2. `grep -c 'readSettingsFile(' packages/settings-reconciler/src/reconciler.ts` → 1.
+3. **Before you run any test**, update the one existing test named in "Current state" ("uses default paths and timestamps when config is omitted") in `packages/settings-reconciler/test/reconciler.test.ts`. Replace this line:
+
+```ts
+    const readSettingsSpy = vi.spyOn(settingsFileModule, "readSettingsFile").mockResolvedValue({});
+```
+
+with:
+
+```ts
+    // The write path reads through the strict reader. Mock it, or this test
+    // reads (and could rewrite) the developer's real ~/.claude/settings.json.
+    const readSettingsSpy = vi
+      .spyOn(settingsFileModule, "readSettingsFileStrict")
+      .mockResolvedValue({});
+    // Registry repair uses the lenient reader. It does not run here, because
+    // readRegistry is mocked; keep it mocked so it can never reach a real file.
+    const lenientReadSpy = vi.spyOn(settingsFileModule, "readSettingsFile").mockResolvedValue({});
+```
+
+Leave the two existing `expect(readSettingsSpy).toHaveBeenCalledWith(...)` assertions exactly as they are; they now check the strict reader. Directly after them, add:
+
+```ts
+      expect(lenientReadSpy).not.toHaveBeenCalled();
+```
+
+Do not change any other existing test.
+
+**Verify**: `pnpm typecheck` → exit 0. `grep -c 'readSettingsFileStrict' packages/settings-reconciler/src/reconciler.ts` → 2. `grep -c 'readSettingsFile(' packages/settings-reconciler/src/reconciler.ts` → 1. `grep -c 'spyOn(settingsFileModule, "readSettingsFileStrict")' packages/settings-reconciler/test/reconciler.test.ts` → 1. Only then run `pnpm vitest run packages/settings-reconciler/test/reconciler.test.ts` → all existing tests pass.
 
 ### Step 3: Test the strict reader
 
@@ -296,6 +350,7 @@ Run `pnpm typecheck`, then `pnpm coverage`.
 
 - 7 new tests for `readSettingsFileStrict` in `test/settingsFile.test.ts` (listed in Step 3). They cover every branch of the new function.
 - 2 new tests in `test/reconciler.test.ts` (Step 4): Test A is the regression test for the data-loss defect; Test B proves an earlier, successful write is undone when a later file is unreadable.
+- 1 existing test updated (Step 2): "uses default paths and timestamps when config is omitted" now mocks the strict reader and asserts the lenient reader is not called.
 - Pattern to follow: the test at `test/reconciler.test.ts:762`.
 - Verification: `pnpm vitest run packages/settings-reconciler` → all pass, 9 new tests.
 
@@ -308,6 +363,8 @@ Machine-checkable. ALL must hold:
 - [ ] `pnpm coverage` exits 0
 - [ ] `grep -c 'readSettingsFileStrict' packages/settings-reconciler/src/reconciler.ts` prints 2
 - [ ] `grep -c 'returns {} for corrupted JSON' packages/settings-reconciler/test/settingsFile.test.ts` prints 1 (the existing lenient test is still there)
+- [ ] `grep -c 'spyOn(settingsFileModule, "readSettingsFileStrict")' packages/settings-reconciler/test/reconciler.test.ts` prints 1
+- [ ] `grep -c 'lenientReadSpy' packages/settings-reconciler/test/reconciler.test.ts` prints 2
 - [ ] `git status --short` lists only the four in-scope source and test files and `plans/README.md`
 - [ ] `plans/README.md` status row for 009 updated
 
@@ -316,7 +373,8 @@ Machine-checkable. ALL must hold:
 Stop and report back (do not improvise) if:
 
 - The code at the locations in "Current state" does not match the excerpts.
-- An existing test in `packages/settings-reconciler/test/` fails after Step 2. That would mean some existing test depends on reconcile overwriting a corrupted file. Report the test name; do not edit or delete it.
+- An existing test in `packages/settings-reconciler/test/` fails after Step 2, other than through the one edit Step 2 prescribes. That would mean another test depends on which reader the write path uses, or on reconcile overwriting a corrupted file. Report the test name; do not edit or delete it.
+- You find another test, anywhere in the repository, that calls `reconcile(` without a config object that points at temp paths. It would read the real `~/.claude/settings.json`.
 - Test A cannot be made to pass without changing the `catch` block in `reconcile()`.
 - You find a third caller of `readSettingsFile` that writes the result back to disk.
 - A step's verification fails twice after a reasonable fix attempt.
@@ -326,5 +384,6 @@ Stop and report back (do not improvise) if:
 - Status naming: an unreadable global file produces `rolled_back` even though nothing was written, because the existing `catch` in `reconcile()` handles every failure the same way. The `error` text is what distinguishes it. A dedicated status would touch `ReconcileStatus` and its consumer in `configCheckWiring.ts`; that was left out to keep this change minimal.
 - Empty files: an empty or whitespace-only settings file is still treated as `{}` and will be written. That matches existing tests. It leaves one narrow race open: a reader that catches another program between truncating the file and writing it. If that proves real, treat an existing zero-length file as unreadable too.
 - The reconciler still has no user-visible signal. A `rolled_back` result is only logged to the sidecar's stderr. Surfacing it in the desktop UI is a separate piece of work.
-- Reviewer focus: confirm the error message cannot contain file content, and that `reconciler.ts:293` still uses the lenient reader.
+- Default-path test: "uses default paths and timestamps when config is omitted" is safe only while every reader and writer it reaches is mocked. Any later change that adds a new file access to `reconcile()` must add a mock there too, or the test touches the real home directory. Injecting a fake home for that test would be sturdier; it was left out to keep this change small.
+- Reviewer focus: confirm the error message cannot contain file content, that `reconciler.ts:293` still uses the lenient reader, and that no test calls `reconcile(` with default paths and an unmocked reader.
 - Interaction: a later plan changes how hook ownership is tracked in `reconciler.ts`. It must keep `reconcileSettingsTarget` on the strict reader.

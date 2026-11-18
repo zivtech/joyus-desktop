@@ -21,7 +21,7 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 |------|-------|----------|--------|------------|--------|
 | 007 | Agent and contributor docs give the correct CI command | P1 | S | — | DONE — executed and approved in review 2026-11-17; commit `5f8d31f` on branch `docs/007-correct-agent-docs` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#9, not merged yet |
 | 008 | Recon tests never touch the real home directory | P1 | S | 007 | DONE — executed and approved in review 2026-11-17; commits `f274b22` and `1edaa59` on branch `fix/008-hermetic-recon-tests` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#10, not merged yet |
-| 009 | Settings reconciler never rewrites an unreadable settings file | P1 | S | 007, 008 | TODO |
+| 009 | Settings reconciler never rewrites an unreadable settings file | P1 | S | 007, 008 | DONE — executed and approved in review 2026-11-17 after one plan revision (see Review record); commit `363bb14` on branch `fix/009-unreadable-settings`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#11 (base: the 008 branch), not merged yet |
 
 ### Wave 2 — no dependency on PR #5
 
@@ -144,5 +144,9 @@ Open questions recorded, not planned:
 ## Review record
 
 The November findings were reviewed by a second model (Gemini 4 Argon, high effort) before any plan was written. Its accepted points are reflected above: 007 blocks everything; F14 sits behind F12; the contract test (014) precedes F12 and guards against passing vacuously; the revocation fix (013) does not rely on the in-memory previous manifest; the "point HOME at a temp dir" tripwire was replaced by a per-file fake home plus a leftovers assertion; and decisions are asked up front instead of being left to executors. Its challenge to the keychain finding was checked against the `keyring` 3.6.3 source and rejected: with no platform feature the crate uses a mock store with no persistence across entries.
+
+Correction found by executing plan 009: its first version said no existing test depended on the change. One did. "uses default paths and timestamps when config is omitted" (`packages/settings-reconciler/test/reconciler.test.ts`) calls `reconcile()` with the real default paths and was kept off the real `~/.claude/settings.json` only by a mock of the lenient reader. The executor stopped as instructed; the plan now prescribes an edit to that test before any test run. Lesson for the remaining plans: before changing which function a code path calls, search the tests for spies on the old function.
+
+The flaky test `SessionsPage.test.ts` ("clears mode note timers…") failed twice on 2026-11-17 on unrelated changes: once in CI on pull request #10 and once in a local coverage run for plan 009. Both passed on rerun.
 
 Corrections made while writing wave 2: plan 008 said the Rust shell hardcodes the engagements path; it does not, and the plan was fixed. Finding F5's fix sketch ("enable the backend") was wrong and is replaced by D8. Finding F10's premise changed after reading spec 008 and the Claude Code hooks reference; plan 012 reflects that. The known-gap count is 25 (16 UI commands, 9 sidecar methods), not 26 or 23 as written earlier.
