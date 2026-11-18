@@ -37,6 +37,7 @@ import { promises as mockedFsPromises } from "node:fs";
 import { execSync } from "node:child_process";
 import * as path from "node:path";
 import * as os from "node:os";
+import { crc32, inflateRawSync } from "node:zlib";
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
@@ -982,8 +983,9 @@ describe("recon.export", () => {
     expect(zip.subarray(30 + nameLength, 30 + nameLength + 1).toString("utf8")).toBe("x");
   });
 
-  it("deflates a file that compresses", async () => {
-    await writeFile(path.join(engagementDir, "big.txt"), "a".repeat(500));
+  it("deflates a file that compresses, and the entry inflates back to the original", async () => {
+    const content = "a".repeat(500);
+    await writeFile(path.join(engagementDir, "big.txt"), content);
 
     const fakeChild = makeFakeChild();
     spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
@@ -994,9 +996,17 @@ describe("recon.export", () => {
     const result = (await exportPromise) as { zipPath: string };
 
     const zip = await readFile(result.zipPath);
-    expect(zip.readUInt16LE(8)).toBe(8);            // method: deflate
-    expect(zip.readUInt32LE(18)).toBeLessThan(500); // compressed size
-    expect(zip.readUInt32LE(22)).toBe(500);         // original size
+    expect(zip.readUInt16LE(8)).toBe(8); // method: deflate
+    const compressedSize = zip.readUInt32LE(18);
+    expect(compressedSize).toBeLessThan(500);
+    expect(zip.readUInt32LE(22)).toBe(500); // original size
+    // The stored checksum is the CRC-32 of the original bytes.
+    expect(zip.readUInt32LE(14)).toBe(crc32(Buffer.from(content, "utf8")));
+    // The compressed bytes must inflate back to exactly what was written.
+    const nameLength = zip.readUInt16LE(26);
+    const dataStart = 30 + nameLength;
+    const compressed = zip.subarray(dataStart, dataStart + compressedSize);
+    expect(inflateRawSync(compressed).toString("utf8")).toBe(content);
   });
 
   it("stores an empty file as a zero-length entry", async () => {
