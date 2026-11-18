@@ -30,7 +30,7 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 | 010 | A recon engagement can never be the engagements root; stored and deflated ZIP entries are tested | P1 | S | 008 | DONE — executed and approved in review 2026-11-17 after one plan revision and one executor revision (see Review record); four commits ending `2b1c83c` on branch `fix/010-recon-directory-safety`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#12 (base: the 008 branch), not merged yet |
 | 011 | CI compiles the Rust shell on pull requests; production advisories cleared; Dependabot | P1 | S | 008 | TODO |
 | 014 | A test fails when UI, Rust shell and sidecar disagree on a command name | P1 | S | 008 | TODO |
-| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | TODO — revised 2026-11-18 from a reference implementation that was run; see "Outside review of the plans". Cut the branch from `fix/009-unreadable-settings`. Decision D4 still wants the maintainer's confirmation before execution |
+| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | DONE — executed 2026-11-18 by a review replay of the revised plan; commits `84ef723` and `e9279f7` on branch `fix/012-managed-hook-ownership`, stacked on the 009 branch (the same commits as local branch `review/012-replay`). The five package files are byte-identical to the plan's reference implementation, and typecheck and the full coverage gate pass on a copy of the branch (see "Outside review of the plans"). The maintainer chose on 2026-11-18 to use this result, which is taken as the confirmation of D4. Not pushed, no pull request yet |
 | 013 | A revocation is applied even when skill sync fails; unfinished updates are retried | P2 | M | 012 as revised and landed exactly as written, and `ec00055` in the branch | TODO — revised 2026-11-18 from a reference implementation that was run; see "Outside review of the plans". Its first step makes two existing tests safe; do that step before running any wiring test |
 | 016 | Session manager: one worktree per session, real removal, merged detection | P3 now, P1 before sessions are switched on | M | 008 | TODO — revised 2026-11-18 from a reference implementation that was run, including against real git; see "Outside review of the plans". Cut the branch from `fix/008-hermetic-recon-tests` |
 | 017 | UI tests wait on real time, not on a count of loop turns | P1 | S | 008 | TODO — written 2026-11-18 from a working prototype (local branch `probe/017-flaky-ui-tests`, commits `dfd04f1` and `877b55d`, not pushed). Runnable as soon as 008 lands. It touches only six files under `apps/desktop-companion/test/ui/`, so it conflicts with no other plan |
@@ -144,7 +144,7 @@ Open questions recorded, not planned:
 
 ## Outside review of the plans (2026-11-17)
 
-A second outside review read the plans in pull request #8 and raised six findings. All six were checked independently: by running the plans' prescribed code in scratch copies, by a real throwaway git repository, and, for plan 010, by executing the plan. All six hold. Plans 012, 013 and 016 were marked BLOCKED on 2026-11-17 and revised on 2026-11-18; all six findings are now closed in the plans. None of the three revised plans has been executed in the repository yet.
+A second outside review read the plans in pull request #8 and raised six findings. All six were checked independently: by running the plans' prescribed code in scratch copies, by a real throwaway git repository, and, for plan 010, by executing the plan. All six hold. Plans 012, 013 and 016 were marked BLOCKED on 2026-11-17 and revised on 2026-11-18; all six findings are now closed in the plans. Plan 012 has since been executed (see "Plan 012 executed" below). Plans 013 and 016 have not been executed in the repository yet.
 
 | # | Plan | Finding | Verified how | Status |
 |---|---|---|---|---|
@@ -177,7 +177,19 @@ Correction to the fix directions written on 2026-11-17: for finding 4 this secti
 
 What the revised plans still do not do, stated in each plan's maintenance notes: a tool-scoped hook is not re-adopted after the registry file is lost (012); in removals-only mode a changed command keeps running until a sync succeeds, and an id listed on two events is not removed from one of them (013); a session whose commits were made and then reset away is marked merged, and one whose work arrived only by cherry-pick, revert or `git am` never is (016).
 
-Not verified for any of the three: `pnpm coverage` over the whole repository, the code inside the running application, and, for 016, any git version other than 2.50.1 or any system other than macOS. Every sync result in plan 013's tests is a mock.
+Not verified for plans 013 and 016: `pnpm coverage` over the whole repository. Not verified for any of the three: the code inside the running application, and, for 016, any git version other than 2.50.1 or any system other than macOS. Every sync result in plan 013's tests is a mock.
+
+### Plan 012 executed (2026-11-18)
+
+Another session replayed the revised plan 012 in a worktree, on local branch `review/012-replay`, cut from the plan 009 commit `363bb14`. It produced the plan's two commits, `84ef723` and `e9279f7`. The plan's own branch name, `fix/012-managed-hook-ownership`, now points at the same commit.
+
+Checked afterward, independently of that session:
+
+- The five files under `packages/settings-reconciler` are byte-identical to the reference implementation the plan was written from. The diff against `363bb14` touches the six files the plan puts in scope and nothing else.
+- On a complete copy of the branch, outside the repository and under a throwaway home directory: `tsc --noEmit` for the core and for the UI both exit 0, and `vitest run --coverage` (the command behind `pnpm coverage`) exits 0 with 146 test files, 2,351 tests and 100% on all four measures.
+- The plan's done-criteria checks hold: the spec note is present once, `buildActiveHookIds` is gone, and `manifest.ts` and `settingsFile.ts` are unchanged.
+
+Not checked: which gates the replaying session ran itself, and the code inside the running application. A replay of plan 013 was in progress on `review/013-replay`, stacked on this branch, when this was written.
 
 ### New findings from the revision work, not planned yet
 
