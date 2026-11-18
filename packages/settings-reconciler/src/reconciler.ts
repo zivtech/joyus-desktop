@@ -27,6 +27,13 @@ export interface ReconcileConfig {
   readonly registryPath?: string;
   readonly backupDir?: string;
   readonly maxBackups?: number;
+  /**
+   * When true, only remove what the registry records as installed and the
+   * manifest no longer lists. Nothing is added, updated or moved, and the
+   * registry entries that survive are kept exactly as they were. Each
+   * settings file is handled on its own.
+   */
+  readonly removalsOnly?: boolean;
   readonly now?: () => Date;
 }
 
@@ -412,6 +419,30 @@ export function removeStaleHooks(
   );
 }
 
+/** A legacy managed group, named by where it lives. */
+export interface HookGroupRef {
+  readonly event: string;
+  readonly matcher: string;
+}
+
+/**
+ * Removals-only counterpart of removeStaleHooks: removes exactly the named
+ * legacy groups and the named owned commands, and nothing else.
+ */
+export function removeRevokedHooks(
+  currentHooks: Record<string, unknown[]>,
+  revokedGroups: readonly HookGroupRef[],
+  revokedCommands: readonly OwnedHook[]
+): Record<string, unknown[]> {
+  const groupKeys = new Set(revokedGroups.map((group) => groupKey(group.event, group.matcher)));
+
+  return filterHookGroups(
+    currentHooks,
+    (event, matcher) => groupKeys.has(groupKey(event, matcher)),
+    revokedCommands
+  );
+}
+
 export function mergeMcpServers(
   currentServers: Record<string, unknown>,
   manifestServers: readonly ManifestMcpServer[]
@@ -446,6 +477,23 @@ export function removeStaleMcpServers(
     }
 
     nextServers[id] = server;
+  }
+
+  return nextServers;
+}
+
+/** Removals-only counterpart of removeStaleMcpServers: removes exactly the named ids. */
+export function removeRevokedMcpServers(
+  currentServers: Record<string, unknown>,
+  revokedIds: readonly string[]
+): Record<string, unknown> {
+  const revoked = new Set(revokedIds);
+  const nextServers: Record<string, unknown> = {};
+
+  for (const [id, server] of Object.entries(normalizeMcpRecord(currentServers))) {
+    if (!revoked.has(id)) {
+      nextServers[id] = server;
+    }
   }
 
   return nextServers;
@@ -635,6 +683,27 @@ function buildNewRegistry(
   };
 }
 
+/** The current registry without the given keys. Surviving entries are untouched. */
+function pruneRegistry(
+  currentRegistry: ManagedRegistry,
+  removedKeys: ReadonlySet<string>,
+  now: () => Date
+): ManagedRegistry {
+  const entries: Record<string, RegistryEntry> = {};
+
+  for (const [key, entry] of Object.entries(currentRegistry.entries)) {
+    if (!removedKeys.has(key)) {
+      entries[key] = entry;
+    }
+  }
+
+  return {
+    schema_version: "1.0",
+    entries,
+    last_reconciled: now().toISOString(),
+  };
+}
+
 function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean {
   return (
     left.type === right.type &&
@@ -696,27 +765,171 @@ function withOptionalBackupPath(
   return { ...result, backupPath };
 }
 
+/** What one run wants a settings file to hold. */
+interface SettingsChange {
+  readonly hooks: Record<string, unknown[]>;
+  readonly mcpServers: Record<string, unknown>;
+  readonly userOwnedHookKeys: readonly string[];
+}
+
+type SettingsChangeFn = (
+  currentHooks: Record<string, unknown[]>,
+  currentMcpServers: Record<string, unknown>
+) => SettingsChange;
+
+/** Install, update, move and remove: the file ends up as the manifest says. */
+function fullChange(
+  hooks: readonly ManifestHook[],
+  mcps: readonly ManifestMcpServer[],
+  ownedHooks: readonly OwnedHook[]
+): SettingsChangeFn {
+  return (currentHooks, currentMcpServers) => {
+    const hookPlan = planHookMerge(currentHooks, hooks, ownedHooks);
+
+    return {
+      hooks: removeStaleHooks(hookPlan.hooks, hooks, ownedHooks),
+      mcpServers: removeStaleMcpServers(
+        mergeMcpServers(currentMcpServers, mcps),
+        buildActiveMcpIds(mcps)
+      ),
+      userOwnedHookKeys: hookPlan.userOwned.map(hookRegistryKey),
+    };
+  };
+}
+
+/** What removals-only mode removes from one settings file. */
+interface RevocationPlan {
+  readonly groups: HookGroupRef[];
+  readonly commands: OwnedHook[];
+  readonly mcpIds: string[];
+  /** Registry keys to drop once this file has been dealt with. */
+  readonly keys: string[];
+}
+
+function hasRemovals(plan: RevocationPlan): boolean {
+  return plan.groups.length > 0 || plan.commands.length > 0 || plan.mcpIds.length > 0;
+}
+
+/** Remove only: nothing is added, updated or moved. */
+function removalChange(plan: RevocationPlan): SettingsChangeFn {
+  return (currentHooks, currentMcpServers) => ({
+    hooks: removeRevokedHooks(currentHooks, plan.groups, plan.commands),
+    mcpServers: removeRevokedMcpServers(currentMcpServers, plan.mcpIds),
+    userOwnedHookKeys: [],
+  });
+}
+
+function parseHookKey(key: string): { event: string; id: string } {
+  const rest = key.slice("hook:".length);
+  const separator = rest.indexOf(":");
+  return { event: rest.slice(0, separator), id: rest.slice(separator + 1) };
+}
+
+/**
+ * Decides what removals-only mode removes: what the registry records as
+ * installed, under an id the manifest no longer lists. An id that is still
+ * listed keeps everything installed under it, wherever the manifest now says
+ * it belongs.
+ */
+function planRevocations(
+  manifest: DistributionManifest,
+  currentRegistry: ManagedRegistry
+): Record<SettingsTarget, RevocationPlan> {
+  const hooks = collectAllHooks(manifest);
+  const listedHookIds = new Set(hooks.map((hook) => hook.id));
+  const listedMcpIds = buildActiveMcpIds(collectAllMcpServers(manifest));
+
+  // Places that something still listed uses. They are never removed, even if
+  // a revoked entry points at the same place.
+  const keptGroups = new Set(hooks.map((hook) => groupKey(hook.event, hook.matcher)));
+  const keptCommands = new Set(
+    hooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
+  );
+
+  const plans: Record<SettingsTarget, RevocationPlan> = {
+    global: { groups: [], commands: [], mcpIds: [], keys: [] },
+    project: { groups: [], commands: [], mcpIds: [], keys: [] },
+  };
+  const revokedHooks: Array<{
+    key: string;
+    entry: RegistryEntry;
+    event: string;
+    matcher: string;
+  }> = [];
+
+  for (const [key, entry] of Object.entries(currentRegistry.entries)) {
+    if (entry.type === "mcp") {
+      const id = key.slice("mcp:".length);
+      if (!listedMcpIds.has(id)) {
+        const plan = plans[resolveTarget(entry.target)];
+        plan.keys.push(key);
+        // The same guard as a full reconcile: only reserved ids are ever removed.
+        if (id.startsWith(MANAGED_PREFIX)) {
+          plan.mcpIds.push(id);
+        }
+      }
+      continue;
+    }
+
+    // Entries written before the matcher was recorded, and entries rebuilt by
+    // repair, are keyed by matcher: for them the id part is the matcher.
+    const { event, id } = parseHookKey(key);
+    const matcher = entry.matcher ?? id;
+
+    if (listedHookIds.has(id)) {
+      keptGroups.add(groupKey(event, matcher));
+      if (entry.command !== undefined) {
+        keptCommands.add(hookKey(event, matcher, entry.command));
+      }
+      continue;
+    }
+
+    revokedHooks.push({ key, entry, event, matcher });
+  }
+
+  for (const { key, entry, event, matcher } of revokedHooks) {
+    const plan = plans[resolveTarget(entry.target)];
+
+    if (isLegacyManagedMatcher(matcher)) {
+      if (!keptGroups.has(groupKey(event, matcher))) {
+        plan.groups.push({ event, matcher });
+        plan.keys.push(key);
+      }
+    } else if (entry.command === undefined) {
+      // The user's own command, or an entry too old to say what was written:
+      // nothing in settings belongs to it.
+      plan.keys.push(key);
+    } else if (!keptCommands.has(hookKey(event, matcher, entry.command))) {
+      plan.commands.push(
+        entry.timeout === undefined
+          ? { event, matcher, command: entry.command }
+          : { event, matcher, command: entry.command, timeout: entry.timeout }
+      );
+      plan.keys.push(key);
+    }
+  }
+
+  return plans;
+}
+
 async function reconcileSettingsTarget(options: {
   settingsPath: string;
   backupDir: string;
   maxBackups: number;
   now: () => Date;
-  hooks: readonly ManifestHook[];
-  mcps: readonly ManifestMcpServer[];
-  ownedHooks: readonly OwnedHook[];
+  change: SettingsChangeFn;
 }): Promise<SettingsUpdateResult> {
   const currentSettings = await readSettingsFileStrict(options.settingsPath);
   const currentHooksValue = currentSettings["hooks"];
   const currentMcpValue = currentSettings["mcpServers"];
-  const currentHooks = normalizeHooksRecord(currentHooksValue);
-  const currentMcpServers = normalizeMcpRecord(currentMcpValue);
 
-  const hookPlan = planHookMerge(currentHooks, options.hooks, options.ownedHooks);
-  const userOwnedHookKeys = hookPlan.userOwned.map(hookRegistryKey);
-  const nextHooks = removeStaleHooks(hookPlan.hooks, options.hooks, options.ownedHooks);
-  const nextMcpServers = removeStaleMcpServers(
-    mergeMcpServers(currentMcpServers, options.mcps),
-    buildActiveMcpIds(options.mcps)
+  const {
+    hooks: nextHooks,
+    mcpServers: nextMcpServers,
+    userOwnedHookKeys,
+  } = options.change(
+    normalizeHooksRecord(currentHooksValue),
+    normalizeMcpRecord(currentMcpValue)
   );
 
   const nextSettings: Record<string, unknown> = { ...currentSettings };
@@ -780,6 +993,121 @@ async function rollbackReconciledSettings(
   }
 }
 
+/** Puts a settings file back as it was. A failure here must not hide the first error. */
+async function rollbackQuietly(
+  settingsPath: string,
+  updateResult: SettingsUpdateResult
+): Promise<void> {
+  try {
+    await rollbackReconciledSettings(settingsPath, updateResult);
+  } catch {
+    // Best-effort rollback.
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+interface ResolvedReconcilePaths {
+  readonly registryPath: string;
+  readonly globalSettingsPath: string;
+  readonly projectSettingsPath: string;
+  readonly backupDir: string;
+  readonly maxBackups: number;
+  readonly now: () => Date;
+}
+
+/**
+ * Removals-only mode. Each settings file is handled on its own: a file that
+ * cannot be read or written does not hold back the removals in the other.
+ * A file with nothing to remove is not opened at all.
+ */
+async function reconcileRemovalsOnly(
+  manifest: DistributionManifest,
+  paths: ResolvedReconcilePaths
+): Promise<ReconcileResult> {
+  const { registryPath, now } = paths;
+  const applied: Array<{ settingsPath: string; update: SettingsUpdateResult }> = [];
+  const failures: string[] = [];
+
+  try {
+    const currentRegistry =
+      (await readRegistry(registryPath)) ??
+      (await repairRegistryFromSettings(paths.globalSettingsPath, paths.projectSettingsPath, now));
+    const plans = planRevocations(manifest, currentRegistry);
+    const removedKeys = new Set<string>();
+
+    for (const target of ["global", "project"] as const) {
+      const plan = plans[target];
+      const settingsPath =
+        target === "global" ? paths.globalSettingsPath : paths.projectSettingsPath;
+
+      if (hasRemovals(plan)) {
+        try {
+          const update = await reconcileSettingsTarget({
+            settingsPath,
+            backupDir: join(paths.backupDir, target),
+            maxBackups: paths.maxBackups,
+            now,
+            change: removalChange(plan),
+          });
+          applied.push({ settingsPath, update });
+        } catch (error) {
+          // This file keeps its entries, in settings and in the registry.
+          failures.push(errorMessage(error));
+          continue;
+        }
+      }
+
+      for (const key of plan.keys) {
+        removedKeys.add(key);
+      }
+    }
+
+    const nextRegistry = pruneRegistry(currentRegistry, removedKeys, now);
+    const counts = computeCounts(currentRegistry, nextRegistry);
+
+    await writeRegistry(registryPath, nextRegistry);
+
+    const backupPath = applied.find(({ update }) => update.backupPath !== undefined)?.update
+      .backupPath;
+
+    if (failures.length > 0) {
+      return withOptionalBackupPath({
+        status: "error",
+        entriesAdded: 0,
+        entriesUpdated: 0,
+        entriesRemoved: counts.removed,
+        registryPath,
+        error: failures.join("; "),
+      }, backupPath);
+    }
+
+    return withOptionalBackupPath({
+      status: "success",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: counts.removed,
+      registryPath,
+    }, backupPath);
+  } catch (error) {
+    // The registry could not be loaded or written: undo what was removed.
+    for (const { settingsPath, update } of applied) {
+      await rollbackQuietly(settingsPath, update);
+    }
+
+    return {
+      status: "rolled_back",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath,
+      error: errorMessage(error),
+    };
+  }
+}
+
 export async function reconcile(
   manifest: DistributionManifest,
   config?: ReconcileConfig
@@ -808,6 +1136,17 @@ export async function reconcile(
   const maxBackups = config?.maxBackups ?? 5;
   const now = config?.now ?? (() => new Date());
 
+  if (config?.removalsOnly === true) {
+    return reconcileRemovalsOnly(manifest, {
+      registryPath,
+      globalSettingsPath,
+      projectSettingsPath,
+      backupDir,
+      maxBackups,
+      now,
+    });
+  }
+
   const partition = partitionByTarget(
     collectAllHooks(manifest),
     collectAllMcpServers(manifest)
@@ -828,9 +1167,11 @@ export async function reconcile(
       backupDir: join(backupDir, "global"),
       maxBackups,
       now,
-      hooks: partition.global.hooks,
-      mcps: partition.global.mcps,
-      ownedHooks: collectOwnedHooks(currentRegistry, "global"),
+      change: fullChange(
+        partition.global.hooks,
+        partition.global.mcps,
+        collectOwnedHooks(currentRegistry, "global")
+      ),
     });
 
     projectUpdate = await reconcileSettingsTarget({
@@ -838,9 +1179,11 @@ export async function reconcile(
       backupDir: join(backupDir, "project"),
       maxBackups,
       now,
-      hooks: partition.project.hooks,
-      mcps: partition.project.mcps,
-      ownedHooks: collectOwnedHooks(currentRegistry, "project"),
+      change: fullChange(
+        partition.project.hooks,
+        partition.project.mcps,
+        collectOwnedHooks(currentRegistry, "project")
+      ),
     });
 
     const nextRegistry = buildNewRegistry(
@@ -861,17 +1204,8 @@ export async function reconcile(
       registryPath,
     }, globalUpdate.backupPath ?? projectUpdate.backupPath);
   } catch (error) {
-    try {
-      await rollbackReconciledSettings(globalSettingsPath, globalUpdate);
-    } catch {
-      // Best-effort rollback for global settings.
-    }
-
-    try {
-      await rollbackReconciledSettings(projectSettingsPath, projectUpdate);
-    } catch {
-      // Best-effort rollback for project settings.
-    }
+    await rollbackQuietly(globalSettingsPath, globalUpdate);
+    await rollbackQuietly(projectSettingsPath, projectUpdate);
 
     return withOptionalBackupPath({
       status: "rolled_back",
@@ -879,7 +1213,7 @@ export async function reconcile(
       entriesUpdated: 0,
       entriesRemoved: 0,
       registryPath,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     }, globalUpdate.backupPath ?? projectUpdate.backupPath);
   }
 }

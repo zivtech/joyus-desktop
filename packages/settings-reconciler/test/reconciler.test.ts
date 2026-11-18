@@ -9,6 +9,8 @@ import {
   mergeMcpServers,
   partitionByTarget,
   reconcile,
+  removeRevokedHooks,
+  removeRevokedMcpServers,
   removeStaleHooks,
   removeStaleMcpServers,
 } from "../src/reconciler.js";
@@ -550,6 +552,55 @@ describe("pure reconciler helpers", () => {
       },
       { matcher: "Bash", hooks: [{ type: "command", command: "echo a", timeout: 5 }] },
     ]);
+  });
+
+  it("removes exactly the named legacy groups and owned commands", () => {
+    const userHook = { type: "command", command: "echo user-bash" };
+    const keptLegacy = {
+      matcher: "joyus:keep",
+      hooks: [{ type: "command", command: "echo keep", timeout: 5 }],
+    };
+    const currentHooks = {
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userHook, { type: "command", command: "echo audit", timeout: 5 }] },
+        keptLegacy,
+        { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo gone", timeout: 5 }] },
+      ],
+      // Same matcher, other event: not named, so it stays.
+      SessionStart: [
+        { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo other", timeout: 5 }] },
+      ],
+    };
+
+    const result = removeRevokedHooks(
+      currentHooks,
+      [{ event: "PreToolUse", matcher: "joyus:gone" }],
+      [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }]
+    );
+
+    expect(result).toEqual({
+      PreToolUse: [{ matcher: "Bash", hooks: [userHook] }, keptLegacy],
+      SessionStart: currentHooks.SessionStart,
+    });
+    expect(result["PreToolUse"]![1]).toBe(keptLegacy);
+    // The input is not mutated, and nothing named means nothing removed.
+    expect(currentHooks.PreToolUse).toHaveLength(3);
+    expect(removeRevokedHooks(currentHooks, [], [])).toEqual(currentHooks);
+  });
+
+  it("removes exactly the named MCP servers", () => {
+    const userServer = { command: "python" };
+    const currentServers = {
+      "user-mcp": userServer,
+      "joyus:keep": { command: "node" },
+      "joyus:gone": { command: "bun" },
+    };
+
+    const result = removeRevokedMcpServers(currentServers, ["joyus:gone", "joyus:absent"]);
+
+    expect(result).toEqual({ "user-mcp": userServer, "joyus:keep": { command: "node" } });
+    expect(result["user-mcp"]).toBe(userServer);
+    expect(Object.keys(currentServers)).toHaveLength(3);
   });
 });
 
@@ -1782,5 +1833,545 @@ describe("reconcile", () => {
 
     expect(result).toMatchObject({ status: "rolled_back", error: "repair failed" });
     expect(await readJson(workspace.globalSettingsPath)).toEqual({ existing: true });
+  });
+});
+
+describe("reconcile in removals-only mode", () => {
+  const INSTALLED_AT = "2026-03-01T00:00:00.000Z";
+
+  function hookEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      type: "hook",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      event: "PreToolUse",
+      target: "global",
+      installed_at: INSTALLED_AT,
+      ...overrides,
+    };
+  }
+
+  function mcpEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      type: "mcp",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      target: "global",
+      installed_at: INSTALLED_AT,
+      ...overrides,
+    };
+  }
+
+  async function seedRegistry(
+    workspace: Awaited<ReturnType<typeof createWorkspace>>,
+    entries: Record<string, unknown>
+  ): Promise<void> {
+    await writeJson(workspace.registryPath, {
+      schema_version: "1.0",
+      entries,
+      last_reconciled: INSTALLED_AT,
+    });
+  }
+
+  async function readEntries(
+    workspace: Awaited<ReturnType<typeof createWorkspace>>
+  ): Promise<Record<string, unknown>> {
+    return ((await readJson(workspace.registryPath)) as { entries: Record<string, unknown> })
+      .entries;
+  }
+
+  function removalsOnly(workspace: Awaited<ReturnType<typeof createWorkspace>>) {
+    return { ...createConfig(workspace), removalsOnly: true };
+  }
+
+  it("removes revoked entries from both files and adds nothing", async () => {
+    const workspace = await createWorkspace();
+    const userHook = { type: "command", command: "echo user-bash" };
+
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userHook, { type: "command", command: "echo revoked", timeout: 5 }],
+          },
+          {
+            matcher: "joyus:old-hook",
+            hooks: [{ type: "command", command: "echo old", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: {
+        "joyus:old-mcp": { command: "node" },
+        "user-mcp": { command: "python" },
+      },
+    });
+    await writeJson(workspace.projectSettingsPath, {
+      mcpServers: { "joyus:project-mcp": { command: "bun" } },
+    });
+    await seedRegistry(workspace, {
+      "hook:PreToolUse:joyus:revoked": hookEntry({ matcher: "Bash", command: "echo revoked" }),
+      "hook:PreToolUse:joyus:old-hook": hookEntry({
+        matcher: "joyus:old-hook",
+        command: "echo old",
+      }),
+      "mcp:joyus:old-mcp": mcpEntry(),
+      "mcp:joyus:project-mcp": mcpEntry({ target: "project" }),
+    });
+
+    // The new manifest lists only brand-new entries.
+    const result = await reconcile(
+      createManifest({
+        hooks: [createHook({ id: "joyus:new", matcher: "Edit", command: "echo new" })],
+        mcps: [createMcp({ id: "joyus:new-mcp" })],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({
+      status: "success",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 4,
+    });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] },
+      mcpServers: { "user-mcp": { command: "python" } },
+    });
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({});
+    expect(await readEntries(workspace)).toEqual({});
+  });
+
+  it("leaves a still-listed entry exactly as installed when its command changes", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 5 }] },
+        ],
+      },
+    };
+    const entry = hookEntry({ matcher: "Bash", command: "echo audit" });
+
+    await writeJson(workspace.globalSettingsPath, settings);
+    const before = await readFile(workspace.globalSettingsPath, "utf8");
+    await seedRegistry(workspace, { "hook:PreToolUse:joyus:audit": entry });
+
+    // Same id, new command and version: a full reconcile would update it.
+    const result = await reconcile(
+      createManifest({
+        version: "2.0.0",
+        hooks: [createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit v2" })],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({
+      status: "success",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+    });
+    expect(result.backupPath).toBeUndefined();
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(before);
+    expect(await readEntries(workspace)).toEqual({ "hook:PreToolUse:joyus:audit": entry });
+  });
+
+  it("keeps an MCP server where it is when its target changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      mcpServers: { "joyus:mcp": { command: "node" }, "joyus:dropped": { command: "bun" } },
+    });
+    await seedRegistry(workspace, {
+      "mcp:joyus:mcp": mcpEntry(),
+      "mcp:joyus:dropped": mcpEntry(),
+    });
+    // joyus:mcp moves to the project file; joyus:dropped is revoked.
+    const manifest = createManifest({ mcps: [createMcp({ target: "project" })] });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+    await expect(readFile(workspace.projectSettingsPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(await readEntries(workspace)).toEqual({ "mcp:joyus:mcp": mcpEntry() });
+
+    // Sync works again: the full reconcile moves it.
+    const moved = await reconcile(manifest, createConfig(workspace));
+
+    expect(moved).toMatchObject({ status: "success", entriesUpdated: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({});
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+  });
+
+  it("keeps a joyus: group where it is when its matcher changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:old-name",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entry = hookEntry({ matcher: "joyus:old-name", command: "echo guard" });
+    await seedRegistry(workspace, { "hook:PreToolUse:joyus:guard": entry });
+    const manifest = createManifest({
+      hooks: [createHook({ id: "joyus:guard", matcher: "joyus:new-name", command: "echo guard" })],
+    });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    expect(await readEntries(workspace)).toEqual({ "hook:PreToolUse:joyus:guard": entry });
+
+    await reconcile(manifest, createConfig(workspace));
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:new-name",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("keeps a hook where it is when its event or its real matcher changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              { type: "command", command: "echo audit", timeout: 5 },
+              { type: "command", command: "echo lint", timeout: 5 },
+            ],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entries = {
+      "hook:PreToolUse:joyus:audit": hookEntry({ matcher: "Bash", command: "echo audit" }),
+      "hook:PreToolUse:joyus:lint": hookEntry({ matcher: "Bash", command: "echo lint" }),
+    };
+    await seedRegistry(workspace, entries);
+    // joyus:audit moves to another event, joyus:lint to another matcher.
+    const manifest = createManifest({
+      hooks: [
+        createHook({
+          id: "joyus:audit",
+          event: "PostToolUse",
+          matcher: "Bash",
+          command: "echo audit",
+        }),
+        createHook({ id: "joyus:lint", matcher: "Edit", command: "echo lint" }),
+      ],
+    });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    expect(await readEntries(workspace)).toEqual(entries);
+
+    await reconcile(manifest, createConfig(workspace));
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          { matcher: "Edit", hooks: [{ type: "command", command: "echo lint", timeout: 5 }] },
+        ],
+        PostToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 5 }] },
+        ],
+      },
+    });
+  });
+
+  it("keeps a place that a still-listed hook uses, and keeps the registry entry that owns it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo shared", timeout: 5 }] },
+          {
+            matcher: "joyus:shared-group",
+            hooks: [{ type: "command", command: "echo group", timeout: 5 }],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entries = {
+      // Revoked ids. A listed hook declares the same command, and a listed
+      // registry entry records the same group.
+      "hook:PreToolUse:joyus:first": hookEntry({ matcher: "Bash", command: "echo shared" }),
+      "hook:PreToolUse:joyus:old-owner": hookEntry({
+        matcher: "joyus:shared-group",
+        command: "echo group",
+      }),
+      "hook:PreToolUse:joyus:co-owner": hookEntry({
+        matcher: "joyus:shared-group",
+        command: "echo group",
+      }),
+    };
+    await seedRegistry(workspace, entries);
+
+    const result = await reconcile(
+      createManifest({
+        hooks: [
+          createHook({ id: "joyus:second", matcher: "Bash", command: "echo shared" }),
+          // Listed, and its manifest matcher has changed since it was installed.
+          createHook({ id: "joyus:co-owner", matcher: "joyus:renamed", command: "echo group" }),
+        ],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    // Nothing was removed, so no ownership record is dropped either.
+    expect(await readEntries(workspace)).toEqual(entries);
+  });
+
+  it("removes a revoked group recorded before the matcher field existed, and leaves the user's own command", async () => {
+    const workspace = await createWorkspace();
+    const userEntry = { type: "command", command: "echo audit", timeout: 30 };
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [userEntry] },
+          {
+            matcher: "joyus:legacy",
+            hooks: [{ type: "command", command: "echo legacy", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "user-mcp": { command: "python" } },
+    });
+    await seedRegistry(workspace, {
+      // Written before plan 012: keyed by matcher, no matcher or command field.
+      "hook:PreToolUse:joyus:legacy": hookEntry(),
+      // The user already had this command: a matcher, but no command.
+      "hook:PreToolUse:joyus:audit": hookEntry({ matcher: "Bash" }),
+      // A hand-edited entry without the reserved prefix is never acted on.
+      "mcp:user-mcp": mcpEntry(),
+    });
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 3 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userEntry] }] },
+      mcpServers: { "user-mcp": { command: "python" } },
+    });
+    expect(await readEntries(workspace)).toEqual({});
+  });
+
+  it("works from a repaired registry when the registry file is missing", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo gone", timeout: 5 }] },
+          {
+            matcher: "joyus:guard-group",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "joyus:gone-mcp": { command: "node" }, "joyus:mcp": { command: "node" } },
+    });
+
+    const result = await reconcile(
+      createManifest({
+        // Listed under an id that differs from its matcher: repair cannot know
+        // the id, so the group is kept because a listed hook declares it.
+        hooks: [createHook({ id: "joyus:guard", matcher: "joyus:guard-group", command: "echo guard" })],
+        mcps: [createMcp()],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "success", entriesAdded: 0, entriesRemoved: 2 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:guard-group",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+    expect(Object.keys(await readEntries(workspace)).sort()).toEqual([
+      "hook:PreToolUse:joyus:guard-group",
+      "mcp:joyus:mcp",
+    ]);
+  });
+
+  it("rolls back and reports the failure like a full reconcile", async () => {
+    const workspace = await createWorkspace();
+    const original = { mcpServers: { "joyus:old-mcp": { command: "node" } } };
+    await writeJson(workspace.globalSettingsPath, original);
+    await seedRegistry(workspace, { "mcp:joyus:old-mcp": mcpEntry() });
+    vi.spyOn(registryModule, "writeRegistry").mockRejectedValueOnce(
+      new Error("registry write failed")
+    );
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "rolled_back", error: "registry write failed" });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(original);
+  });
+
+  it("applies the removals in one file when the other cannot be read", async () => {
+    for (const broken of ["project", "global"] as const) {
+      const workspace = await createWorkspace();
+      const brokenPath =
+        broken === "project" ? workspace.projectSettingsPath : workspace.globalSettingsPath;
+      const healthyPath =
+        broken === "project" ? workspace.globalSettingsPath : workspace.projectSettingsPath;
+      const healthy = broken === "project" ? "global" : "project";
+
+      await writeJson(healthyPath, {
+        mcpServers: { "joyus:revoked-here": { command: "node" }, "user-mcp": { command: "python" } },
+      });
+      await mkdir(dirname(brokenPath), { recursive: true });
+      await writeFile(brokenPath, "{ broken", "utf8");
+      await seedRegistry(workspace, {
+        "mcp:joyus:revoked-here": mcpEntry({ target: healthy }),
+        "mcp:joyus:revoked-there": mcpEntry({ target: broken }),
+      });
+
+      const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+      // The readable file lost its revoked entry. The other file and its record are untouched.
+      expect(result).toMatchObject({ status: "error", entriesRemoved: 1 });
+      expect(result.error).toContain(brokenPath);
+      expect(result.error).toContain("not valid JSON");
+      expect(await readJson(healthyPath)).toEqual({ mcpServers: { "user-mcp": { command: "python" } } });
+      expect(await readFile(brokenPath, "utf8")).toBe("{ broken");
+      expect(await readEntries(workspace)).toEqual({
+        "mcp:joyus:revoked-there": mcpEntry({ target: broken }),
+      });
+    }
+  });
+
+  it("reports both files when neither can be read, and removes nothing", async () => {
+    const workspace = await createWorkspace();
+    for (const path of [workspace.globalSettingsPath, workspace.projectSettingsPath]) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, "null", "utf8");
+    }
+    const entries = {
+      "mcp:joyus:global-mcp": mcpEntry(),
+      "mcp:joyus:project-mcp": mcpEntry({ target: "project" }),
+    };
+    await seedRegistry(workspace, entries);
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "error", entriesRemoved: 0 });
+    expect(result.error).toContain(workspace.globalSettingsPath);
+    expect(result.error).toContain(workspace.projectSettingsPath);
+    expect(result.backupPath).toBeUndefined();
+    expect(await readEntries(workspace)).toEqual(entries);
+  });
+
+  it("does not open a file that has nothing to remove", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      mcpServers: { "joyus:old-mcp": { command: "node" } },
+    });
+    // Unreadable, but no revoked entry lives in it.
+    await mkdir(dirname(workspace.projectSettingsPath), { recursive: true });
+    await writeFile(workspace.projectSettingsPath, "{ broken", "utf8");
+    await seedRegistry(workspace, { "mcp:joyus:old-mcp": mcpEntry() });
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(result.backupPath).toBeDefined();
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({});
+  });
+
+  it("removes the entry it wrote, not a copy the user added before it", async () => {
+    const workspace = await createWorkspace();
+    const userCopy = { type: "command", command: "echo audit", timeout: 30, note: "mine" };
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userCopy, { type: "command", command: "echo audit", timeout: 5 }],
+          },
+        ],
+      },
+    });
+    await seedRegistry(workspace, {
+      "hook:PreToolUse:joyus:audit": hookEntry({
+        matcher: "Bash",
+        command: "echo audit",
+        timeout: 5,
+      }),
+    });
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }] },
+    });
+  });
+
+  it("returns rolled_back when the registry cannot be rebuilt", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, { existing: true });
+    vi.spyOn(registryModule, "repairRegistry").mockRejectedValueOnce(new Error("repair failed"));
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toEqual({
+      status: "rolled_back",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath: workspace.registryPath,
+      error: "repair failed",
+    });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({ existing: true });
+  });
+
+  it("still returns rolled_back when putting a file back fails", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      mcpServers: { "joyus:old-mcp": { command: "node" } },
+    });
+    await seedRegistry(workspace, { "mcp:joyus:old-mcp": mcpEntry() });
+    vi.spyOn(registryModule, "writeRegistry").mockRejectedValueOnce("registry write failed");
+    vi.spyOn(settingsFileModule, "rollbackSettings").mockRejectedValue(
+      new Error("rollback failed")
+    );
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "rolled_back", error: "registry write failed" });
   });
 });
