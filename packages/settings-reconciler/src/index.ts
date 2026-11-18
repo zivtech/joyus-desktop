@@ -27,6 +27,6 @@ export {
   partitionByTarget,
 } from "./reconciler.js";
 
-export type { ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
+export type { OwnedHook, ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
 
 export * from "./tenantConfig";

@@ -23,6 +23,15 @@ export interface RegistryEntry {
   readonly bundle: string;
   readonly manifest_version: string;
   readonly event?: HookEventType;
+  /** Hooks only: the matcher of the settings group the manifest places this hook in. */
+  readonly matcher?: string;
+  /**
+   * Hooks only: the exact command string this tool wrote. Absent when the
+   * entry predates this field, or when the user already had the identical
+   * command in that group: then the entry in settings is the user's, and this
+   * tool must never refresh or remove it.
+   */
+  readonly command?: string;
   readonly target: SettingsTarget;
   readonly installed_at: string;
 }
@@ -55,14 +64,8 @@ export async function writeRegistry(registryPath: string, registry: ManagedRegis
 
 // T010: Repair registry from prefix scanning
 
-interface SettingsHookMatcher {
-  matcher?: string;
-  hooks?: Array<{ command?: string }>;
-}
-
-interface SettingsJson {
-  hooks?: Partial<Record<string, SettingsHookMatcher[]>>;
-  mcpServers?: Record<string, unknown>;
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const HOOK_EVENT_TYPES: readonly HookEventType[] = [
@@ -86,24 +89,32 @@ export async function repairRegistry(
   const installedAt = now().toISOString();
   const reconciledAt = installedAt;
 
-  let settings: SettingsJson;
+  let settings: unknown;
   try {
     const raw = await readFile(settingsPath, "utf8");
-    settings = JSON.parse(raw) as SettingsJson;
+    settings = JSON.parse(raw);
   } catch {
+    return emptyRegistry(reconciledAt);
+  }
+
+  // Valid JSON of the wrong shape (null, a list, a string) has nothing to scan.
+  if (!isPlainObject(settings)) {
     return emptyRegistry(reconciledAt);
   }
 
   const entries: Record<string, RegistryEntry> = {};
 
   // Scan hooks for joyus:-prefixed matchers
-  if (settings.hooks != null) {
+  const hooks = settings["hooks"];
+  if (isPlainObject(hooks)) {
     for (const eventType of HOOK_EVENT_TYPES) {
-      const matchers: SettingsHookMatcher[] | undefined = settings.hooks[eventType];
-      if (!Array.isArray(matchers)) continue;
-      for (const group of matchers as SettingsHookMatcher[]) {
-        if (typeof group.matcher === "string" && group.matcher.startsWith("joyus:")) {
-          const key = `hook:${eventType}:${group.matcher}`;
+      const groups = hooks[eventType];
+      if (!Array.isArray(groups)) continue;
+      for (const group of groups) {
+        if (!isPlainObject(group)) continue;
+        const matcher = group["matcher"];
+        if (typeof matcher === "string" && matcher.startsWith("joyus:")) {
+          const key = `hook:${eventType}:${matcher}`;
           entries[key] = {
             type: "hook",
             bundle: "unknown",
@@ -118,8 +129,9 @@ export async function repairRegistry(
   }
 
   // Scan mcpServers for joyus:-prefixed keys
-  if (settings.mcpServers != null) {
-    for (const key of Object.keys(settings.mcpServers)) {
+  const mcpServers = settings["mcpServers"];
+  if (isPlainObject(mcpServers)) {
+    for (const key of Object.keys(mcpServers)) {
       if (key.startsWith("joyus:")) {
         entries[`mcp:${key}`] = {
           type: "mcp",
