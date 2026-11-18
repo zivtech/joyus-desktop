@@ -1684,6 +1684,114 @@ describe("createConfigChangeHandler failure isolation", () => {
     expect(syncSkillsFn).not.toHaveBeenCalled();
     expect(reconcileFn).toHaveBeenCalledWith(manifest, { removalsOnly: true });
   });
+
+  it("retries the sync with the earlier version after a failed sync in the cycle that dropped the configured bundle", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: "offline",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: true,
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: true,
+      });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    // The new manifest drops the configured bundle and keeps another one.
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    // First cycle: sync is offline, so removals only, and the handler rejects.
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+    // The poller calls again with the same manifest. The earlier manifest is
+    // still the one that had the configured bundle, so sync is tried again.
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    expect(syncSkillsFn).toHaveBeenCalledTimes(2);
+    expect(syncSkillsFn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenNthCalledWith(1, manifest, { removalsOnly: true });
+    expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
+  });
+
+  it("keeps the earlier manifest when sync worked but reconcile did not finish", async () => {
+    const reconcileFn = vi
+      .fn()
+      .mockResolvedValueOnce(createReconcileResult("rolled_back", "/tmp/registry.json", "disk full"))
+      .mockResolvedValueOnce(createReconcileResult());
+    const syncSkillsFn = vi.fn().mockResolvedValue({
+      status: "success",
+      filesUpdated: 0,
+      metadataPath: "/tmp/meta.json",
+      version: "v1.0.0",
+      noop: true,
+    });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync ok, reconcile failed)",
+    );
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    // Both cycles could still resolve the version from the earlier manifest.
+    expect(syncSkillsFn).toHaveBeenCalledTimes(2);
+    expect(syncSkillsFn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
+  });
 });
 
 describe("resolveSidecarManagedToolingConfigFromEnv", () => {

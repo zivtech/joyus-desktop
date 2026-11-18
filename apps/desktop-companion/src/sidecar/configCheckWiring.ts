@@ -212,8 +212,6 @@ export function createConfigChangeHandler(
       );
     }
 
-    lastManifest = manifest;
-
     if (!syncOk || !reconcileOk) {
       // Rejecting tells the poller this manifest is not finished. The poller
       // keeps the old content hash and calls this handler again next tick.
@@ -221,6 +219,11 @@ export function createConfigChangeHandler(
         `configCheckWiring: managed tooling update incomplete (skill sync ${syncOk ? "ok" : "failed"}, reconcile ${reconcileOk ? "ok" : "failed"}); will retry.`,
       );
     }
+
+    // Only a finished cycle replaces the earlier manifest. A retry must see
+    // the same earlier manifest as the first attempt: it is the only source
+    // of a sync version when the new manifest dropped the configured bundle.
+    lastManifest = manifest;
   };
 }
 
