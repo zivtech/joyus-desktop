@@ -1,5 +1,12 @@
 # Plan 012: Managed hooks can use real matchers without overwriting the user's hooks, and revoked ones are removed
 
+> **DO NOT EXECUTE — BLOCKED, needs revision (2026-11-17).** An outside review found two defects in this plan, both confirmed by running its prescribed code:
+>
+> 1. **It can delete a user's own hook.** If the user already has an entry with the identical command in the same group, `mergeHooks` in Step 2 replaces it (losing the user's `timeout` and other fields) and the registry records it as owned, so a later revocation removes it. The "Identical commands" maintenance note permits exactly what the reviewer-focus line forbids.
+> 2. **It stops on a test it does not allow changing.** "repairs a missing registry from existing settings before reconciling" compares `registry.entries` with `toEqual`; the new `matcher` and `command` fields make it fail, and Step 3 allows only two tests to change.
+>
+> Fix direction and status are in `plans/README.md` under "Outside review of the plans". The text below is the unrevised plan, kept for the record.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

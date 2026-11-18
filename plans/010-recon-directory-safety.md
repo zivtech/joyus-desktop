@@ -22,6 +22,7 @@
 - **Depends on**: plans/007-correct-agent-and-contributor-docs.md, plans/008-make-recon-tests-hermetic.md
 - **Category**: bug, security
 - **Planned at**: commit `cea62f6`, 2026-11-17
+- **Revised**: 2026-11-17, after execution and an outside review. The first version tested only the "stored" ZIP branch. Removing the two `v8 ignore` comments also exposes the "deflate" branch, which no test had ever run; coverage fell to 98.21% branches. Step 5 now adds a third test that writes a compressible file and checks that the entry inflates back to the original.
 
 ## Why this matters
 
@@ -476,6 +477,38 @@ Add two tests at the end of `describe("recon.export")`:
   });
 ```
 
+Add a third test in the same place. The two tests above cover only files that do not compress. Every existing export test also writes files too small to compress, so without this test the deflate branch (the one most real files take) is never run and `pnpm coverage` fails on `recon.ts`. Add `import { crc32, inflateRawSync } from "node:zlib";` next to the other `node:` imports, then:
+
+```ts
+  it("deflates a file that compresses, and the entry inflates back to the original", async () => {
+    const content = "a".repeat(500);
+    await writeFile(path.join(engagementDir, "big.txt"), content);
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt16LE(8)).toBe(8); // method: deflate
+    const compressedSize = zip.readUInt32LE(18);
+    expect(compressedSize).toBeLessThan(500);
+    expect(zip.readUInt32LE(22)).toBe(500); // original size
+    // The stored checksum is the CRC-32 of the original bytes.
+    expect(zip.readUInt32LE(14)).toBe(crc32(Buffer.from(content, "utf8")));
+    // The compressed bytes must inflate back to exactly what was written.
+    const nameLength = zip.readUInt16LE(26);
+    const dataStart = 30 + nameLength;
+    const compressed = zip.subarray(dataStart, dataStart + compressedSize);
+    expect(inflateRawSync(compressed).toString("utf8")).toBe(content);
+  });
+```
+
+If the checksum or the round-trip assertion fails, the ZIP writer produces corrupt entries for ordinary files. STOP and report; do not weaken the assertion.
+
 Each test writes exactly one file, so that file's header is at byte 0 of the archive.
 
 **Verify**: `pnpm vitest run apps/desktop-companion/test/sidecar/recon.test.ts` → all pass. `grep -c 'v8 ignore' apps/desktop-companion/src/sidecar/recon.ts` → `2` (the two that remain are the `String(err)` fallbacks in `recon.create`; leave them). Commit (commit 3).
@@ -490,9 +523,9 @@ Run `pnpm typecheck`, then `pnpm coverage`.
 
 - Four new tests in `describe("slugify (via recon.create)")`: symbol-only name, non-Latin name, two symbol-only names differ, reserved name `Exports`.
 - One new test each in `describe("recon.scan")` and `describe("recon.export")`: the root itself is rejected.
-- Two new tests in `describe("recon.export")` that parse the archive bytes: a 1-byte file and an empty file are stored with method 0.
+- Three new tests in `describe("recon.export")` that parse the archive bytes: a 1-byte file and an empty file are stored with method 0, and a 500-byte compressible file is deflated, with a matching CRC-32, and inflates back to the original.
 - Structural pattern: the existing tests in each of those blocks, quoted in "Current state".
-- Verification: `pnpm vitest run apps/desktop-companion/test/sidecar/recon.test.ts` → all pass (8 more tests than before this plan).
+- Verification: `pnpm vitest run apps/desktop-companion/test/sidecar/recon.test.ts` → all pass (9 more tests than before this plan).
 
 ## Done criteria
 

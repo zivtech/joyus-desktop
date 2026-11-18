@@ -1,5 +1,14 @@
 # Plan 013: A revocation is applied even when skill sync fails, and an unfinished update is retried
 
+> **DO NOT EXECUTE — BLOCKED, needs revision (2026-11-17).** An outside review found that the removals-only mode in Step 1 removes tooling that is still authorized, confirmed by running the prescribed logic:
+>
+> - **An MCP server that moves from `global` to `project`** while staying in the manifest is deleted from the global file and not added to the project file. It is installed nowhere until a sync succeeds.
+> - **A managed hook with a `joyus:` matcher whose matcher changes** while its id stays the same is removed the same way.
+>
+> The cause: removals are computed from the desired per-target ids and matchers, not from "registry keys the manifest no longer lists". Before this plan, a failed sync skipped reconcile entirely, so this plan introduces the gap. It also builds on plan 012, which is blocked too.
+>
+> Fix direction and status are in `plans/README.md` under "Outside review of the plans". The text below is the unrevised plan, kept for the record.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

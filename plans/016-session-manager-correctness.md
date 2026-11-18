@@ -1,5 +1,14 @@
 # Plan 016: Session manager creates one worktree per session, really removes worktrees, and detects merged branches
 
+> **DO NOT EXECUTE — BLOCKED, needs revision (2026-11-17).** An outside review found two defects in this plan, both confirmed (the second in a real git repository):
+>
+> 1. **Part B can still hide a failed worktree removal.** Step 3 verifies with `listWorktrees`, which returns an empty list when git fails. If the removal and the listing both fail, `removeWorktree` resolves and the session is marked deleted while its worktree remains.
+> 2. **Part C marks a session with no work as merged.** `hasOwnCommits` in Step 5 treats any movement of the branch as work. Fast-forwarding a fresh session branch to a newer `main` adds a reflog entry (`merge main: Fast-forward`), so the branch counts as having its own commits and is marked merged.
+>
+> Also open: Step 3 keeps `git worktree remove --force` even when the caller asked for an ordinary delete. Part A (one worktree per session) was not challenged.
+>
+> Fix direction and status are in `plans/README.md` under "Outside review of the plans". The text below is the unrevised plan, kept for the record.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and

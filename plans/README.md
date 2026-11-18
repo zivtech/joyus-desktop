@@ -27,12 +27,12 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 010 | A recon engagement can never be the engagements root; stored ZIP entries are tested | P1 | S | 008 | TODO |
+| 010 | A recon engagement can never be the engagements root; stored and deflated ZIP entries are tested | P1 | S | 008 | DONE — executed and approved in review 2026-11-17 after one plan revision and one executor revision (see Review record); four commits ending `2b1c83c` on branch `fix/010-recon-directory-safety`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#12 (base: the 008 branch), not merged yet |
 | 011 | CI compiles the Rust shell on pull requests; production advisories cleared; Dependabot | P1 | S | 008 | TODO |
 | 014 | A test fails when UI, Rust shell and sidecar disagree on a command name | P1 | S | 008 | TODO |
-| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | TODO |
-| 013 | A revocation is applied even when skill sync fails; unfinished updates are retried | P2 | M | 012, and `ec00055` in the branch | TODO |
-| 016 | Session manager: one worktree per session, real removal, merged detection | P3 now, P1 before sessions are switched on | M | 008 | TODO |
+| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | BLOCKED — the prescribed code can delete a user's own hook, and the plan stops on a test it does not allow changing. Needs revision; see "Outside review of the plans". |
+| 013 | A revocation is applied even when skill sync fails; unfinished updates are retried | P2 | M | 012, and `ec00055` in the branch | BLOCKED — removals-only mode removes tooling that is still authorized. Needs revision, after 012; see "Outside review of the plans". |
+| 016 | Session manager: one worktree per session, real removal, merged detection | P3 now, P1 before sessions are switched on | M | 008 | BLOCKED — a failed worktree removal can still be hidden, and a fast-forwarded session with no work is marked merged. Needs revision; see "Outside review of the plans". |
 
 ### Wave 3 — after PR #5 merges
 
@@ -140,6 +140,34 @@ Open questions recorded, not planned:
 - The 21 `v8 ignore` sites: all were read on 2026-11-17. One hides a reachable untested branch (ZIP "stored" method, `recon.ts:535`); plan 010 covers it. The rest are defensive fallbacks.
 - Links opened from sidecar data without a scheme check: no path found from the code alone.
 - GitHub OAuth callback processes `error=` before checking `state`: local denial of service only.
+
+## Outside review of the plans (2026-11-17)
+
+A second outside review read the plans in pull request #8 and raised six findings. All six were checked independently: by running the plans' prescribed code in scratch copies, by a real throwaway git repository, and, for plan 010, by executing the plan. All six hold. No plan marked BLOCKED may be executed until it is revised and its row says TODO again.
+
+| # | Plan | Finding | Verified how | Status |
+|---|---|---|---|---|
+| 1 | 012 | A managed hook whose command is identical to an entry the user already has in the same group replaces the user's entry at install (its `timeout` and other fields are lost) and removes it at revocation. The plan's "Identical commands" note permits this; its guarantee forbids it. | Prescribed code run against a patched copy of the real `reconcile()` | Open |
+| 2 | 013 | In removals-only mode, a still-listed MCP server that changes `target` from global to project, and a still-listed hook with a `joyus:` matcher whose matcher changes, are removed and not reinstalled until a sync succeeds. | Prescribed logic run as a model | Open |
+| 3 | 016 | `removeWorktree` verifies with `listWorktrees`, which returns `[]` when git fails. If removal and listing both fail, the session is marked deleted and the worktree stays. | Script with the real `listWorktrees` body | Open |
+| 4 | 016 | `hasOwnCommits` counts any branch movement as work. A fresh session branch fast-forwarded to a newer `main` has reflog `merge main: Fast-forward` above `branch: Created from HEAD`, so it is marked merged. | Real git repository, twice | Open |
+| 5 | 010 | Removing the two `v8 ignore` comments exposes the deflate branch of the ZIP writer, which no test ran. Coverage fell to 98.21% branches. | Executing the plan | Fixed in the plan and in the executed change (third ZIP test with a round-trip and CRC check) |
+| 6 | 012 | "repairs a missing registry from existing settings before reconciling" compares `registry.entries` with `toEqual`. The new `matcher` and `command` fields break it, and Step 3 allows only two tests to change. | Scenario replayed against the patched reconciler | Open |
+
+Fix directions. These are directions, not final code. Each must be proved by running it before it is written into a plan.
+
+- **Finding 1 (plan 012).** `mergeHooks` must know what the registry owns. When an identical command already exists in a non-`joyus:` group and the registry does not own it, leave the user's entry exactly as it is and do not record it as owned (a registry entry without `matcher` and `command`). When the registry does own it, refresh it in place. Consequence to state in the plan: after a lost registry, a managed hook with a real matcher is no longer re-adopted; it stays as if the user had written it. Tests: identical-command install then revoke leaves the user's entry unchanged; an owned entry is refreshed when the manifest changes its timeout.
+- **Finding 6 (plan 012).** Add the repair test to the list of tests the plan may change, with the two new fields in its expected entry. Before the plan is finalized, run the package's whole existing test file against a reference implementation, so that no third surprise remains.
+- **Finding 2 (plan 013).** Removals-only must remove only what the registry records as installed and the manifest no longer lists by key. A still-listed identity keeps its installed location, whatever the manifest now says about its target or matcher. That applies to MCP servers and to `joyus:` matcher groups as well as to owned commands. Tests: both transitions leave the entry where it was under removals-only, and a later full reconcile moves it.
+- **Finding 3 (plan 016).** Verify with a listing that throws when git fails. If verification itself fails, rethrow the original removal error. Test: removal and listing both fail, `delete` rejects and does not mark the session deleted. Also check whether stored worktree paths can differ from git's resolved paths (git lists `/private/tmp/...` for `/tmp/...` on macOS); if they can, the comparison must resolve both sides.
+- **Finding 4 (plan 016).** Require evidence of work done on the session branch, not movement. One candidate is a reflog subject that starts with `commit`; subjects for amend, cherry-pick, rebase and reset have not been tested. The sturdier design records the commit the branch was created from, which needs a column and was ruled out of scope in the first version. Decide between them with a real git repository. Tests: fresh, fast-forwarded without work, and real commit then merged.
+- **Also for plan 016.** `git worktree remove --force` is used even for an ordinary delete. `delete` checks for uncommitted changes first and then forces, which leaves a gap between check and removal. Pass the caller's `force` through and let git refuse a dirty worktree.
+
+New finding from the same review, not planned yet:
+
+- **F18 — registry repair can throw before reconcile's error handling.** With no registry file, `reconcile()` rebuilds one from `settings.json` before its `try` block. A settings file that is valid JSON but the wrong shape (`null`, or a hook list containing `null`) makes `repairRegistry` throw a `TypeError`, so `reconcile()` rejects instead of returning `rolled_back`. The settings file is still untouched, and the sidecar handler catches the rejection and logs it. This predates plan 009. Small fix: shape-check in `repairRegistry` and move the repair inside the `try`. It belongs with the plan 012 revision, which edits the same code.
+
+What the review got right about method: the plans' examples encoded the intended cases and did not test collisions, transitions or failed verification. Plans 009, 010 and 012 each missed something that running the code found at once. From here on, a plan that prescribes non-trivial code gets a reference implementation that passes the package's existing tests before the plan is published.
 
 ## Review record
 
