@@ -1,11 +1,4 @@
-# Plan 012: Managed hooks can use real matchers without overwriting the user's hooks, and revoked ones are removed
-
-> **DO NOT EXECUTE — BLOCKED, needs revision (2026-11-17).** An outside review found two defects in this plan, both confirmed by running its prescribed code:
->
-> 1. **It can delete a user's own hook.** If the user already has an entry with the identical command in the same group, `mergeHooks` in Step 2 replaces it (losing the user's `timeout` and other fields) and the registry records it as owned, so a later revocation removes it. The "Identical commands" maintenance note permits exactly what the reviewer-focus line forbids.
-> 2. **It stops on a test it does not allow changing.** "repairs a missing registry from existing settings before reconciling" compares `registry.entries` with `toEqual`; the new `matcher` and `command` fields make it fail, and Step 3 allows only two tests to change.
->
-> Fix direction and status are in `plans/README.md` under "Outside review of the plans". The text below is the unrevised plan, kept for the record.
+# Plan 012: Managed hooks can use real matchers without touching the user's hooks, and revoked ones are removed
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
@@ -14,12 +7,14 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat cea62f6..HEAD -- packages/settings-reconciler/`
-> Plan 009 must land before this one, so `settingsFile.ts`, `reconciler.ts`
-> (one line, the settings read inside `reconcileSettingsTarget`) and the two
-> test files WILL show changes. That is expected. What must still match is
-> the code quoted in "Current state" below. On a mismatch there, treat it as
-> a STOP condition.
+> Every code block in the Steps was copied by a script from a reference
+> implementation that was run (see "What was run"). Copy each block exactly.
+> Lines of the form `<!-- block: name -->` are labels used to check this plan;
+> ignore them.
+>
+> **Drift check (run first)**:
+> 1. `git cat-file -e 363bb14 && echo known` must print `known`. That is the commit of plan 009 on branch `fix/009-unreadable-settings`. If it prints nothing, STOP: fetch that branch first.
+> 2. `git diff --stat 363bb14 -- packages/settings-reconciler/` must print nothing. This plan was written against the package exactly as plan 009 left it. If the command lists any file, compare the "Current state" excerpts with the live code; on a mismatch, treat it as a STOP condition.
 
 ## Status
 
@@ -29,6 +24,12 @@
 - **Depends on**: plans/007-correct-agent-and-contributor-docs.md, plans/008-make-recon-tests-hermetic.md, plans/009-never-rewrite-unreadable-settings.md
 - **Category**: bug, security
 - **Planned at**: commit `cea62f6`, 2026-11-17
+- **Revised**: 2026-11-18, against commit `363bb14` (branch `fix/009-unreadable-settings`), after the outside review recorded in `plans/README.md`. What changed:
+  1. `mergeHooks` now receives what the registry owns. A command the user already had in the same group is left exactly as it is and is never recorded as owned, so a revocation cannot remove it (review finding 1).
+  2. The test "repairs a missing registry from existing settings before reconciling" is now on the list of existing tests to update (review finding 6).
+  3. Finding F18 is folded in: `repairRegistry` checks the shape of what it parsed, and `reconcile()` rebuilds a lost registry inside its `try`.
+  4. A revocation removes at most one entry per owned command, and a group whose hook list cannot be read is never joined or rewritten.
+  The code in the Steps was run against the package's existing tests before this revision was published. See "What was run".
 
 ## Why this matters
 
@@ -45,17 +46,20 @@ The reconciler uses the `matcher` as its ownership tag. Spec 008 chose this on p
 
 So today a managed hook either does nothing or cannot be revoked and destroys user configuration.
 
-After this plan, ownership is recorded in the registry file (`~/.claude/.joyus-managed.json`) as the exact event, matcher and command that were written. A managed hook is added inside the matching group next to the user's hooks, and on revocation only that one command is removed. Nothing extra is written into `settings.json`. Groups with a `joyus:` matcher keep working exactly as before.
+After this plan, ownership is recorded in the registry file (`~/.claude/.joyus-managed.json`) as the exact event, matcher and command that this tool wrote. A managed hook is added inside the matching group next to the user's hooks, and on revocation only that one command is removed. If the user already has the identical command in that group, the tool writes nothing, owns nothing, and removes nothing. Nothing extra is written into `settings.json`. Groups with a `joyus:` matcher keep working exactly as before.
+
+The plan also closes a small hole in the same code (finding F18): when the registry file is missing, `reconcile()` rebuilds it from `settings.json` before its error handling starts, and the rebuild throws on valid JSON of the wrong shape. After this plan that case returns `rolled_back` like every other failure.
 
 ## Current state
 
-Files (all under `packages/settings-reconciler/`):
+All excerpts were read from commit `363bb14` on 2026-11-18. Files, all under `packages/settings-reconciler/`:
 
-- `src/registry.ts` — registry types, read, write, and repair-by-prefix-scan.
-- `src/reconciler.ts` — merge, removal, and the `reconcile()` entry point (595 lines).
+- `src/registry.ts` — registry types, read, write, and repair-by-prefix-scan (148 lines).
+- `src/reconciler.ts` — merge, removal, and the `reconcile()` entry point (596 lines).
 - `src/index.ts` — package exports.
 - `src/manifest.ts` — manifest types and validation. Read-only for this plan.
-- `test/reconciler.test.ts` — 895 lines. `describe("pure reconciler helpers")` and `describe("reconcile")`.
+- `test/reconciler.test.ts` — 947 lines, 19 tests. `describe("pure reconciler helpers")` and `describe("reconcile")`.
+- `test/registry.test.ts` — 244 lines, 14 tests. `describe("repairRegistry")` is the last block.
 
 A manifest hook (`src/manifest.ts:16-23`). `id` must start with `joyus:`; `matcher` may be any string:
 
@@ -83,17 +87,61 @@ export interface RegistryEntry {
 }
 ```
 
-The merge and removal functions (`src/reconciler.ts:106-165`):
+The repair function (`src/registry.ts:82-118`). `settings` is trusted to be an object, and each `group` to be an object. With a file that contains `null`, `settings.hooks` throws; with a hook list that contains `null`, `group.matcher` throws:
 
 ```ts
-function buildCommandHook(hook: ManifestHook): Record<string, unknown> {
-  return {
-    type: "command",
-    command: hook.command,
-    timeout: hook.timeout ?? 5,
-  };
-}
+export async function repairRegistry(
+  settingsPath: string,
+  now: () => Date = () => new Date()
+): Promise<ManagedRegistry> {
+  const installedAt = now().toISOString();
+  const reconciledAt = installedAt;
 
+  let settings: SettingsJson;
+  try {
+    const raw = await readFile(settingsPath, "utf8");
+    settings = JSON.parse(raw) as SettingsJson;
+  } catch {
+    return emptyRegistry(reconciledAt);
+  }
+
+  const entries: Record<string, RegistryEntry> = {};
+
+  // Scan hooks for joyus:-prefixed matchers
+  if (settings.hooks != null) {
+    for (const eventType of HOOK_EVENT_TYPES) {
+      const matchers: SettingsHookMatcher[] | undefined = settings.hooks[eventType];
+      if (!Array.isArray(matchers)) continue;
+      for (const group of matchers as SettingsHookMatcher[]) {
+        if (typeof group.matcher === "string" && group.matcher.startsWith("joyus:")) {
+          const key = `hook:${eventType}:${group.matcher}`;
+          entries[key] = {
+            type: "hook",
+            bundle: "unknown",
+            manifest_version: "unknown",
+            event: eventType,
+            target: "global",
+            installed_at: installedAt,
+          };
+        }
+      }
+    }
+  }
+```
+
+The update result type (`src/reconciler.ts:48-52`):
+
+```ts
+interface SettingsUpdateResult {
+  readonly backupPath: string | undefined;
+  readonly changed: boolean;
+  readonly existedBefore: boolean;
+}
+```
+
+The merge and removal functions (`src/reconciler.ts:115-166`):
+
+```ts
 export function mergeHooks(
   currentHooks: Record<string, unknown[]>,
   manifestHooks: readonly ManifestHook[]
@@ -148,7 +196,7 @@ export function removeStaleHooks(
 }
 ```
 
-The "active ids" are matchers (`src/reconciler.ts:234-236`):
+The "active ids" are matchers (`src/reconciler.ts:235-237`):
 
 ```ts
 function buildActiveHookIds(hooks: readonly ManifestHook[]): ReadonlySet<string> {
@@ -156,9 +204,17 @@ function buildActiveHookIds(hooks: readonly ManifestHook[]): ReadonlySet<string>
 }
 ```
 
-The registry is built with a matcher-based key (`src/reconciler.ts:317-328`, inside `buildNewRegistry`):
+The registry is built with a matcher-based key (`src/reconciler.ts:310-329`, the start of `buildNewRegistry`):
 
 ```ts
+function buildNewRegistry(
+  manifest: DistributionManifest,
+  currentRegistry: ManagedRegistry,
+  now: () => Date
+): ManagedRegistry {
+  const reconciledAt = now().toISOString();
+  const entries: Record<string, RegistryEntry> = {};
+
   for (const [bundleName, bundle] of Object.entries(manifest.bundles)) {
     for (const hook of bundle.hooks ?? []) {
       const key = `hook:${hook.event}:${hook.matcher}`;
@@ -173,7 +229,7 @@ The registry is built with a matcher-based key (`src/reconciler.ts:317-328`, ins
     }
 ```
 
-Entry comparison (`src/reconciler.ts:349-358`):
+Entry comparison (`src/reconciler.ts:350-359`):
 
 ```ts
 function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean {
@@ -188,7 +244,7 @@ function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean
 }
 ```
 
-Where the functions are called (`src/reconciler.ts:407-428`). After plan 009 the first line of the body reads `readSettingsFileStrict` instead of `readSettingsFile`; everything else is unchanged:
+Where the functions are called (`src/reconciler.ts:408-425`, the start of `reconcileSettingsTarget`):
 
 ```ts
 async function reconcileSettingsTarget(options: {
@@ -199,7 +255,7 @@ async function reconcileSettingsTarget(options: {
   hooks: readonly ManifestHook[];
   mcps: readonly ManifestMcpServer[];
 }): Promise<SettingsUpdateResult> {
-  const currentSettings = await readSettingsFile(options.settingsPath);
+  const currentSettings = await readSettingsFileStrict(options.settingsPath);
   const currentHooksValue = currentSettings["hooks"];
   const currentMcpValue = currentSettings["mcpServers"];
   const currentHooks = normalizeHooksRecord(currentHooksValue);
@@ -211,30 +267,30 @@ async function reconcileSettingsTarget(options: {
   );
 ```
 
-And in `reconcile()` (`src/reconciler.ts:522-559`), `currentRegistry` is loaded before the two calls:
+In `reconcile()` (`src/reconciler.ts:523-543`), the registry is loaded, and repaired if missing, **before** the `try` that turns failures into `rolled_back`:
 
 ```ts
   const currentRegistry =
     (await readRegistry(registryPath)) ??
     (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
-  // ...
-    globalUpdate = await reconcileSettingsTarget({
-      settingsPath: globalSettingsPath,
-      backupDir: join(backupDir, "global"),
-      maxBackups,
-      now,
-      hooks: partition.global.hooks,
-      mcps: partition.global.mcps,
-    });
 
-    projectUpdate = await reconcileSettingsTarget({
-      settingsPath: projectSettingsPath,
-      backupDir: join(backupDir, "project"),
-      maxBackups,
-      now,
-      hooks: partition.project.hooks,
-      mcps: partition.project.mcps,
-    });
+  const partition = partitionByTarget(
+    collectAllHooks(manifest),
+    collectAllMcpServers(manifest)
+  );
+
+  let globalUpdate: SettingsUpdateResult = {
+    backupPath: undefined,
+    changed: false,
+    existedBefore: false,
+  };
+  let projectUpdate: SettingsUpdateResult = {
+    backupPath: undefined,
+    changed: false,
+    existedBefore: false,
+  };
+
+  try {
 ```
 
 The exports (`src/index.ts`, the reconciler block):
@@ -266,9 +322,11 @@ function createHook(overrides: Partial<ManifestHook> = {}): ManifestHook {
 }
 ```
 
-`createWorkspace()` returns temp paths (`globalSettingsPath`, `projectSettingsPath`, `registryPath`, `backupDir`, `now`), `createConfig(workspace)` turns them into a `ReconcileConfig`, `createManifest({ hooks, mcps, version })` builds a one-bundle manifest named `core`, and `writeJson` / `readJson` write and read JSON files.
+`createWorkspace()` returns temp paths (`globalSettingsPath`, `projectSettingsPath`, `registryPath`, `backupDir`, `now`), `createConfig(workspace)` turns them into a `ReconcileConfig`, `createManifest({ hooks, mcps, version })` builds a one-bundle manifest named `core`, and `writeJson` / `readJson` write and read JSON files. `FIXED_NOW` is the fixed clock. `test/registry.test.ts` has `tmpDir()`, which returns a fresh temp directory.
 
-The existing removal test that must change its call (`test/reconciler.test.ts:154-181`):
+Three existing tests pin shapes that this plan changes. Each was found by running the reference implementation against the unmodified test file; no other existing test failed.
+
+1. "removes stale managed hooks and cleans up empty hook arrays" (`test/reconciler.test.ts:154`) passes a `Set` of matchers as the second argument:
 
 ```ts
     const result = removeStaleHooks(
@@ -280,7 +338,7 @@ The existing removal test that must change its call (`test/reconciler.test.ts:15
     );
 ```
 
-The existing no-op test whose seeded registry must gain two fields (`test/reconciler.test.ts:336-347`):
+2. "treats unchanged registry entries as no-op updates" (`test/reconciler.test.ts:319`) seeds a registry entry without the two new fields, so the run would count it as updated:
 
 ```ts
     await writeJson(workspace.registryPath, {
@@ -296,51 +354,89 @@ The existing no-op test whose seeded registry must gain two fields (`test/reconc
         },
 ```
 
-Repo conventions: TypeScript strict with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` (never assign `undefined` to an optional property; leave the property out). Functions return new objects and do not mutate their inputs. Vitest. Coverage must stay at 100% lines, functions, branches and statements.
+3. "repairs a missing registry from existing settings before reconciling" (`test/reconciler.test.ts:684`) compares the written registry entries with `toEqual`:
 
-The new `mergeHooks` and `removeStaleHooks` bodies in Step 2 were run outside the repo on 2026-11-17 against the cases in Step 4 and passed. Copy them exactly.
+```ts
+    const registry = (await readJson(workspace.registryPath)) as {
+      entries: Record<string, { bundle: string; target: string }>;
+    };
+    expect(registry.entries).toEqual({
+      "hook:PreToolUse:joyus:hook": {
+        type: "hook",
+        bundle: "core",
+        manifest_version: "1.0.0",
+        event: "PreToolUse",
+        target: "global",
+        installed_at: FIXED_NOW.toISOString(),
+      },
+    });
+```
+
+Repo conventions: TypeScript strict with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` (never assign `undefined` to an optional property; leave the property out). Functions return new objects and do not mutate their inputs. Vitest. Coverage must stay at 100% lines, functions, branches and statements. `pnpm typecheck` does not check test files (`tsconfig.json` excludes `**/test/**`), so a type error in a test shows up only as a runtime failure, if at all.
+
+### What was run
+
+On 2026-11-18, outside the repository, in a copy of commit `363bb14` with a `node_modules` borrowed from an existing worktree (Vitest 3.2.4):
+
+- The unmodified package: `vitest run packages/settings-reconciler` → 122 tests pass.
+- The source changes of Steps 1 and 2 with the test files untouched → exactly three tests fail, the three named above.
+- After Step 3 → 122 pass. After Step 4 → 144 pass. `vitest run --coverage packages/settings-reconciler` → 100% statements, branches, functions and lines for all six source files of the package.
+- `tsc --noEmit` over the whole workspace → exit 0. A separate `tsc` run that includes this package's test files → exit 0.
+- `apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` (50 tests, three of which run the real `reconcile` on temp paths), `configCheckPoller.test.ts` (21) and `mainConfigCheckWiring.test.ts` (5), against the changed package → all pass.
+- Five deliberate defects were put into the reference one at a time (treat no command as the user's; ignore the registry's ownership; remove every matching entry; drop the shape checks; rebuild the registry outside the `try`). Each made between one and six of the new tests fail.
+- This plan was then replayed: a script took the code blocks from this file, applied them to a fresh copy of `363bb14` as the Steps describe, and ran the same commands. Result: three failures after Step 2, the three named; 122 pass after Step 3; 144 pass after Step 4; 100% coverage for the package; and the five resulting files were byte-identical to the reference.
+
+Not run: `pnpm coverage` over the whole repository (the 100% figure above is for this package's files only), and the code has not been run inside the real application.
 
 ## Commands you will need
 
 | Purpose | Command | Expected on success |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | exit 0 |
-| Package tests | `pnpm vitest run packages/settings-reconciler` | all pass |
-| Wiring tests (a consumer of this package) | `pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` | all pass |
+| Package tests | `pnpm vitest run packages/settings-reconciler` | all pass (122 before this plan, 144 after) |
+| Wiring tests (a consumer of this package) | `pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` | all pass (50) |
 | Full coverage gate | `pnpm coverage` | exit 0, thresholds met |
 
 Never run `pnpm ci` (that is clean-install in pnpm). The full pipeline is `pnpm run ci`.
+
+Run tests only on a branch that contains plan 008 (`git merge-base --is-ancestor 1edaa59 HEAD && echo safe` prints `safe`). Without it, the unit tests delete `~/Documents/joyus-recon-engagements`.
 
 Known flaky tests, unrelated to this plan: `apps/desktop-companion/test/ui/SessionsPage.test.ts` ("clears mode note timers…"), `apps/desktop-companion/test/ui/components/LocalSiteCard.test.ts`, and a timing-dependent coverage gap in `ReconSetup.tsx`. If `pnpm coverage` fails only in one of those, rerun it once. If it fails again, treat it as a STOP condition.
 
 ## Scope
 
 **In scope** (the only files you should modify):
-- `packages/settings-reconciler/src/registry.ts` (the `RegistryEntry` interface only)
+- `packages/settings-reconciler/src/registry.ts`
 - `packages/settings-reconciler/src/reconciler.ts`
 - `packages/settings-reconciler/src/index.ts` (one type export)
 - `packages/settings-reconciler/test/reconciler.test.ts`
+- `packages/settings-reconciler/test/registry.test.ts`
 - `kitty-specs/008-managed-tooling-distribution/research.md` (one added note)
 - `plans/README.md` (status row only)
 
 **Out of scope** (do NOT touch, even though they look related):
 - `src/manifest.ts`. The validator keeps accepting any matcher string. Do not add a rule that the matcher must start with `joyus:`; that would lock in hooks that never run.
-- `repairRegistry` in `src/registry.ts` and `scanManagedEntries` in `src/reconciler.ts`. They rebuild a lost registry by scanning for the `joyus:` prefix and stay as they are. See "Maintenance notes" for the limit this leaves.
+- `scanManagedEntries` and `repairRegistryFromSettings` in `src/reconciler.ts`. They rebuild a lost registry by scanning for the `joyus:` prefix and stay as they are. See "Maintenance notes" for the limit this leaves.
 - MCP server handling (`mergeMcpServers`, `removeStaleMcpServers`). MCP servers are keyed by id in `settings.json`, so their ownership already works.
 - `apps/desktop-companion/src/sidecar/configCheckWiring.ts`. It builds its own `hook:<event>:<matcher>` ids to detect revocations. Plan 013 changes that file.
 - Do not write any extra key (an id, a marker, a comment) into `settings.json`. Ownership lives only in the registry file.
+- `readRegistry`. A registry file that is valid JSON of the wrong shape is a separate, older problem. See "Maintenance notes".
 
 ## Git workflow
 
-- Branch: `fix/012-managed-hook-ownership`
+- Branch: `fix/012-managed-hook-ownership`, cut from `fix/009-unreadable-settings` (or from `main` once plan 009 has merged there).
 - Two commits: (1) `fix: record managed hook ownership in the registry and stop replacing user hook groups`, (2) `docs: note that hook matchers are no longer the ownership marker`. Conventional commits, matching `git log`.
 - Do NOT push or open a PR unless the operator instructed it.
 
 ## Steps
 
-### Step 1: Record where a managed hook lives
+### Step 1: Record where a managed hook lives, and make registry repair safe on odd shapes
 
-In `src/registry.ts`, replace the `RegistryEntry` interface with:
+Both edits are in `src/registry.ts`.
+
+**1a.** Replace the `RegistryEntry` interface with:
+
+<!-- block: registry-entry -->
 
 ```ts
 export interface RegistryEntry {
@@ -348,24 +444,153 @@ export interface RegistryEntry {
   readonly bundle: string;
   readonly manifest_version: string;
   readonly event?: HookEventType;
-  /** Hooks only: the matcher of the settings group this hook was written into. */
+  /** Hooks only: the matcher of the settings group the manifest places this hook in. */
   readonly matcher?: string;
-  /** Hooks only: the exact command string that was written. Used to find and remove it later. */
+  /**
+   * Hooks only: the exact command string this tool wrote. Absent when the
+   * entry predates this field, or when the user already had the identical
+   * command in that group: then the entry in settings is the user's, and this
+   * tool must never refresh or remove it.
+   */
   readonly command?: string;
   readonly target: SettingsTarget;
   readonly installed_at: string;
 }
 ```
 
-Change nothing else in this file.
+**1b.** Replace everything from the comment line `// T010: Repair registry from prefix scanning` to the end of the file with the block below. It removes the two interfaces `SettingsHookMatcher` and `SettingsJson`, adds `isPlainObject`, and rewrites `repairRegistry` so that it skips anything that is not the shape it expects. The entries it produces are unchanged.
 
-**Verify**: `pnpm typecheck` → exit 0.
+<!-- block: registry-repair -->
+
+```ts
+// T010: Repair registry from prefix scanning
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const HOOK_EVENT_TYPES: readonly HookEventType[] = [
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure",
+  "UserPromptSubmit",
+  "SessionStart",
+  "SessionEnd",
+  "PreCompact",
+  "Stop",
+  "SubagentStart",
+  "SubagentStop",
+  "PermissionRequest",
+];
+
+export async function repairRegistry(
+  settingsPath: string,
+  now: () => Date = () => new Date()
+): Promise<ManagedRegistry> {
+  const installedAt = now().toISOString();
+  const reconciledAt = installedAt;
+
+  let settings: unknown;
+  try {
+    const raw = await readFile(settingsPath, "utf8");
+    settings = JSON.parse(raw);
+  } catch {
+    return emptyRegistry(reconciledAt);
+  }
+
+  // Valid JSON of the wrong shape (null, a list, a string) has nothing to scan.
+  if (!isPlainObject(settings)) {
+    return emptyRegistry(reconciledAt);
+  }
+
+  const entries: Record<string, RegistryEntry> = {};
+
+  // Scan hooks for joyus:-prefixed matchers
+  const hooks = settings["hooks"];
+  if (isPlainObject(hooks)) {
+    for (const eventType of HOOK_EVENT_TYPES) {
+      const groups = hooks[eventType];
+      if (!Array.isArray(groups)) continue;
+      for (const group of groups) {
+        if (!isPlainObject(group)) continue;
+        const matcher = group["matcher"];
+        if (typeof matcher === "string" && matcher.startsWith("joyus:")) {
+          const key = `hook:${eventType}:${matcher}`;
+          entries[key] = {
+            type: "hook",
+            bundle: "unknown",
+            manifest_version: "unknown",
+            event: eventType,
+            target: "global",
+            installed_at: installedAt,
+          };
+        }
+      }
+    }
+  }
+
+  // Scan mcpServers for joyus:-prefixed keys
+  const mcpServers = settings["mcpServers"];
+  if (isPlainObject(mcpServers)) {
+    for (const key of Object.keys(mcpServers)) {
+      if (key.startsWith("joyus:")) {
+        entries[`mcp:${key}`] = {
+          type: "mcp",
+          bundle: "unknown",
+          manifest_version: "unknown",
+          target: "global",
+          installed_at: installedAt,
+        };
+      }
+    }
+  }
+
+  return {
+    schema_version: "1.0",
+    entries,
+    last_reconciled: reconciledAt,
+  };
+}
+
+function emptyRegistry(reconciledAt: string): ManagedRegistry {
+  return {
+    schema_version: "1.0",
+    entries: {},
+    last_reconciled: reconciledAt,
+  };
+}
+```
+
+**Verify**: `pnpm typecheck` → exit 0. `pnpm vitest run packages/settings-reconciler/test/registry.test.ts` → 14 pass. `grep -c 'SettingsJson\|SettingsHookMatcher' packages/settings-reconciler/src/registry.ts` → `0`.
 
 ### Step 2: Replace the hook merge and removal logic
 
-All edits in this step are in `src/reconciler.ts`.
+All edits in this step are in `src/reconciler.ts`, except 2h. Do them all before running anything: the file does not compile in between.
 
-**2a.** Directly below the `buildCommandHook` function, add:
+**2a.** Replace the `SettingsUpdateResult` interface with the interface and constant below:
+
+<!-- block: update-result -->
+
+```ts
+interface SettingsUpdateResult {
+  readonly backupPath: string | undefined;
+  readonly changed: boolean;
+  readonly existedBefore: boolean;
+  /** Registry keys of manifest hooks whose command the user already had. */
+  readonly userOwnedHookKeys: readonly string[];
+}
+
+const NO_SETTINGS_UPDATE: SettingsUpdateResult = {
+  backupPath: undefined,
+  changed: false,
+  existedBefore: false,
+  userOwnedHookKeys: [],
+};
+```
+
+**2b.** Replace both functions `mergeHooks` and `removeStaleHooks` (everything from the line `export function mergeHooks(` up to, but not including, the line `export function mergeMcpServers(`) with:
+
+<!-- block: merge-remove -->
 
 ```ts
 /**
@@ -388,59 +613,120 @@ function isLegacyManagedMatcher(matcher: string): boolean {
   return matcher.startsWith(MANAGED_PREFIX);
 }
 
-function hookList(group: Record<string, unknown>): unknown[] {
-  const hooks = group["hooks"];
-  return Array.isArray(hooks) ? hooks : [];
-}
-
 function hookKey(event: string, matcher: string, command: string): string {
   return JSON.stringify([event, matcher, command]);
 }
-```
 
-**2b.** Replace the whole `mergeHooks` function with:
+function hookRegistryKey(hook: ManifestHook): string {
+  return `hook:${hook.event}:${hook.id}`;
+}
 
-```ts
-export function mergeHooks(
+function ownedHookKeys(ownedHooks: readonly OwnedHook[]): Set<string> {
+  return new Set(ownedHooks.map((owned) => hookKey(owned.event, owned.matcher, owned.command)));
+}
+
+/** A group this tool can read: an object with the given matcher and a hook list. */
+function isGroupFor(
+  group: unknown,
+  matcher: string
+): group is Record<string, unknown> & { hooks: unknown[] } {
+  return isRecord(group) && group["matcher"] === matcher && Array.isArray(group["hooks"]);
+}
+
+function hasCommand(entry: unknown, command: string): boolean {
+  return isRecord(entry) && entry["command"] === command;
+}
+
+function replaceAt(list: readonly unknown[], index: number, value: unknown): unknown[] {
+  const next = list.slice();
+  next[index] = value;
+  return next;
+}
+
+interface HookMergePlan {
+  readonly hooks: Record<string, unknown[]>;
+  /** Manifest hooks left alone because the user already had the identical command. */
+  readonly userOwned: readonly ManifestHook[];
+}
+
+function planHookMerge(
   currentHooks: Record<string, unknown[]>,
-  manifestHooks: readonly ManifestHook[]
-): Record<string, unknown[]> {
+  manifestHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[]
+): HookMergePlan {
+  const original = normalizeHooksRecord(currentHooks);
   const merged = normalizeHooksRecord(currentHooks);
+  const ownedKeys = ownedHookKeys(ownedHooks);
+  const userOwned: ManifestHook[] = [];
 
   for (const hook of manifestHooks) {
     const eventGroups = merged[hook.event] ?? [];
     const commandHook = buildCommandHook(hook);
-    const existingIndex = eventGroups.findIndex(
-      (group) => isRecord(group) && group["matcher"] === hook.matcher
-    );
-    const existingGroup = eventGroups[existingIndex];
 
-    if (!isRecord(existingGroup)) {
-      merged[hook.event] = [...eventGroups, { matcher: hook.matcher, hooks: [commandHook] }];
+    if (isLegacyManagedMatcher(hook.matcher)) {
+      // A legacy managed group is replaced as a whole, exactly as before.
+      const legacyIndex = eventGroups.findIndex(
+        (group) => isRecord(group) && group["matcher"] === hook.matcher
+      );
+      const legacyGroup = { matcher: hook.matcher, hooks: [commandHook] };
+      merged[hook.event] =
+        legacyIndex === -1
+          ? [...eventGroups, legacyGroup]
+          : replaceAt(eventGroups, legacyIndex, legacyGroup);
       continue;
     }
 
-    // A legacy managed group is replaced as a whole. Any other group may hold
-    // the user's own hooks: keep them, and add or refresh only our command.
-    const existingHooks = isLegacyManagedMatcher(hook.matcher) ? [] : hookList(existingGroup);
-    const keptHooks = existingHooks.filter(
-      (entry) => !(isRecord(entry) && entry["command"] === hook.command)
-    );
+    // The identical command was in this group before this run and the registry
+    // does not say this tool wrote it: it is the user's. Leave it exactly as it
+    // is and do not claim it.
+    const userHadIt =
+      !ownedKeys.has(hookKey(hook.event, hook.matcher, hook.command)) &&
+      (original[hook.event] ?? []).some(
+        (group) =>
+          isGroupFor(group, hook.matcher) &&
+          group.hooks.some((entry) => hasCommand(entry, hook.command))
+      );
+    if (userHadIt) {
+      userOwned.push(hook);
+      continue;
+    }
 
-    const nextGroups = eventGroups.slice();
-    nextGroups[existingIndex] = { ...existingGroup, hooks: [...keptHooks, commandHook] };
-    merged[hook.event] = nextGroups;
+    // Ours already (from the registry, or added earlier in this run): refresh
+    // that one entry in place.
+    const ownedGroupIndex = eventGroups.findIndex(
+      (group) =>
+        isGroupFor(group, hook.matcher) &&
+        group.hooks.some((entry) => hasCommand(entry, hook.command))
+    );
+    const ownedGroup = eventGroups[ownedGroupIndex];
+    if (isGroupFor(ownedGroup, hook.matcher)) {
+      const entryIndex = ownedGroup.hooks.findIndex((entry) => hasCommand(entry, hook.command));
+      merged[hook.event] = replaceAt(eventGroups, ownedGroupIndex, {
+        ...ownedGroup,
+        hooks: replaceAt(ownedGroup.hooks, entryIndex, commandHook),
+      });
+      continue;
+    }
+
+    // Not installed yet: join the user's group for this matcher, or start one.
+    const groupIndex = eventGroups.findIndex((group) => isGroupFor(group, hook.matcher));
+    const group = eventGroups[groupIndex];
+    merged[hook.event] = isGroupFor(group, hook.matcher)
+      ? replaceAt(eventGroups, groupIndex, { ...group, hooks: [...group.hooks, commandHook] })
+      : [...eventGroups, { matcher: hook.matcher, hooks: [commandHook] }];
   }
 
-  return merged;
+  return { hooks: merged, userOwned };
 }
-```
 
-When no group matches, `existingIndex` is `-1`, `eventGroups[-1]` is `undefined`, and the `!isRecord(...)` branch adds a new group.
+export function mergeHooks(
+  currentHooks: Record<string, unknown[]>,
+  manifestHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
+): Record<string, unknown[]> {
+  return planHookMerge(currentHooks, manifestHooks, ownedHooks).hooks;
+}
 
-**2c.** Replace the whole `removeStaleHooks` function with:
-
-```ts
 export function removeStaleHooks(
   currentHooks: Record<string, unknown[]>,
   activeHooks: readonly ManifestHook[],
@@ -450,11 +736,12 @@ export function removeStaleHooks(
   const activeKeys = new Set(
     activeHooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
   );
-  const staleKeys = new Set(
-    ownedHooks
-      .map((owned) => hookKey(owned.event, owned.matcher, owned.command))
-      .filter((key) => !activeKeys.has(key))
-  );
+  // Each stale key is used up by the first entry it removes: this tool wrote
+  // one entry per key, so it removes at most one.
+  const staleKeys = ownedHookKeys(ownedHooks);
+  for (const key of activeKeys) {
+    staleKeys.delete(key);
+  }
 
   const nextHooks: Record<string, unknown[]> = {};
 
@@ -476,17 +763,20 @@ export function removeStaleHooks(
         continue;
       }
 
-      const existingHooks = hookList(group);
-      const keptHooks = existingHooks.filter(
-        (entry) =>
-          !(
-            isRecord(entry) &&
-            typeof entry["command"] === "string" &&
-            staleKeys.has(hookKey(event, matcher, entry["command"]))
-          )
-      );
+      if (!isGroupFor(group, matcher)) {
+        nextGroups.push(group);
+        continue;
+      }
 
-      if (keptHooks.length === existingHooks.length) {
+      const keptHooks = group.hooks.filter((entry) => {
+        if (!isRecord(entry) || typeof entry["command"] !== "string") {
+          return true;
+        }
+        // Set.delete returns true only for the first entry with a stale key.
+        return !staleKeys.delete(hookKey(event, matcher, entry["command"]));
+      });
+
+      if (keptHooks.length === group.hooks.length) {
         // Nothing of ours to remove: keep the same object.
         nextGroups.push(group);
       } else if (keptHooks.length > 0) {
@@ -504,7 +794,16 @@ export function removeStaleHooks(
 }
 ```
 
-**2d.** Delete the `buildActiveHookIds` function. Directly below `buildActiveMcpIds`, add:
+How to read it:
+
+- A `joyus:` matcher takes the old path: the whole group is replaced, as before.
+- For any other matcher, `userHadIt` asks: was the identical command in a group with this matcher before this run, and does the registry *not* say this tool wrote it? If so the hook is skipped and reported in `userOwned`. Nothing is written.
+- Otherwise the hook is refreshed in place if the command is already there, or appended to the first group with that matcher, or put in a new group. When no group matches, the index is `-1`, `eventGroups[-1]` is `undefined`, and `isGroupFor` is false.
+- `removeStaleHooks` removes a non-legacy entry only when its exact event, matcher and command are owned and no longer in the manifest. `staleKeys.delete(...)` returns `true` once per key, so one owned command removes one entry.
+
+**2c.** Delete the `buildActiveHookIds` function. Directly below `buildActiveMcpIds`, add:
+
+<!-- block: collect-owned -->
 
 ```ts
 function collectOwnedHooks(registry: ManagedRegistry, target: SettingsTarget): OwnedHook[] {
@@ -526,83 +825,332 @@ function collectOwnedHooks(registry: ManagedRegistry, target: SettingsTarget): O
 }
 ```
 
-**2e.** In `buildNewRegistry`, change the hook loop so the key uses the hook id and the entry records the matcher and command:
+**2d.** Replace the whole `buildNewRegistry` function with:
+
+<!-- block: build-registry -->
 
 ```ts
+function buildNewRegistry(
+  manifest: DistributionManifest,
+  currentRegistry: ManagedRegistry,
+  now: () => Date,
+  userOwnedHookKeys: ReadonlySet<string>
+): ManagedRegistry {
+  const reconciledAt = now().toISOString();
+  const entries: Record<string, RegistryEntry> = {};
+
+  for (const [bundleName, bundle] of Object.entries(manifest.bundles)) {
     for (const hook of bundle.hooks ?? []) {
-      const key = `hook:${hook.event}:${hook.id}`;
+      const key = hookRegistryKey(hook);
+      const target = resolveTarget(hook.target);
+      const installedAt = currentRegistry.entries[key]?.installed_at ?? reconciledAt;
+      // No command is recorded for a hook the user already had: the registry
+      // lists the hook, but does not own the entry in settings.
+      entries[key] = userOwnedHookKeys.has(key)
+        ? {
+            type: "hook",
+            bundle: bundleName,
+            manifest_version: bundle.version,
+            event: hook.event,
+            matcher: hook.matcher,
+            target,
+            installed_at: installedAt,
+          }
+        : {
+            type: "hook",
+            bundle: bundleName,
+            manifest_version: bundle.version,
+            event: hook.event,
+            matcher: hook.matcher,
+            command: hook.command,
+            target,
+            installed_at: installedAt,
+          };
+    }
+
+    for (const server of bundle.mcpServers ?? []) {
+      const key = `mcp:${server.id}`;
       entries[key] = {
-        type: "hook",
+        type: "mcp",
         bundle: bundleName,
         manifest_version: bundle.version,
-        event: hook.event,
-        matcher: hook.matcher,
-        command: hook.command,
-        target: resolveTarget(hook.target),
+        target: resolveTarget(server.target),
         installed_at: currentRegistry.entries[key]?.installed_at ?? reconciledAt,
       };
     }
+  }
+
+  return {
+    schema_version: "1.0",
+    entries,
+    last_reconciled: reconciledAt,
+  };
+}
 ```
 
-**2f.** In `registryEntryEquals`, add two comparisons after `left.event === right.event &&`:
+The registry key now uses the hook `id`, not its matcher. A hook the user already had gets an entry with a `matcher` and no `command`.
+
+**2e.** Replace the whole `registryEntryEquals` function with:
+
+<!-- block: entry-equals -->
 
 ```ts
+function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean {
+  return (
+    left.type === right.type &&
+    left.bundle === right.bundle &&
+    left.manifest_version === right.manifest_version &&
+    left.event === right.event &&
     left.matcher === right.matcher &&
     left.command === right.command &&
+    left.target === right.target &&
+    left.installed_at === right.installed_at
+  );
+}
 ```
 
-**2g.** In `reconcileSettingsTarget`, add `ownedHooks: readonly OwnedHook[];` to the options type (after `mcps`), and change the hook computation to:
+**2f.** Replace the whole `reconcileSettingsTarget` function with:
+
+<!-- block: reconcile-target -->
 
 ```ts
-  const nextHooks = removeStaleHooks(
-    mergeHooks(currentHooks, options.hooks),
-    options.hooks,
-    options.ownedHooks
+async function reconcileSettingsTarget(options: {
+  settingsPath: string;
+  backupDir: string;
+  maxBackups: number;
+  now: () => Date;
+  hooks: readonly ManifestHook[];
+  mcps: readonly ManifestMcpServer[];
+  ownedHooks: readonly OwnedHook[];
+}): Promise<SettingsUpdateResult> {
+  const currentSettings = await readSettingsFileStrict(options.settingsPath);
+  const currentHooksValue = currentSettings["hooks"];
+  const currentMcpValue = currentSettings["mcpServers"];
+  const currentHooks = normalizeHooksRecord(currentHooksValue);
+  const currentMcpServers = normalizeMcpRecord(currentMcpValue);
+
+  const hookPlan = planHookMerge(currentHooks, options.hooks, options.ownedHooks);
+  const userOwnedHookKeys = hookPlan.userOwned.map(hookRegistryKey);
+  const nextHooks = removeStaleHooks(hookPlan.hooks, options.hooks, options.ownedHooks);
+  const nextMcpServers = removeStaleMcpServers(
+    mergeMcpServers(currentMcpServers, options.mcps),
+    buildActiveMcpIds(options.mcps)
   );
+
+  const nextSettings: Record<string, unknown> = { ...currentSettings };
+
+  if (isRecord(currentHooksValue)) {
+    if (Object.keys(nextHooks).length > 0) {
+      nextSettings["hooks"] = nextHooks;
+    } else {
+      delete nextSettings["hooks"];
+    }
+  } else if (Object.keys(nextHooks).length > 0) {
+    nextSettings["hooks"] = nextHooks;
+  }
+
+  if (isRecord(currentMcpValue)) {
+    if (Object.keys(nextMcpServers).length > 0) {
+      nextSettings["mcpServers"] = nextMcpServers;
+    } else {
+      delete nextSettings["mcpServers"];
+    }
+  } else if (Object.keys(nextMcpServers).length > 0) {
+    nextSettings["mcpServers"] = nextMcpServers;
+  }
+
+  if (settingsEqual(currentSettings, nextSettings)) {
+    return { ...NO_SETTINGS_UPDATE, userOwnedHookKeys };
+  }
+
+  const backupPath = await createSettingsBackup(
+    options.settingsPath,
+    options.backupDir,
+    options.maxBackups,
+    options.now
+  );
+
+  await writeSettingsFile(options.settingsPath, nextSettings);
+
+  return {
+    backupPath,
+    changed: true,
+    existedBefore: backupPath !== undefined,
+    userOwnedHookKeys,
+  };
+}
 ```
 
-**2h.** In `reconcile()`, pass the owned hooks to both calls. Add `ownedHooks: collectOwnedHooks(currentRegistry, "global"),` to the first call's options and `ownedHooks: collectOwnedHooks(currentRegistry, "project"),` to the second.
+**2g.** Replace the whole `reconcile` function (from `export async function reconcile(` to the end of the file) with:
 
-**2i.** In `src/index.ts`, change the type export line to:
+<!-- block: reconcile -->
+
+```ts
+export async function reconcile(
+  manifest: DistributionManifest,
+  config?: ReconcileConfig
+): Promise<ReconcileResult> {
+  const registryPath = resolveDefaultPath(config?.registryPath ?? "~/.claude/.joyus-managed.json");
+
+  if (!(SUPPORTED_SCHEMA_VERSIONS as readonly string[]).includes(manifest.schema_version)) {
+    return {
+      status: "skipped",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath,
+    };
+  }
+
+  const globalSettingsPath = resolveDefaultPath(
+    config?.globalSettingsPath ?? "~/.claude/settings.json"
+  );
+  const projectSettingsPath = resolveDefaultPath(
+    config?.projectSettingsPath ?? ".claude/settings.json"
+  );
+  const backupDir = resolveDefaultPath(
+    config?.backupDir ?? "~/.claude/.joyus-reconciler-backups"
+  );
+  const maxBackups = config?.maxBackups ?? 5;
+  const now = config?.now ?? (() => new Date());
+
+  const partition = partitionByTarget(
+    collectAllHooks(manifest),
+    collectAllMcpServers(manifest)
+  );
+
+  let globalUpdate = NO_SETTINGS_UPDATE;
+  let projectUpdate = NO_SETTINGS_UPDATE;
+
+  try {
+    // Inside the try: a failure while rebuilding a lost registry must end in
+    // "rolled_back", not in a rejected promise.
+    const currentRegistry =
+      (await readRegistry(registryPath)) ??
+      (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
+
+    globalUpdate = await reconcileSettingsTarget({
+      settingsPath: globalSettingsPath,
+      backupDir: join(backupDir, "global"),
+      maxBackups,
+      now,
+      hooks: partition.global.hooks,
+      mcps: partition.global.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "global"),
+    });
+
+    projectUpdate = await reconcileSettingsTarget({
+      settingsPath: projectSettingsPath,
+      backupDir: join(backupDir, "project"),
+      maxBackups,
+      now,
+      hooks: partition.project.hooks,
+      mcps: partition.project.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "project"),
+    });
+
+    const nextRegistry = buildNewRegistry(
+      manifest,
+      currentRegistry,
+      now,
+      new Set([...globalUpdate.userOwnedHookKeys, ...projectUpdate.userOwnedHookKeys])
+    );
+    const counts = computeCounts(currentRegistry, nextRegistry);
+
+    await writeRegistry(registryPath, nextRegistry);
+
+    return withOptionalBackupPath({
+      status: "success",
+      entriesAdded: counts.added,
+      entriesUpdated: counts.updated,
+      entriesRemoved: counts.removed,
+      registryPath,
+    }, globalUpdate.backupPath ?? projectUpdate.backupPath);
+  } catch (error) {
+    try {
+      await rollbackReconciledSettings(globalSettingsPath, globalUpdate);
+    } catch {
+      // Best-effort rollback for global settings.
+    }
+
+    try {
+      await rollbackReconciledSettings(projectSettingsPath, projectUpdate);
+    } catch {
+      // Best-effort rollback for project settings.
+    }
+
+    return withOptionalBackupPath({
+      status: "rolled_back",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath,
+      error: error instanceof Error ? error.message : String(error),
+    }, globalUpdate.backupPath ?? projectUpdate.backupPath);
+  }
+}
+```
+
+The only changes from the old body: the two update results start from `NO_SETTINGS_UPDATE`, the registry is loaded as the first statement inside the `try`, both calls pass `ownedHooks`, and `buildNewRegistry` receives the user-owned keys.
+
+**2h.** In `src/index.ts`, change the type export line to:
+
+<!-- block: index-export -->
 
 ```ts
 export type { OwnedHook, ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
 ```
 
-**Verify**: `pnpm typecheck` → exit 0. `grep -c 'buildActiveHookIds' packages/settings-reconciler/src/reconciler.ts` → `0`.
+**Verify**: `pnpm typecheck` → exit 0. `grep -c 'buildActiveHookIds' packages/settings-reconciler/src/reconciler.ts` → `0`. Then run `pnpm vitest run packages/settings-reconciler`: **exactly three tests must fail**, the three named in "Current state". If any other test fails, or fewer than three fail, STOP (see STOP conditions).
 
-### Step 3: Update the two existing tests that pinned the old shapes
+### Step 3: Update the three existing tests that pinned the old shapes
 
 In `test/reconciler.test.ts`:
 
-1. In "removes stale managed hooks and cleans up empty hook arrays", replace the second argument `new Set(["joyus:keep"])` with:
+1. In "removes stale managed hooks and cleans up empty hook arrays", replace the second argument `new Set(["joyus:keep"])` with the line below. The same text appears again further down, in "removes stale managed MCP servers without disturbing user servers"; do not change that one.
+
+<!-- block: test-fix-remove -->
 
 ```ts
       [createHook({ id: "joyus:keep", matcher: "joyus:keep", command: "echo keep" })]
 ```
 
-2. In "treats unchanged registry entries as no-op updates", add two properties to the seeded `"hook:PreToolUse:joyus:hook"` entry, after `event: "PreToolUse",`:
+2. In "treats unchanged registry entries as no-op updates", add two properties to the seeded `"hook:PreToolUse:joyus:hook"` entry, directly after `event: "PreToolUse",`:
+
+<!-- block: test-fix-noop -->
 
 ```ts
           matcher: "joyus:hook",
           command: "echo global hook",
 ```
 
+3. In "repairs a missing registry from existing settings before reconciling", add two properties to the expected `"hook:PreToolUse:joyus:hook"` entry at the end of the test, directly after `event: "PreToolUse",`:
+
+<!-- block: test-fix-repair -->
+
+```ts
+        matcher: "joyus:hook",
+        command: "echo repaired new",
+```
+
 Leave every other existing test as it is.
 
-**Verify**: `pnpm vitest run packages/settings-reconciler` → all pass. If a different existing test fails, STOP (see STOP conditions).
+**Verify**: `pnpm vitest run packages/settings-reconciler` → 122 pass, 0 fail.
 
 ### Step 4: Add tests for the new behavior
 
-Add to the import from `../src/manifest.js` nothing new; the needed types are already imported. Add these tests.
+No new imports are needed in either test file.
 
-At the end of `describe("pure reconciler helpers")`:
+**4a.** In `test/reconciler.test.ts`, at the end of `describe("pure reconciler helpers")`, add:
+
+<!-- block: tests-helpers -->
 
 ```ts
   it("adds a managed hook to the user's group without removing the user's hooks", () => {
     const userHook = { type: "command", command: "echo user-bash" };
     const currentHooks = { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] };
     const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }];
 
     const once = mergeHooks(currentHooks, [managed]);
 
@@ -616,8 +1164,71 @@ At the end of `describe("pure reconciler helpers")`:
     });
     // The input is not mutated.
     expect(currentHooks.PreToolUse[0]!.hooks).toEqual([userHook]);
-    // Merging again changes nothing.
+    // Merging again changes nothing, with or without the registry's record.
+    expect(mergeHooks(once, [managed], owned)).toEqual(once);
     expect(mergeHooks(once, [managed])).toEqual(once);
+  });
+
+  it("leaves an identical command the user already had exactly as it is", () => {
+    const userEntry = { type: "command", command: "echo audit", timeout: 30, note: "mine" };
+    const userGroup = { matcher: "Bash", hooks: [userEntry] };
+    const managed = createHook({
+      id: "joyus:audit",
+      matcher: "Bash",
+      command: "echo audit",
+      timeout: 9,
+    });
+
+    const result = mergeHooks({ PreToolUse: [userGroup] }, [managed]);
+
+    // Same group object, same entry object: nothing was rewritten.
+    expect(result["PreToolUse"]).toHaveLength(1);
+    expect(result["PreToolUse"]![0]).toBe(userGroup);
+    expect(userGroup.hooks).toEqual([
+      { type: "command", command: "echo audit", timeout: 30, note: "mine" },
+    ]);
+  });
+
+  it("refreshes an owned entry in place when the manifest changes its timeout", () => {
+    const before = { type: "command", command: "echo user-before" };
+    const after = { type: "command", command: "echo user-after" };
+    const currentHooks = {
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [before, { type: "command", command: "echo audit", timeout: 5 }, after],
+        },
+      ],
+    };
+    const managed = createHook({
+      id: "joyus:audit",
+      matcher: "Bash",
+      command: "echo audit",
+      timeout: 20,
+    });
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }];
+
+    expect(mergeHooks(currentHooks, [managed], owned)).toEqual({
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [before, { type: "command", command: "echo audit", timeout: 20 }, after],
+        },
+      ],
+    });
+    // Without the registry's record the same entry counts as the user's.
+    expect(mergeHooks(currentHooks, [managed])).toEqual(currentHooks);
+  });
+
+  it("writes one entry when two manifest hooks share event, matcher and command", () => {
+    const first = createHook({ id: "joyus:a", matcher: "Bash", command: "echo same" });
+    const second = createHook({ id: "joyus:b", matcher: "Bash", command: "echo same", timeout: 7 });
+
+    expect(mergeHooks({}, [first, second])).toEqual({
+      PreToolUse: [
+        { matcher: "Bash", hooks: [{ type: "command", command: "echo same", timeout: 7 }] },
+      ],
+    });
   });
 
   it("removes only the owned command from a shared group", () => {
@@ -642,7 +1253,7 @@ At the end of `describe("pure reconciler helpers")`:
     const installed = mergeHooks({ PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] }, [before]);
     const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }];
 
-    const result = removeStaleHooks(mergeHooks(installed, [after]), [after], owned);
+    const result = removeStaleHooks(mergeHooks(installed, [after], owned), [after], owned);
 
     expect(result).toEqual({
       PreToolUse: [
@@ -669,6 +1280,16 @@ At the end of `describe("pure reconciler helpers")`:
     expect(removeStaleHooks(installed, [])).toEqual(installed);
   });
 
+  it("removes one entry per owned command, even when the user added a duplicate", () => {
+    const ours = { type: "command", command: "echo audit", timeout: 5 };
+    const userCopy = { type: "command", command: "echo audit", timeout: 30 };
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }];
+
+    expect(
+      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [ours, userCopy] }] }, [], owned)
+    ).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }] });
+  });
+
   it("leaves malformed groups and entries untouched", () => {
     const odd = {
       PreToolUse: [
@@ -685,17 +1306,27 @@ At the end of `describe("pure reconciler helpers")`:
 
     expect(removeStaleHooks(odd, [], owned)).toEqual(odd);
 
+    // A group whose hook list cannot be read is not joined: a new group is added.
     const merged = mergeHooks(odd, [
       createHook({ id: "joyus:a", matcher: "Bash", command: "echo a" }),
+      createHook({ id: "joyus:b", matcher: "Edit", command: "echo b" }),
     ]);
-    expect(merged["PreToolUse"]![2]).toEqual({
-      matcher: "Bash",
-      hooks: [{ type: "command", command: "echo a", timeout: 5 }],
-    });
+    expect(merged["PreToolUse"]).toEqual([
+      "text",
+      { matcher: 5 },
+      { matcher: "Bash", hooks: "not-an-array" },
+      {
+        matcher: "Edit",
+        hooks: ["text-entry", { command: 7 }, { type: "command", command: "echo b", timeout: 5 }],
+      },
+      { matcher: "Bash", hooks: [{ type: "command", command: "echo a", timeout: 5 }] },
+    ]);
   });
 ```
 
-At the end of `describe("reconcile")`:
+**4b.** In `test/reconciler.test.ts`, at the end of `describe("reconcile")`, add:
+
+<!-- block: tests-reconcile -->
 
 ```ts
   it("installs a tool-scoped hook beside the user's hook and removes only it on revocation", async () => {
@@ -708,6 +1339,7 @@ At the end of `describe("reconcile")`:
       },
     };
     await writeJson(workspace.globalSettingsPath, userSettings);
+    const originalText = await readFile(workspace.globalSettingsPath, "utf8");
 
     const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
 
@@ -728,17 +1360,214 @@ At the end of `describe("reconcile")`:
     });
 
     const registry = (await readJson(workspace.registryPath)) as {
-      entries: Record<string, { matcher?: string; command?: string }>;
+      entries: Record<string, unknown>;
     };
-    expect(registry.entries["hook:PreToolUse:joyus:audit"]).toMatchObject({
+    expect(registry.entries["hook:PreToolUse:joyus:audit"]).toEqual({
+      type: "hook",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      event: "PreToolUse",
       matcher: "Bash",
       command: "echo audit",
+      target: "global",
+      installed_at: FIXED_NOW.toISOString(),
     });
+
+    // A second run with the same manifest changes nothing and makes no backup.
+    const again = await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+    expect(again).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 0 });
+    expect(again.backupPath).toBeUndefined();
 
     // The manifest drops the hook: only the managed command goes away.
     const revoked = await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
     expect(revoked).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(originalText);
+  });
+
+  it("never rewrites or removes an identical command the user already had", async () => {
+    const workspace = await createWorkspace();
+    // Unusual formatting on purpose: any rewrite of the file would change it.
+    const originalText = JSON.stringify(
+      {
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "echo audit", timeout: 30, note: "mine" }],
+            },
+          ],
+        },
+      },
+      null,
+      4
+    );
+    await mkdir(dirname(workspace.globalSettingsPath), { recursive: true });
+    await writeFile(workspace.globalSettingsPath, originalText, "utf8");
+
+    const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+
+    const installed = await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+    expect(installed).toMatchObject({ status: "success", entriesAdded: 1 });
+    expect(installed.backupPath).toBeUndefined();
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(originalText);
+
+    // The registry lists the hook but records no command: it owns nothing here.
+    const registry = (await readJson(workspace.registryPath)) as {
+      entries: Record<string, unknown>;
+    };
+    expect(registry.entries["hook:PreToolUse:joyus:audit"]).toEqual({
+      type: "hook",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      event: "PreToolUse",
+      matcher: "Bash",
+      target: "global",
+      installed_at: FIXED_NOW.toISOString(),
+    });
+
+    // Still the user's on a later run, and still there after revocation.
+    const again = await reconcile(
+      createManifest({ hooks: [{ ...managed, timeout: 9 }] }),
+      createConfig(workspace)
+    );
+    expect(again).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 0 });
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(originalText);
+
+    const revoked = await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(revoked).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(originalText);
+  });
+
+  it("keeps the user's identical command intact while other managed hooks come and go", async () => {
+    const workspace = await createWorkspace();
+    const userSettings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [{ type: "command", command: "echo audit", timeout: 30, note: "mine" }],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, userSettings);
+
+    const same = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+    const other = createHook({ id: "joyus:lint", matcher: "Bash", command: "echo lint" });
+
+    await reconcile(createManifest({ hooks: [same, other] }), createConfig(workspace));
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              { type: "command", command: "echo audit", timeout: 30, note: "mine" },
+              { type: "command", command: "echo lint", timeout: 5 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const revoked = await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(revoked).toMatchObject({ status: "success", entriesRemoved: 2 });
     expect(await readJson(workspace.globalSettingsPath)).toEqual(userSettings);
+  });
+
+  it("takes ownership once the user removes their own identical command", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "echo audit" }] }],
+      },
+    });
+    const manifest = createManifest({
+      hooks: [createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" })],
+    });
+
+    await reconcile(manifest, createConfig(workspace));
+    // The user deletes their entry.
+    await writeJson(workspace.globalSettingsPath, {});
+
+    const result = await reconcile(manifest, createConfig(workspace));
+    expect(result).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 5 }] },
+        ],
+      },
+    });
+
+    const revoked = await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(revoked).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({});
+  });
+
+  it("refreshes an owned hook in place and moves it when its target changes", async () => {
+    const workspace = await createWorkspace();
+    const userHook = { type: "command", command: "echo user-bash" };
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] },
+    });
+    const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+
+    await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+
+    // Same command, new timeout: the one entry is updated where it is.
+    await reconcile(
+      createManifest({ hooks: [{ ...managed, timeout: 20 }] }),
+      createConfig(workspace)
+    );
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userHook, { type: "command", command: "echo audit", timeout: 20 }],
+          },
+        ],
+      },
+    });
+
+    // Target changes to project: removed from global, written to project.
+    await reconcile(
+      createManifest({ hooks: [{ ...managed, target: "project" }] }),
+      createConfig(workspace)
+    );
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] },
+    });
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 5 }] },
+        ],
+      },
+    });
+  });
+
+  it("treats a tool-scoped hook as the user's after the registry is lost", async () => {
+    const workspace = await createWorkspace();
+    const manifest = createManifest({
+      hooks: [createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" })],
+    });
+
+    await reconcile(manifest, createConfig(workspace));
+    const installedText = await readFile(workspace.globalSettingsPath, "utf8");
+    await rm(workspace.registryPath);
+
+    // Nothing in settings.json marks the command as managed, so it is not re-adopted.
+    await reconcile(manifest, createConfig(workspace));
+    const registry = (await readJson(workspace.registryPath)) as {
+      entries: Record<string, { command?: string }>;
+    };
+    expect(registry.entries["hook:PreToolUse:joyus:audit"]).not.toHaveProperty("command");
+
+    // Known limit: a later revocation leaves it in place.
+    await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(installedText);
   });
 
   it("upgrades a registry entry written before ownership fields existed", async () => {
@@ -782,16 +1611,135 @@ At the end of `describe("reconcile")`:
       installed_at: installedAt,
     });
   });
+
+  it("returns rolled_back when a settings file holds JSON that is not an object and there is no registry", async () => {
+    const workspace = await createWorkspace();
+    await mkdir(dirname(workspace.globalSettingsPath), { recursive: true });
+    await writeFile(workspace.globalSettingsPath, "null", "utf8");
+
+    const result = await reconcile(
+      createManifest({ hooks: [createHook()] }),
+      createConfig(workspace)
+    );
+
+    expect(result.status).toBe("rolled_back");
+    expect(result.error).toContain("not a JSON object");
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe("null");
+    await expect(readFile(workspace.registryPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("repairs the registry from a hook list that contains null", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          null,
+          {
+            matcher: "joyus:hook",
+            hooks: [{ type: "command", command: "echo old", timeout: 5 }],
+          },
+        ],
+      },
+    });
+
+    const result = await reconcile(
+      createManifest({ hooks: [createHook({ command: "echo new" })] }),
+      createConfig(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          null,
+          {
+            matcher: "joyus:hook",
+            hooks: [{ type: "command", command: "echo new", timeout: 5 }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("returns rolled_back instead of rejecting when registry repair throws", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, { existing: true });
+    vi.spyOn(registryModule, "repairRegistry").mockRejectedValueOnce(new Error("repair failed"));
+
+    const result = await reconcile(
+      createManifest({ hooks: [createHook()] }),
+      createConfig(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "rolled_back", error: "repair failed" });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({ existing: true });
+  });
 ```
 
-**Verify**: `pnpm vitest run packages/settings-reconciler` → all pass. `pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` → all pass. Commit (commit 1, together with Steps 1–3).
+**4c.** In `test/registry.test.ts`, at the end of `describe("repairRegistry")`, add:
+
+<!-- block: tests-registry -->
+
+```ts
+  it("returns empty registry when the settings file holds JSON that is not an object", async () => {
+    const dir = await tmpDir();
+    const settingsPath = join(dir, "settings.json");
+    const fixedDate = new Date("2026-03-01T00:00:00.000Z");
+
+    for (const content of ["null", "[]", '"text"', "5"]) {
+      await writeFile(settingsPath, content, "utf8");
+
+      const registry = await repairRegistry(settingsPath, () => fixedDate);
+
+      expect(registry).toEqual({
+        schema_version: "1.0",
+        entries: {},
+        last_reconciled: fixedDate.toISOString(),
+      });
+    }
+  });
+
+  it("skips hook groups and sections that are not objects", async () => {
+    const dir = await tmpDir();
+    const settingsPath = join(dir, "settings.json");
+    const fixedDate = new Date("2026-03-01T00:00:00.000Z");
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [null, "text", ["joyus:in-a-list"], { matcher: "joyus:real", hooks: [] }],
+          SessionStart: "not-a-list",
+        },
+        mcpServers: ["joyus:in-a-list"],
+      }),
+      "utf8"
+    );
+    expect(Object.keys((await repairRegistry(settingsPath, () => fixedDate)).entries)).toEqual([
+      "hook:PreToolUse:joyus:real",
+    ]);
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({ hooks: null, mcpServers: { "joyus:mcp": { command: "node" } } }),
+      "utf8"
+    );
+    expect(Object.keys((await repairRegistry(settingsPath, () => fixedDate)).entries)).toEqual([
+      "mcp:joyus:mcp",
+    ]);
+  });
+```
+
+**Verify**: `pnpm vitest run packages/settings-reconciler` → 144 pass. `pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` → 50 pass. Commit (commit 1, together with Steps 1–3).
 
 ### Step 5: Record the decision in the spec
 
 In `kitty-specs/008-managed-tooling-distribution/research.md`, find the paragraph in section R1 that begins `Matchers are glob patterns` and ends `used by user/plugin hooks.` Directly below it, add a blank line and this paragraph:
 
 ```markdown
-> **Superseded (plan 012, 2026-11).** The matcher is functional in Claude Code: on tool events it is compared with the tool name, so a hook whose matcher is `joyus:<name>` never runs there. Ownership is now recorded in the registry file as the event, matcher and command that were written. Managed hooks may use real matchers and are merged into the matching group beside the user's hooks. Groups with a `joyus:` matcher are still recognized as wholly managed.
+> **Superseded (plan 012, 2026-11).** The matcher is functional in Claude Code: on tool events it is compared with the tool name, so a hook whose matcher is `joyus:<name>` never runs there. Ownership is now recorded in the registry file as the event, matcher and command that were written. Managed hooks may use real matchers and are merged into the matching group beside the user's hooks. A command the user already had is never claimed. Groups with a `joyus:` matcher are still recognized as wholly managed.
 ```
 
 **Verify**: `grep -c 'Superseded (plan 012' kitty-specs/008-managed-tooling-distribution/research.md` → `1`. Commit (commit 2).
@@ -800,28 +1748,30 @@ In `kitty-specs/008-managed-tooling-distribution/research.md`, find the paragrap
 
 Run `pnpm typecheck`, then `pnpm coverage`.
 
-**Verify**: both exit 0, and the coverage summary shows 100% for `reconciler.ts` and `registry.ts`. If coverage reports an uncovered line or branch in code you added, add a focused test for it in `describe("pure reconciler helpers")`. Do not add a `v8 ignore` comment.
+**Verify**: both exit 0, and the coverage summary shows 100% for `reconciler.ts` and `registry.ts`. If coverage reports an uncovered line or branch in code you added, STOP and report it: the reference run showed 100% for this package, so a gap means the code or the tests differ from this plan. Do not add a `v8 ignore` comment.
 
 ## Test plan
 
-- Six new helper tests: shared group keeps user hooks, removal takes only the owned command, a changed command is replaced, an all-owned group and its event are dropped, an unowned command is never removed, malformed shapes pass through.
-- Two new `reconcile` tests through real files: install then revoke beside a user hook (settings return to exactly the user's original), and upgrade of an old-format registry entry.
-- Two existing tests updated for the new call shape and the new entry fields.
-- Structural pattern: the existing tests in the same two `describe` blocks.
-- Verification: `pnpm vitest run packages/settings-reconciler` → all pass (8 more tests than before this plan).
+- Ten new helper tests: a shared group keeps the user's hooks; an identical user command is left as the same object; an owned entry is refreshed in place; two manifest hooks with the same command write one entry; removal takes only the owned command; a changed command is replaced; an all-owned group and its event are dropped; an unowned command is never removed; one owned command removes one entry; malformed shapes pass through and are not joined.
+- Ten new `reconcile` tests through real files: install then revoke beside a user hook (the file returns to its original bytes); an identical user command survives install, a later run and revocation byte for byte, with a registry entry that has no `command`; the same while another managed hook comes and goes; ownership is taken once the user deletes their copy; refresh in place and a target move; a lost registry; upgrade of an old-format registry entry; `null` as a settings file; `null` in a hook list; a repair that throws.
+- Two new `repairRegistry` tests: JSON that is not an object; groups and sections that are not objects.
+- Three existing tests updated for the new call shape and the new entry fields.
+- Structural pattern: the existing tests in the same `describe` blocks.
+- Verification: `pnpm vitest run packages/settings-reconciler` → 144 pass (22 more than before this plan).
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
 - [ ] `pnpm typecheck` exits 0
-- [ ] `pnpm vitest run packages/settings-reconciler` exits 0
+- [ ] `pnpm vitest run packages/settings-reconciler` exits 0 with 144 tests
 - [ ] `pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` exits 0
 - [ ] `pnpm coverage` exits 0
 - [ ] `grep -c 'buildActiveHookIds' packages/settings-reconciler/src/reconciler.ts` prints 0
 - [ ] `grep -c 'collectOwnedHooks' packages/settings-reconciler/src/reconciler.ts` prints 3
+- [ ] `grep -c 'planHookMerge' packages/settings-reconciler/src/reconciler.ts` prints 3
 - [ ] `grep -c 'OwnedHook' packages/settings-reconciler/src/index.ts` prints 1
-- [ ] `git diff --stat main..HEAD -- packages/settings-reconciler/src/manifest.ts` prints nothing
+- [ ] `git diff --stat 363bb14 -- packages/settings-reconciler/src/manifest.ts packages/settings-reconciler/src/settingsFile.ts` prints nothing
 - [ ] `git status --short` lists only the in-scope files
 - [ ] `plans/README.md` status row for 012 updated
 
@@ -829,19 +1779,27 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
-- Plan 009 has not landed (`grep -c 'readSettingsFileStrict' packages/settings-reconciler/src/reconciler.ts` prints 0).
+- Plan 009 has not landed (`grep -c 'readSettingsFileStrict' packages/settings-reconciler/src/reconciler.ts` prints 0), or the drift check lists a file.
 - The code at the locations in "Current state" does not match the excerpts.
-- After Step 3, an existing test other than the two named there fails. That test encodes behavior this plan did not account for. Report its name and the assertion; do not change its expectations.
+- After Step 2, the set of failing tests is anything other than the three named in "Current state". A fourth failing test encodes behavior this plan did not account for. Report its name and the assertion; do not change its expectations.
+- After Step 3 or Step 4, any test in the package fails.
 - A test in `configCheckWiring.test.ts` fails. Report it; do not edit files under `apps/`.
-- The install-then-revoke test in Step 4 does not return the settings file to exactly `userSettings`. That is the core guarantee of this plan; do not loosen the assertion.
+- A test with "byte for byte" behavior fails: "never rewrites or removes an identical command the user already had", or the last assertion of "installs a tool-scoped hook beside the user's hook and removes only it on revocation". Those are the core guarantees of this plan; do not loosen the assertions.
 - You find yourself adding a key to `settings.json` to mark ownership, or changing `manifest.ts`.
 - A step's verification fails twice after a reasonable fix attempt.
 
 ## Maintenance notes
 
-- **Lost registry.** If `~/.claude/.joyus-managed.json` is deleted, repair can only rediscover groups with a `joyus:` matcher and MCP servers. A managed hook with a real matcher is re-adopted on the next reconcile if it is still in the manifest (the identical command is found and recorded again). One that was revoked while the registry was missing stays in `settings.json` as if the user had written it. This is the cost of keeping markers out of `settings.json`.
-- **Edited commands.** If the user edits a managed command in `settings.json`, the tool no longer recognizes it. It will add the manifest's version beside it and will not remove the edited one.
-- **Identical commands.** If the user already had the exact same command in the same group, the tool adopts it and will remove it on revocation.
-- **Duplicate ids.** Two hooks with the same `event` and `id` in one manifest share a registry key; only the last is recorded as owned. The manifest validator does not reject this.
+What this plan guarantees, and where the guarantee ends:
+
+- **Identical commands.** If the user already has the exact same command string in a group with the same matcher, the tool writes nothing and records the hook without a `command`. It never refreshes or removes that entry, whatever the manifest later says about timeout or revocation. If the user later deletes their copy, the next reconcile installs the managed one and owns it. The comparison is on the command string only: an entry with the same command and a different `type` or `timeout` still counts as the user's.
+- **Lost registry.** If `~/.claude/.joyus-managed.json` is deleted, repair can only rediscover groups with a `joyus:` matcher and MCP servers. A managed hook with a real matcher is **not** re-adopted: nothing in `settings.json` says this tool wrote it, so from then on it is treated as the user's and a revocation leaves it in place. This is the cost of keeping markers out of `settings.json`, and of never claiming a command the user may have written. The test "treats a tool-scoped hook as the user's after the registry is lost" pins it.
+- **Edited commands.** If the user edits the command string of a managed entry, the tool no longer recognizes it. It adds the manifest's version beside it and does not remove the edited one. If the user edits only another field of a managed entry, such as `timeout`, the next reconcile sets it back to the manifest's value.
+- **Duplicates added later.** If the user adds a second copy of a managed command to the same group after it was installed, a revocation removes one entry: the first with that command, in file order. The other stays.
+- **Several groups with one matcher.** The managed command joins the first group with that matcher whose `hooks` is a list. A group whose `hooks` is not a list is left alone, and a new group is added instead.
+- **`joyus:` groups are unchanged.** They are still replaced as a whole and removed by prefix. A user who edits such a group loses the edit on the next reconcile, as before.
+- **Duplicate ids.** Two hooks with the same `event` and `id` in one manifest share a registry key; only the last is recorded. The manifest validator does not reject this.
+- **Registry key change.** Keys were `hook:<event>:<matcher>` and are now `hook:<event>:<id>`. For a hook whose id differs from its matcher, the first run after this change counts one entry removed and one added. `settings.json` is not affected.
+- **Not fixed here: a registry file of the wrong shape.** A registry file that parses as JSON but has no `entries` object (for example `{}`) makes every `reconcile()` return `rolled_back`, before and after this plan. Checked on 2026-11-18 by running both versions. It needs its own small plan: `readRegistry` should treat such a file as missing.
 - `configCheckWiring.ts` still detects revocations by comparing `hook:<event>:<matcher>` ids between manifests. With real matchers, two hooks can share that id. Plan 013 replaces that logic.
-- Reviewer focus: `mergeHooks` must never drop a hook entry it did not write, and `removeStaleHooks` must remove a non-legacy entry only when its exact event, matcher and command are in the registry and not in the manifest.
+- Reviewer focus: `planHookMerge` must never change or drop an entry it did not write, and `removeStaleHooks` must remove a non-legacy entry only when its exact event, matcher and command are in the registry and not in the manifest.

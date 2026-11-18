@@ -1,14 +1,5 @@
 # Plan 013: A revocation is applied even when skill sync fails, and an unfinished update is retried
 
-> **DO NOT EXECUTE — BLOCKED, needs revision (2026-11-17).** An outside review found that the removals-only mode in Step 1 removes tooling that is still authorized, confirmed by running the prescribed logic:
->
-> - **An MCP server that moves from `global` to `project`** while staying in the manifest is deleted from the global file and not added to the project file. It is installed nowhere until a sync succeeds.
-> - **A managed hook with a `joyus:` matcher whose matcher changes** while its id stays the same is removed the same way.
->
-> The cause: removals are computed from the desired per-target ids and matchers, not from "registry keys the manifest no longer lists". Before this plan, a failed sync skipped reconcile entirely, so this plan introduces the gap. It also builds on plan 012, which is blocked too.
->
-> Fix direction and status are in `plans/README.md` under "Outside review of the plans". The text below is the unrevised plan, kept for the record.
-
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
@@ -16,20 +7,35 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
+> Every code block in the Steps was copied by a script from a reference
+> implementation that was run (see "What was run"). Copy each block exactly.
+> Lines of the form `<!-- block: name -->` are labels used to check this plan;
+> ignore them.
+>
+> **Read Step 1 before running any test.** Two existing tests build the real
+> handler with reconcile paths that point at your real `~/.claude` folder.
+> They are harmless today only because a failed sync skips reconcile. Step 1
+> fixes them first.
+>
 > **Drift check (run first)**:
 > 1. `git merge-base --is-ancestor ec00055 HEAD && echo present` must print `present`. This plan was written against `origin/main` commit `ec00055`, which added token handling to the files below. If it prints nothing, STOP: update the branch first.
-> 2. `git diff --stat ec00055..HEAD -- apps/desktop-companion/src/sidecar/configCheckWiring.ts apps/desktop-companion/src/sidecar/configCheckPoller.ts apps/desktop-companion/test/sidecar/configCheckWiring.test.ts`
->    If any of these changed, compare the "Current state" excerpts against the live code; on a mismatch, treat it as a STOP condition.
-> 3. `packages/settings-reconciler/` WILL have changed, because plans 009 and 012 land first. That is expected.
+> 2. `git diff --stat ec00055 -- apps/desktop-companion/src/sidecar/configCheckWiring.ts apps/desktop-companion/src/sidecar/configCheckPoller.ts apps/desktop-companion/src/sidecar/main.ts apps/desktop-companion/test/sidecar/configCheckWiring.test.ts apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` must print nothing. If it lists a file, compare the "Current state" excerpts against the live code; on a mismatch, treat it as a STOP condition.
+> 3. Plan 012 must have landed exactly as written: `grep -c 'planHookMerge' packages/settings-reconciler/src/reconciler.ts` prints `3`, and `pnpm vitest run packages/settings-reconciler` reports 144 tests. If either differs, STOP.
 
 ## Status
 
 - **Priority**: P2 (the code is wired into the sidecar but only runs when `JOYUS_MANAGED_TOOLING_MANIFEST_URL` and `SKILL_SYNC_REPO_URL` are set)
 - **Effort**: M
-- **Risk**: MED (rewrites the control flow of one function and about ten of its tests)
-- **Depends on**: plans/007, plans/008, plans/009, plans/012-managed-hooks-with-real-matchers.md
+- **Risk**: MED (rewrites the control flow of one function and eleven of its tests)
+- **Depends on**: plans/007, plans/008, plans/009, plans/012-managed-hooks-with-real-matchers.md (as revised on 2026-11-18)
 - **Category**: bug, security
 - **Planned at**: commit `ec00055` (`origin/main`), 2026-11-17
+- **Revised**: 2026-11-18, against plan 012's reference result on top of commit `363bb14`, after the outside review recorded in `plans/README.md`. What changed:
+  1. Removals-only mode is rebuilt. It removes only what the registry records as installed under an id the manifest no longer lists. An id that is still listed keeps everything installed under it, whatever the manifest now says about its target, matcher, event or command (review finding 2). The first version computed removals from the manifest's per-target ids and matchers, which removed still-authorized entries.
+  2. A new first step makes two existing tests safe before the handler changes. One of them, in `mainConfigCheckWiring.test.ts`, was not in the first version at all: it runs the real handler with a registry path in the real home directory.
+  3. `resolveTargetVersion` loses a branch that the new handler can no longer reach, and two tests cover the fallback to the earlier manifest. Without these the coverage gate fails at 98.3% for `configCheckWiring.ts`.
+  4. The edits to the existing wiring tests are now a table of exact edits, not rules to interpret.
+  The code in the Steps was run against the existing tests of both packages before this revision was published. See "What was run".
 
 ## Why this matters
 
@@ -45,13 +51,15 @@ So a revocation that arrives while the git host is unreachable, or while a stale
 
 Removing an entry never needs the skill files. Only adding or updating does, because a new hook's command may point at a script that sync has not delivered yet.
 
-After this plan: every cycle applies removals. Additions and updates are applied only after a successful sync. If either part did not complete, the handler rejects, and the poller, which already supports this, retries on its next tick.
+After this plan: every cycle applies removals. Additions, updates and moves are applied only after a successful sync. If either part did not complete, the handler rejects, and the poller, which already supports this, retries on its next tick.
+
+**What "removal" means here, and what it does not.** In a cycle where sync did not succeed, the reconciler removes an installed entry only if the registry recorded it and its id is gone from the manifest. It does not move, update or replace anything. In particular, if the manifest keeps an id and changes its command, the old command stays installed until a sync succeeds. An organization that needs a command gone at once must drop the id.
 
 ## Current state
 
 ### The handler
 
-`apps/desktop-companion/src/sidecar/configCheckWiring.ts`. Helper functions near the top (lines 59–141):
+`apps/desktop-companion/src/sidecar/configCheckWiring.ts` (448 lines), read from commit `363bb14` on 2026-11-18; the file is unchanged since `ec00055`. Helper functions near the top (lines 59–141):
 
 ```ts
 function getBundleNames(manifest: DistributionManifest): string[] {
@@ -85,13 +93,61 @@ function hasRevocation(
   if (previousManifest === undefined) {
     return false;
   }
-  // ... compares bundle names and entry ids of the two manifests
+
+  const nextBundles = new Set(getBundleNames(nextManifest));
+  for (const bundleName of getBundleNames(previousManifest)) {
+    if (!nextBundles.has(bundleName)) {
+      return true;
+    }
+  }
+
+  const nextEntries = getManagedEntryIds(nextManifest);
+  for (const entryId of getManagedEntryIds(previousManifest)) {
+    if (!nextEntries.has(entryId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function resolveTargetVersion(
+  manifest: DistributionManifest,
+  bundleName?: string,
+): string | undefined {
+  if (bundleName !== undefined) {
+    return manifest.bundles[bundleName]?.version;
+  }
+
+  const versions = [...new Set(Object.values(manifest.bundles).map((bundle) => bundle.version))];
+  if (versions.length === 0) {
+    return undefined;
+  }
+
+  if (versions.length === 1) {
+    return versions[0];
+  }
+
+  throw new Error(
+    "Unable to resolve skill-sync target version from manifest with multiple bundle versions; configure bundleName explicitly.",
+  );
+}
+
+function resolveSyncTargetVersion(
+  manifest: DistributionManifest,
+  previousManifest: DistributionManifest | undefined,
+  bundleName?: string,
+): string | undefined {
+  return (
+    resolveTargetVersion(manifest, bundleName) ??
+    (previousManifest !== undefined
+      ? resolveTargetVersion(previousManifest, bundleName)
+      : undefined)
+  );
 }
 ```
 
-`resolveTargetVersion` and `resolveSyncTargetVersion` follow and are not changed by this plan.
-
-The handler body, inside `createConfigChangeHandler` (lines 172–261):
+The handler body, inside `createConfigChangeHandler` (lines 170–262):
 
 ```ts
   let lastManifest = config.initialManifest;
@@ -188,7 +244,36 @@ The handler body, inside `createConfigChangeHandler` (lines 172–261):
   };
 ```
 
-`reconcileFn` defaults to the real `reconcile` from `@joyus/settings-reconciler`, and `config.reconcileConfig` is optional. With no config, the real `reconcile` edits `~/.claude/settings.json`. **This matters for the tests: see Step 4.**
+`reconcileFn` defaults to the real `reconcile` from `@joyus/settings-reconciler`, and `config.reconcileConfig` is optional. With no config, the real `reconcile` edits `~/.claude/settings.json`, `.claude/settings.json` in the current directory, and `~/.claude/.joyus-managed.json`.
+
+### How the sidecar builds the handler
+
+`apps/desktop-companion/src/sidecar/main.ts` (lines 101–122) passes only `syncConfig`, `reconcileConfig`, `tenantConfigPath` and a logger. A test that goes through `startSidecar` therefore cannot inject a mock `reconcileFn`; it can only choose the paths:
+
+```ts
+          onSync: createConfigChangeHandler({
+            syncConfig: managedToolingConfig.syncConfig,
+            ...(
+              managedToolingConfig.reconcileConfig !== undefined
+                ? { reconcileConfig: managedToolingConfig.reconcileConfig }
+                : {}
+            ),
+            ...(
+              managedToolingConfig.tenantConfigPath !== undefined
+                ? { tenantConfigPath: managedToolingConfig.tenantConfigPath }
+                : {}
+            ),
+            logger: {
+              error: (message: string) => {
+                deps.stderr.write(message + "\n");
+              },
+              warn: (message: string) => {
+                deps.stderr.write(message + "\n");
+              },
+            },
+          }),
+          onPollError: (error: Error) => {
+```
 
 ### The poller already retries when the handler rejects
 
@@ -213,7 +298,7 @@ The default interval is 300,000 ms (5 minutes). Do not change the poller.
 
 ### The reconciler (after plan 012)
 
-`packages/settings-reconciler/src/reconciler.ts`. After plans 009 and 012, these pieces exist:
+`packages/settings-reconciler/src/reconciler.ts`, as plan 012 leaves it. The config type:
 
 ```ts
 export interface ReconcileConfig {
@@ -226,85 +311,220 @@ export interface ReconcileConfig {
 }
 ```
 
-```ts
-function collectOwnedHooks(registry: ManagedRegistry, target: SettingsTarget): OwnedHook[] {
-  const owned: OwnedHook[] = [];
+`removeStaleHooks`. Its loop is what Step 2 turns into a shared helper:
 
-  for (const entry of Object.values(registry.entries)) {
-    if (
-      entry.type === "hook" &&
-      entry.target === target &&
-      entry.event !== undefined &&
-      entry.matcher !== undefined &&
-      entry.command !== undefined
-    ) {
-      owned.push({ event: entry.event, matcher: entry.matcher, command: entry.command });
+```ts
+export function removeStaleHooks(
+  currentHooks: Record<string, unknown[]>,
+  activeHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
+): Record<string, unknown[]> {
+  const activeMatchers = new Set(activeHooks.map((hook) => hook.matcher));
+  const activeKeys = new Set(
+    activeHooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
+  );
+  // Each stale key is used up by the first entry it removes: this tool wrote
+  // one entry per key, so it removes at most one.
+  const staleKeys = ownedHookKeys(ownedHooks);
+  for (const key of activeKeys) {
+    staleKeys.delete(key);
+  }
+
+  const nextHooks: Record<string, unknown[]> = {};
+
+  for (const [event, groups] of Object.entries(normalizeHooksRecord(currentHooks))) {
+    const nextGroups: unknown[] = [];
+
+    for (const group of groups) {
+      if (!isRecord(group) || typeof group["matcher"] !== "string") {
+        nextGroups.push(group);
+        continue;
+      }
+
+      const matcher = group["matcher"];
+
+      if (isLegacyManagedMatcher(matcher)) {
+        if (activeMatchers.has(matcher)) {
+          nextGroups.push(group);
+        }
+        continue;
+      }
+
+      if (!isGroupFor(group, matcher)) {
+        nextGroups.push(group);
+        continue;
+      }
+
+      const keptHooks = group.hooks.filter((entry) => {
+        if (!isRecord(entry) || typeof entry["command"] !== "string") {
+          return true;
+        }
+        // Set.delete returns true only for the first entry with a stale key.
+        return !staleKeys.delete(hookKey(event, matcher, entry["command"]));
+      });
+
+      if (keptHooks.length === group.hooks.length) {
+        // Nothing of ours to remove: keep the same object.
+        nextGroups.push(group);
+      } else if (keptHooks.length > 0) {
+        nextGroups.push({ ...group, hooks: keptHooks });
+      }
+      // Otherwise every hook in the group was ours and is stale: drop the group.
+    }
+
+    if (nextGroups.length > 0) {
+      nextHooks[event] = nextGroups;
     }
   }
 
-  return owned;
+  return nextHooks;
 }
 ```
 
-Inside `reconcileSettingsTarget` (its options include `hooks`, `mcps` and `ownedHooks`):
+`reconcileSettingsTarget` takes the manifest's hooks and servers for one settings file and decides what the file should hold:
 
 ```ts
-  const nextHooks = removeStaleHooks(
-    mergeHooks(currentHooks, options.hooks),
-    options.hooks,
-    options.ownedHooks
-  );
+async function reconcileSettingsTarget(options: {
+  settingsPath: string;
+  backupDir: string;
+  maxBackups: number;
+  now: () => Date;
+  hooks: readonly ManifestHook[];
+  mcps: readonly ManifestMcpServer[];
+  ownedHooks: readonly OwnedHook[];
+}): Promise<SettingsUpdateResult> {
+  const currentSettings = await readSettingsFileStrict(options.settingsPath);
+  const currentHooksValue = currentSettings["hooks"];
+  const currentMcpValue = currentSettings["mcpServers"];
+  const currentHooks = normalizeHooksRecord(currentHooksValue);
+  const currentMcpServers = normalizeMcpRecord(currentMcpValue);
+
+  const hookPlan = planHookMerge(currentHooks, options.hooks, options.ownedHooks);
+  const userOwnedHookKeys = hookPlan.userOwned.map(hookRegistryKey);
+  const nextHooks = removeStaleHooks(hookPlan.hooks, options.hooks, options.ownedHooks);
   const nextMcpServers = removeStaleMcpServers(
     mergeMcpServers(currentMcpServers, options.mcps),
     buildActiveMcpIds(options.mcps)
   );
+  // ... builds the next settings object, backs the file up and writes it
 ```
 
-Inside `reconcile()`, after both settings files are updated:
+And the middle of `reconcile()`:
 
 ```ts
-    const nextRegistry = buildNewRegistry(manifest, currentRegistry, now);
+  try {
+    // Inside the try: a failure while rebuilding a lost registry must end in
+    // "rolled_back", not in a rejected promise.
+    const currentRegistry =
+      (await readRegistry(registryPath)) ??
+      (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
+
+    globalUpdate = await reconcileSettingsTarget({
+      settingsPath: globalSettingsPath,
+      backupDir: join(backupDir, "global"),
+      maxBackups,
+      now,
+      hooks: partition.global.hooks,
+      mcps: partition.global.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "global"),
+    });
+
+    projectUpdate = await reconcileSettingsTarget({
+      settingsPath: projectSettingsPath,
+      backupDir: join(backupDir, "project"),
+      maxBackups,
+      now,
+      hooks: partition.project.hooks,
+      mcps: partition.project.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "project"),
+    });
+
+    const nextRegistry = buildNewRegistry(
+      manifest,
+      currentRegistry,
+      now,
+      new Set([...globalUpdate.userOwnedHookKeys, ...projectUpdate.userOwnedHookKeys])
+    );
     const counts = computeCounts(currentRegistry, nextRegistry);
 
     await writeRegistry(registryPath, nextRegistry);
 ```
 
-`buildNewRegistry` is a pure function: it returns the registry that a full reconcile of `manifest` would produce, with keys `hook:<event>:<id>` and `mcp:<id>`.
+Registry keys are `hook:<event>:<id>` and `mcp:<id>`. A hook entry records `matcher` and, when this tool wrote the command, `command`. Entries written before plan 012, and entries rebuilt by registry repair, have neither field and are keyed `hook:<event>:<matcher>`.
 
 ### The tests
 
-`apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` (1,556 lines). `describe("createConfigChangeHandler failure isolation")` has 13 tests that pin the current gating. Two examples of the current expectations:
-
-```ts
-  it("skips reconcile on offline sync when there is no revocation, but still writes tenant config", async () => {
-    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
-    // ... handler built with syncSkillsFn returning { status: "offline", ... } and bundleName: "core"
-    await handler({
-      schema_version: "1.0",
-      tenant_id: "tenant-1",
-      bundles: { core: { version: "v1.0.0", config: { enabled: true } } },
-    });
-
-    expect(reconcileFn).not.toHaveBeenCalled();
-```
+`apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` (1,556 lines, 50 tests). `describe("createConfigChangeHandler integration")` has three tests that run the real `reconcile` on temp paths. `describe("createConfigChangeHandler failure isolation")` has 12 tests that pin the current gating. The last of them passes **no `reconcileFn`** and no reconcile paths:
 
 ```ts
   it("uses the default logger and non-Error string formatting paths without throwing", async () => {
     const handler = createConfigChangeHandler({
-      syncConfig: { repoUrl: "file:///repo.git", bundleName: "core", destDir: "/tmp/skills", cacheDir: "/tmp/cache" },
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
       syncSkillsFn: vi.fn().mockRejectedValue("string failure"),
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
     await expect(
-      handler({ schema_version: "1.0", tenant_id: "tenant-1", bundles: { core: { version: "v1.0.0" } } }),
+      handler({
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: {
+          core: {
+            version: "v1.0.0",
+          },
+        },
+      }),
     ).resolves.toBeUndefined();
   });
 ```
 
-The second example passes **no `reconcileFn`**. It is safe today only because a failed sync skips reconcile.
+`apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` (5 tests). One test calls the real handler through `startSidecar`. It sets only the global settings path. The project settings path, the registry path and the backup folder keep their defaults:
 
-The helper that builds a reconcile result for mocks:
+```ts
+    const deps = makeDeps({
+      managedToolingConfig: {
+        manifestUrl: "https://example.com/manifest.json",
+        intervalMs: 15_000,
+        tenantConfigPath: "/tmp/tenant-config.json",
+        reconcileConfig: {
+          globalSettingsPath: "/tmp/global-settings.json",
+        },
+        syncConfig: {
+          repoUrl: "file:///repo.git",
+          destDir: "/tmp/skills",
+          cacheDir: "/tmp/cache",
+        },
+      },
+      createConfigCheckWiringFn: vi.fn((config) => {
+        capturedOnSync = config.onSync;
+
+        return {
+          stop: vi.fn(),
+          getState: () => ({ consecutiveFailures: 0 }),
+        };
+      }),
+    });
+
+    startSidecar(deps);
+
+    await capturedOnSync?.({
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: {
+        "bundle-a": { version: "v1.0.0" },
+        "bundle-b": { version: "v2.0.0" },
+      },
+    });
+```
+
+Both are safe today only because the sync fails in each, and a failed sync skips reconcile. After Step 4 reconcile runs on every cycle. Verified by running the new handler against these tests unchanged, under a throwaway home directory: a `.claude` folder holding `.joyus-managed.json` appeared there, and each of the two tests alone was enough to create it.
+
+The helper that builds a reconcile result for mocks (`configCheckWiring.test.ts`):
 
 ```ts
 function createReconcileResult(
@@ -314,18 +534,37 @@ function createReconcileResult(
 ): ReconcileResult {
 ```
 
-Repo conventions: TypeScript strict with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Vitest. Coverage must stay at 100% lines, functions, branches and statements, so helper functions that become unused must be deleted, not left behind.
+Repo conventions: TypeScript strict with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Vitest. Coverage must stay at 100% lines, functions, branches and statements, so code that becomes unreachable must be deleted, not left behind. `pnpm typecheck` does not check test files.
+
+### What was run
+
+On 2026-11-18, outside the repository, in a copy of commit `363bb14` with plan 012's reference result applied and a `node_modules` borrowed from an existing worktree (Vitest 3.2.4). Every test run used a throwaway `HOME`.
+
+- Before any change of this plan: `packages/settings-reconciler` 144 tests, `configCheckWiring.test.ts` 50, `configCheckPoller.test.ts` 21, `mainConfigCheckWiring.test.ts` 5. All pass.
+- Step 2 with all test files untouched: the 144 package tests pass unchanged.
+- Steps 2 and 4 without Step 1 (the hazard): 10 of the 12 "failure isolation" tests fail, one test in `mainConfigCheckWiring.test.ts` fails, and `.claude/.joyus-managed.json` appears in the throwaway home. With Step 1 applied first, the same 11 tests fail after Step 4 and nothing is written there.
+- After all steps: package 155, wiring 56, poller 21, main wiring 5. All pass. Nothing named `.claude` in the throwaway home.
+- Coverage of that run: 100% statements, branches, functions and lines for `reconciler.ts`, `configCheckWiring.ts` and `configCheckPoller.ts`. All 21 test files under `apps/desktop-companion/test/sidecar` were also run once together with the package (554 tests at that point, before the last two tests were added) and passed.
+- `tsc --noEmit` over the whole workspace → exit 0.
+- Seven deliberate defects were put into the removals-only code one at a time (judge staleness by event and id; drop each of the two "still in use" protections; ignore the flag; treat every server as revoked; drop the reserved-prefix guard; forget ownership records of kept entries). Each made at least one new test fail.
+- This plan was then replayed: a script took the code blocks and the edit table from this file, applied them to a fresh copy as the Steps describe, and ran the same commands. Result: 55 wiring tests pass after Step 1; 144 package tests pass after Step 2 and 155 after Step 3; 11 wiring tests fail after Step 4, as Step 4 says; after Step 5 all 237 tests of the four test files pass with 100% coverage for the three source files; and the six resulting files were byte-identical to the reference.
+
+Not run: `pnpm coverage` over the whole repository; the real `syncSkills` against a git host that is down or locked (every sync result in these tests is a mock); the poller and the handler together across a real five-minute interval; the code inside the real application.
 
 ## Commands you will need
 
 | Purpose | Command | Expected on success |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | exit 0 |
-| Reconciler tests | `pnpm vitest run packages/settings-reconciler` | all pass |
-| Wiring tests, under a throwaway home directory | `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` | all pass |
+| Reconciler tests | `pnpm vitest run packages/settings-reconciler` | all pass (144 before this plan, 155 after) |
+| Wiring tests, under a throwaway home directory | `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts apps/desktop-companion/test/sidecar/configCheckPoller.test.ts` | all pass (50 + 5 + 21 before this plan, 56 + 5 + 21 after) |
 | Full coverage gate | `pnpm coverage` | exit 0, thresholds met |
 
+Create the throwaway home once per shell: `export SAFE_HOME="$(mktemp -d)"`.
+
 Never run `pnpm ci` (that is clean-install in pnpm). The full pipeline is `pnpm run ci`.
+
+Run tests only on a branch that contains plan 008 (`git merge-base --is-ancestor 1edaa59 HEAD && echo safe` prints `safe`).
 
 Known flaky tests, unrelated to this plan: `apps/desktop-companion/test/ui/SessionsPage.test.ts` ("clears mode note timers…"), `apps/desktop-companion/test/ui/components/LocalSiteCard.test.ts`, and a timing-dependent coverage gap in `ReconSetup.tsx`. If `pnpm coverage` fails only in one of those, rerun it once. If it fails again, treat it as a STOP condition.
 
@@ -333,83 +572,260 @@ Known flaky tests, unrelated to this plan: `apps/desktop-companion/test/ui/Sessi
 
 **In scope** (the only files you should modify):
 - `packages/settings-reconciler/src/reconciler.ts`
+- `packages/settings-reconciler/src/index.ts` (exports only)
 - `packages/settings-reconciler/test/reconciler.test.ts`
 - `apps/desktop-companion/src/sidecar/configCheckWiring.ts` (the helpers and handler quoted above only)
 - `apps/desktop-companion/test/sidecar/configCheckWiring.test.ts`
+- `apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` (one test)
 - `plans/README.md` (status row only)
 
 **Out of scope** (do NOT touch, even though they look related):
 - `configCheckPoller.ts`. Its retry behavior is already what this plan needs.
+- `apps/desktop-companion/src/sidecar/main.ts`.
 - Everything in `configCheckWiring.ts` below the handler: `createAuthenticatedFetch`, `getTokenWithholdReason`, `resolveManifestFetch`, `resolveSidecarManagedToolingConfigFromEnv`. Do not add an https requirement for the manifest URL here; that is a recorded open question for the maintainer.
 - `packages/skill-sync/`. Stale lock files and repository URL changes are a separate plan. This plan makes revocations independent of them.
 - Removing synced skill files when a bundle is revoked. Not handled anywhere today; not added here.
-- `apps/desktop-companion/src/sidecar/main.ts`.
+- The full reconcile path: `planHookMerge`, `mergeHooks`, `buildNewRegistry`, the MCP merge. Step 2 moves the body of `removeStaleHooks` into a helper without changing what it does.
 
 ## Git workflow
 
-- Branch: `fix/013-revocations-always-applied`
-- Two commits: (1) `feat: add a removals-only mode to the settings reconciler`, (2) `fix: apply revocations when skill sync fails and retry unfinished updates`. Conventional commits, matching `git log`.
+- Branch: `fix/013-revocations-always-applied`, cut from the plan 012 branch (or from `main` once 012 has merged there).
+- Three commits: (1) `test: keep managed-tooling handler tests away from real settings paths`, (2) `feat: add a removals-only mode to the settings reconciler`, (3) `fix: apply revocations when skill sync fails and retry unfinished updates`. Conventional commits, matching `git log`.
 - Do NOT push or open a PR unless the operator instructed it.
 
 ## Steps
 
-### Step 1: Add a removals-only mode to `reconcile`
+### Step 1: Make two existing tests safe before anything else changes
 
-All edits in `packages/settings-reconciler/src/reconciler.ts`.
+Create the throwaway home: `export SAFE_HOME="$(mktemp -d)"`.
 
-**1a.** Add one property to `ReconcileConfig`, after `maxBackups`:
+**1a.** In `apps/desktop-companion/test/sidecar/configCheckWiring.test.ts`, find the test "uses the default logger and non-Error string formatting paths without throwing". In the object passed to `createConfigChangeHandler`, directly after the line `syncSkillsFn: vi.fn().mockRejectedValue("string failure"),`, add:
+
+<!-- block: wiring-guard -->
+
+```ts
+      reconcileFn: vi.fn().mockResolvedValue(createReconcileResult()),
+```
+
+**1b.** In `apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts`:
+
+Directly below the line `import { Readable } from "node:stream";`, add:
+
+<!-- block: main-imports -->
+
+```ts
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+```
+
+In the test "passes optional managed-tooling config through and logs handler warnings and errors", add these two lines as the first lines of the test body, above `let capturedOnSync:`:
+
+<!-- block: main-root -->
+
+```ts
+    // Every path the real handler can touch lives under this throwaway folder.
+    const root = await mkdtemp(join(tmpdir(), "main-config-check-wiring-"));
+```
+
+In the same test, replace the `tenantConfigPath` line and the three-line `reconcileConfig` object (four lines in all, starting at `tenantConfigPath: "/tmp/tenant-config.json",`) with:
+
+<!-- block: main-paths -->
+
+```ts
+        tenantConfigPath: join(root, "tenant-config.json"),
+        reconcileConfig: {
+          globalSettingsPath: join(root, "home", "settings.json"),
+          projectSettingsPath: join(root, "project", "settings.json"),
+          registryPath: join(root, "home", ".joyus-managed.json"),
+          backupDir: join(root, "backups"),
+        },
+```
+
+And add this as the last line of the same test, after the final `expect(...)`:
+
+<!-- block: main-cleanup -->
+
+```ts
+    await rm(root, { recursive: true, force: true });
+```
+
+**Verify**:
+1. `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` → 55 pass.
+2. `ls -A "$SAFE_HOME"` → may list `.joyus` (an older, unrelated leak: `startSidecar` creates a session database there). It must not list `.claude`.
+
+Commit (commit 1).
+
+### Step 2: Add a removals-only mode to `reconcile`
+
+All edits in `packages/settings-reconciler/src/reconciler.ts`, except 2g. Do them all before running anything: the file does not compile in between.
+
+**2a.** In `ReconcileConfig`, add one property directly after `readonly maxBackups?: number;`:
+
+<!-- block: config-flag -->
 
 ```ts
   /**
-   * When true, only remove entries the manifest no longer lists. Nothing is
-   * added or updated in settings, and surviving registry entries are kept
-   * exactly as they were.
+   * When true, only remove what the registry records as installed and the
+   * manifest no longer lists. Nothing is added, updated or moved, and the
+   * registry entries that survive are kept exactly as they were.
    */
   readonly removalsOnly?: boolean;
 ```
 
-**1b.** Replace `collectOwnedHooks` with a version that can skip entries that are still active:
+**2b.** Replace the whole `removeStaleHooks` function (from `export function removeStaleHooks(` up to, but not including, `export function mergeMcpServers(`) with:
+
+<!-- block: remove-hooks -->
 
 ```ts
-function collectOwnedHooks(
-  registry: ManagedRegistry,
-  target: SettingsTarget,
-  skipKeys: ReadonlySet<string>
-): OwnedHook[] {
-  const owned: OwnedHook[] = [];
+/**
+ * Drops legacy managed groups for which `dropLegacyGroup` says so, and one
+ * entry per key in `staleKeys` from every other group. The set is used up as
+ * entries are removed: this tool wrote one entry per key, so it removes at
+ * most one.
+ */
+function filterHookGroups(
+  currentHooks: Record<string, unknown[]>,
+  dropLegacyGroup: (event: string, matcher: string) => boolean,
+  staleKeys: Set<string>
+): Record<string, unknown[]> {
+  const nextHooks: Record<string, unknown[]> = {};
 
-  for (const [key, entry] of Object.entries(registry.entries)) {
-    if (
-      !skipKeys.has(key) &&
-      entry.type === "hook" &&
-      entry.target === target &&
-      entry.event !== undefined &&
-      entry.matcher !== undefined &&
-      entry.command !== undefined
-    ) {
-      owned.push({ event: entry.event, matcher: entry.matcher, command: entry.command });
+  for (const [event, groups] of Object.entries(normalizeHooksRecord(currentHooks))) {
+    const nextGroups: unknown[] = [];
+
+    for (const group of groups) {
+      if (!isRecord(group) || typeof group["matcher"] !== "string") {
+        nextGroups.push(group);
+        continue;
+      }
+
+      const matcher = group["matcher"];
+
+      if (isLegacyManagedMatcher(matcher)) {
+        if (!dropLegacyGroup(event, matcher)) {
+          nextGroups.push(group);
+        }
+        continue;
+      }
+
+      if (!isGroupFor(group, matcher)) {
+        nextGroups.push(group);
+        continue;
+      }
+
+      const keptHooks = group.hooks.filter((entry) => {
+        if (!isRecord(entry) || typeof entry["command"] !== "string") {
+          return true;
+        }
+        // Set.delete returns true only for the first entry with a stale key.
+        return !staleKeys.delete(hookKey(event, matcher, entry["command"]));
+      });
+
+      if (keptHooks.length === group.hooks.length) {
+        // Nothing of ours to remove: keep the same object.
+        nextGroups.push(group);
+      } else if (keptHooks.length > 0) {
+        nextGroups.push({ ...group, hooks: keptHooks });
+      }
+      // Otherwise every hook in the group was ours and is stale: drop the group.
+    }
+
+    if (nextGroups.length > 0) {
+      nextHooks[event] = nextGroups;
     }
   }
 
-  return owned;
+  return nextHooks;
+}
+
+export function removeStaleHooks(
+  currentHooks: Record<string, unknown[]>,
+  activeHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
+): Record<string, unknown[]> {
+  const activeMatchers = new Set(activeHooks.map((hook) => hook.matcher));
+  const staleKeys = ownedHookKeys(ownedHooks);
+  for (const hook of activeHooks) {
+    staleKeys.delete(hookKey(hook.event, hook.matcher, hook.command));
+  }
+
+  return filterHookGroups(
+    currentHooks,
+    (_event, matcher) => !activeMatchers.has(matcher),
+    staleKeys
+  );
+}
+
+/** A legacy managed group, named by where it lives. */
+export interface HookGroupRef {
+  readonly event: string;
+  readonly matcher: string;
+}
+
+function groupKey(event: string, matcher: string): string {
+  return JSON.stringify([event, matcher]);
+}
+
+/**
+ * Removals-only counterpart of removeStaleHooks: removes exactly the named
+ * legacy groups and the named owned commands, and nothing else.
+ */
+export function removeRevokedHooks(
+  currentHooks: Record<string, unknown[]>,
+  revokedGroups: readonly HookGroupRef[],
+  revokedCommands: readonly OwnedHook[]
+): Record<string, unknown[]> {
+  const groupKeys = new Set(revokedGroups.map((group) => groupKey(group.event, group.matcher)));
+
+  return filterHookGroups(
+    currentHooks,
+    (event, matcher) => groupKeys.has(groupKey(event, matcher)),
+    ownedHookKeys(revokedCommands)
+  );
 }
 ```
 
-`skipKeys` is a required parameter on purpose. A default value would be a branch that no caller exercises, and the coverage gate would fail.
+`filterHookGroups` is the old loop of `removeStaleHooks`, unchanged, with one difference: the decision to drop a `joyus:` group is passed in. `removeStaleHooks` behaves exactly as before.
 
-**1c.** Directly below `buildNewRegistry`, add:
+**2c.** Directly above `export function partitionByTarget(`, add:
+
+<!-- block: remove-mcp -->
 
 ```ts
-/** The current registry without the entries whose keys are no longer active. */
+/** Removals-only counterpart of removeStaleMcpServers: removes exactly the named ids. */
+export function removeRevokedMcpServers(
+  currentServers: Record<string, unknown>,
+  revokedIds: readonly string[]
+): Record<string, unknown> {
+  const revoked = new Set(revokedIds);
+  const nextServers: Record<string, unknown> = {};
+
+  for (const [id, server] of Object.entries(normalizeMcpRecord(currentServers))) {
+    if (!revoked.has(id)) {
+      nextServers[id] = server;
+    }
+  }
+
+  return nextServers;
+}
+```
+
+**2d.** Directly below the `buildNewRegistry` function, add:
+
+<!-- block: prune-registry -->
+
+```ts
+/** The current registry without the given keys. Surviving entries are untouched. */
 function pruneRegistry(
   currentRegistry: ManagedRegistry,
-  activeKeys: ReadonlySet<string>,
+  removedKeys: ReadonlySet<string>,
   now: () => Date
 ): ManagedRegistry {
   const entries: Record<string, RegistryEntry> = {};
 
   for (const [key, entry] of Object.entries(currentRegistry.entries)) {
-    if (activeKeys.has(key)) {
+    if (!removedKeys.has(key)) {
       entries[key] = entry;
     }
   }
@@ -422,60 +838,504 @@ function pruneRegistry(
 }
 ```
 
-**1d.** In `reconcileSettingsTarget`, add `removalsOnly: boolean;` to the options type, and replace the two computations quoted in "Current state" with:
+**2e.** Replace the whole `reconcileSettingsTarget` function with the block below. It adds the two modes above the function and makes the function take a `change` callback instead of the manifest's hooks and servers.
+
+<!-- block: modes -->
 
 ```ts
-  const nextHooks = removeStaleHooks(
-    options.removalsOnly ? currentHooks : mergeHooks(currentHooks, options.hooks),
-    options.hooks,
-    options.ownedHooks
+/** What one run wants a settings file to hold. */
+interface SettingsChange {
+  readonly hooks: Record<string, unknown[]>;
+  readonly mcpServers: Record<string, unknown>;
+  readonly userOwnedHookKeys: readonly string[];
+}
+
+type SettingsChangeFn = (
+  currentHooks: Record<string, unknown[]>,
+  currentMcpServers: Record<string, unknown>
+) => SettingsChange;
+
+/** How one run changes the two settings files and the registry. */
+interface ReconcileMode {
+  readonly global: SettingsChangeFn;
+  readonly project: SettingsChangeFn;
+  readonly buildRegistry: (userOwnedHookKeys: ReadonlySet<string>) => ManagedRegistry;
+}
+
+/** Install, update, move and remove: the settings end up as the manifest says. */
+function fullMode(
+  manifest: DistributionManifest,
+  currentRegistry: ManagedRegistry,
+  now: () => Date
+): ReconcileMode {
+  const partition = partitionByTarget(
+    collectAllHooks(manifest),
+    collectAllMcpServers(manifest)
   );
-  const nextMcpServers = removeStaleMcpServers(
-    options.removalsOnly
-      ? currentMcpServers
-      : mergeMcpServers(currentMcpServers, options.mcps),
-    buildActiveMcpIds(options.mcps)
+
+  const changeFor = (target: SettingsTarget): SettingsChangeFn => {
+    const { hooks, mcps } = partition[target];
+    const ownedHooks = collectOwnedHooks(currentRegistry, target);
+
+    return (currentHooks, currentMcpServers) => {
+      const hookPlan = planHookMerge(currentHooks, hooks, ownedHooks);
+
+      return {
+        hooks: removeStaleHooks(hookPlan.hooks, hooks, ownedHooks),
+        mcpServers: removeStaleMcpServers(
+          mergeMcpServers(currentMcpServers, mcps),
+          buildActiveMcpIds(mcps)
+        ),
+        userOwnedHookKeys: hookPlan.userOwned.map(hookRegistryKey),
+      };
+    };
+  };
+
+  return {
+    global: changeFor("global"),
+    project: changeFor("project"),
+    buildRegistry: (userOwnedHookKeys) =>
+      buildNewRegistry(manifest, currentRegistry, now, userOwnedHookKeys),
+  };
+}
+
+/** What removals-only mode removes from one settings file. */
+interface RevocationPlan {
+  readonly groups: HookGroupRef[];
+  readonly commands: OwnedHook[];
+  readonly mcpIds: string[];
+}
+
+function parseHookKey(key: string): { event: string; id: string } {
+  const rest = key.slice("hook:".length);
+  const separator = rest.indexOf(":");
+  return { event: rest.slice(0, separator), id: rest.slice(separator + 1) };
+}
+
+/**
+ * Remove only: what the registry records as installed, under an id the
+ * manifest no longer lists. An id that is still listed keeps everything
+ * installed under it, wherever the manifest now says it belongs.
+ */
+function removalsOnlyMode(
+  manifest: DistributionManifest,
+  currentRegistry: ManagedRegistry,
+  now: () => Date
+): ReconcileMode {
+  const hooks = collectAllHooks(manifest);
+  const listedHookIds = new Set(hooks.map((hook) => hook.id));
+  const listedMcpIds = buildActiveMcpIds(collectAllMcpServers(manifest));
+
+  // Places that something still listed uses. They are never removed, even if
+  // a revoked entry points at the same place.
+  const keptGroups = new Set(hooks.map((hook) => groupKey(hook.event, hook.matcher)));
+  const keptCommands = new Set(
+    hooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
   );
+
+  const plans: Record<SettingsTarget, RevocationPlan> = {
+    global: { groups: [], commands: [], mcpIds: [] },
+    project: { groups: [], commands: [], mcpIds: [] },
+  };
+  const removedKeys = new Set<string>();
+  const revokedHooks: Array<{
+    key: string;
+    entry: RegistryEntry;
+    event: string;
+    matcher: string;
+  }> = [];
+
+  for (const [key, entry] of Object.entries(currentRegistry.entries)) {
+    if (entry.type === "mcp") {
+      const id = key.slice("mcp:".length);
+      if (!listedMcpIds.has(id)) {
+        removedKeys.add(key);
+        // The same guard as a full reconcile: only reserved ids are ever removed.
+        if (id.startsWith(MANAGED_PREFIX)) {
+          plans[resolveTarget(entry.target)].mcpIds.push(id);
+        }
+      }
+      continue;
+    }
+
+    // Entries written before the matcher was recorded, and entries rebuilt by
+    // repair, are keyed by matcher: for them the id part is the matcher.
+    const { event, id } = parseHookKey(key);
+    const matcher = entry.matcher ?? id;
+
+    if (listedHookIds.has(id)) {
+      keptGroups.add(groupKey(event, matcher));
+      if (entry.command !== undefined) {
+        keptCommands.add(hookKey(event, matcher, entry.command));
+      }
+      continue;
+    }
+
+    revokedHooks.push({ key, entry, event, matcher });
+  }
+
+  for (const { key, entry, event, matcher } of revokedHooks) {
+    const plan = plans[resolveTarget(entry.target)];
+
+    if (isLegacyManagedMatcher(matcher)) {
+      if (!keptGroups.has(groupKey(event, matcher))) {
+        plan.groups.push({ event, matcher });
+        removedKeys.add(key);
+      }
+    } else if (entry.command === undefined) {
+      // The user's own command, or an entry too old to say what was written:
+      // nothing in settings belongs to it.
+      removedKeys.add(key);
+    } else if (!keptCommands.has(hookKey(event, matcher, entry.command))) {
+      plan.commands.push({ event, matcher, command: entry.command });
+      removedKeys.add(key);
+    }
+  }
+
+  const changeFor = (target: SettingsTarget): SettingsChangeFn => {
+    const plan = plans[target];
+
+    return (currentHooks, currentMcpServers) => ({
+      hooks: removeRevokedHooks(currentHooks, plan.groups, plan.commands),
+      mcpServers: removeRevokedMcpServers(currentMcpServers, plan.mcpIds),
+      userOwnedHookKeys: [],
+    });
+  };
+
+  return {
+    global: changeFor("global"),
+    project: changeFor("project"),
+    buildRegistry: () => pruneRegistry(currentRegistry, removedKeys, now),
+  };
+}
+
+async function reconcileSettingsTarget(options: {
+  settingsPath: string;
+  backupDir: string;
+  maxBackups: number;
+  now: () => Date;
+  change: SettingsChangeFn;
+}): Promise<SettingsUpdateResult> {
+  const currentSettings = await readSettingsFileStrict(options.settingsPath);
+  const currentHooksValue = currentSettings["hooks"];
+  const currentMcpValue = currentSettings["mcpServers"];
+
+  const {
+    hooks: nextHooks,
+    mcpServers: nextMcpServers,
+    userOwnedHookKeys,
+  } = options.change(
+    normalizeHooksRecord(currentHooksValue),
+    normalizeMcpRecord(currentMcpValue)
+  );
+
+  const nextSettings: Record<string, unknown> = { ...currentSettings };
+
+  if (isRecord(currentHooksValue)) {
+    if (Object.keys(nextHooks).length > 0) {
+      nextSettings["hooks"] = nextHooks;
+    } else {
+      delete nextSettings["hooks"];
+    }
+  } else if (Object.keys(nextHooks).length > 0) {
+    nextSettings["hooks"] = nextHooks;
+  }
+
+  if (isRecord(currentMcpValue)) {
+    if (Object.keys(nextMcpServers).length > 0) {
+      nextSettings["mcpServers"] = nextMcpServers;
+    } else {
+      delete nextSettings["mcpServers"];
+    }
+  } else if (Object.keys(nextMcpServers).length > 0) {
+    nextSettings["mcpServers"] = nextMcpServers;
+  }
+
+  if (settingsEqual(currentSettings, nextSettings)) {
+    return { ...NO_SETTINGS_UPDATE, userOwnedHookKeys };
+  }
+
+  const backupPath = await createSettingsBackup(
+    options.settingsPath,
+    options.backupDir,
+    options.maxBackups,
+    options.now
+  );
+
+  await writeSettingsFile(options.settingsPath, nextSettings);
+
+  return {
+    backupPath,
+    changed: true,
+    existedBefore: backupPath !== undefined,
+    userOwnedHookKeys,
+  };
+}
 ```
 
-**1e.** In `reconcile()`, directly after the `partitionByTarget(...)` statement, add:
+How to read `removalsOnlyMode`:
+
+- An MCP entry is revoked when its id is not in the manifest. It is removed from the file the registry recorded, whatever the manifest says elsewhere.
+- A hook entry is revoked when no manifest hook has its id, on any event. The id is read from the registry key.
+- Before anything is removed, the places still in use are collected: every event and matcher, and every event, matcher and command, that a listed manifest hook declares or that a still-listed registry entry records. A revoked entry that points at such a place is left in settings **and in the registry**, so the ownership record survives until a full reconcile rebuilds the registry.
+- A revoked hook entry with a real matcher and no `command` is the user's own command (plan 012). Its registry entry is dropped and settings are not touched.
+
+**2f.** Replace the whole `reconcile` function (from `export async function reconcile(` to the end of the file) with:
+
+<!-- block: reconcile -->
 
 ```ts
-  const removalsOnly = config?.removalsOnly === true;
-  const fullRegistry = buildNewRegistry(manifest, currentRegistry, now);
-  const activeKeys = new Set(Object.keys(fullRegistry.entries));
-  // In removals-only mode an entry that is still listed must not be touched,
-  // even if the manifest changed its command. Only entries whose key is gone
-  // count as owned-and-removable.
-  const skipKeys: ReadonlySet<string> = removalsOnly ? activeKeys : new Set();
+export async function reconcile(
+  manifest: DistributionManifest,
+  config?: ReconcileConfig
+): Promise<ReconcileResult> {
+  const registryPath = resolveDefaultPath(config?.registryPath ?? "~/.claude/.joyus-managed.json");
+
+  if (!(SUPPORTED_SCHEMA_VERSIONS as readonly string[]).includes(manifest.schema_version)) {
+    return {
+      status: "skipped",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath,
+    };
+  }
+
+  const globalSettingsPath = resolveDefaultPath(
+    config?.globalSettingsPath ?? "~/.claude/settings.json"
+  );
+  const projectSettingsPath = resolveDefaultPath(
+    config?.projectSettingsPath ?? ".claude/settings.json"
+  );
+  const backupDir = resolveDefaultPath(
+    config?.backupDir ?? "~/.claude/.joyus-reconciler-backups"
+  );
+  const maxBackups = config?.maxBackups ?? 5;
+  const now = config?.now ?? (() => new Date());
+
+  let globalUpdate = NO_SETTINGS_UPDATE;
+  let projectUpdate = NO_SETTINGS_UPDATE;
+
+  try {
+    // Inside the try: a failure while rebuilding a lost registry must end in
+    // "rolled_back", not in a rejected promise.
+    const currentRegistry =
+      (await readRegistry(registryPath)) ??
+      (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
+    const mode =
+      config?.removalsOnly === true
+        ? removalsOnlyMode(manifest, currentRegistry, now)
+        : fullMode(manifest, currentRegistry, now);
+
+    globalUpdate = await reconcileSettingsTarget({
+      settingsPath: globalSettingsPath,
+      backupDir: join(backupDir, "global"),
+      maxBackups,
+      now,
+      change: mode.global,
+    });
+
+    projectUpdate = await reconcileSettingsTarget({
+      settingsPath: projectSettingsPath,
+      backupDir: join(backupDir, "project"),
+      maxBackups,
+      now,
+      change: mode.project,
+    });
+
+    const nextRegistry = mode.buildRegistry(
+      new Set([...globalUpdate.userOwnedHookKeys, ...projectUpdate.userOwnedHookKeys])
+    );
+    const counts = computeCounts(currentRegistry, nextRegistry);
+
+    await writeRegistry(registryPath, nextRegistry);
+
+    return withOptionalBackupPath({
+      status: "success",
+      entriesAdded: counts.added,
+      entriesUpdated: counts.updated,
+      entriesRemoved: counts.removed,
+      registryPath,
+    }, globalUpdate.backupPath ?? projectUpdate.backupPath);
+  } catch (error) {
+    try {
+      await rollbackReconciledSettings(globalSettingsPath, globalUpdate);
+    } catch {
+      // Best-effort rollback for global settings.
+    }
+
+    try {
+      await rollbackReconciledSettings(projectSettingsPath, projectUpdate);
+    } catch {
+      // Best-effort rollback for project settings.
+    }
+
+    return withOptionalBackupPath({
+      status: "rolled_back",
+      entriesAdded: 0,
+      entriesUpdated: 0,
+      entriesRemoved: 0,
+      registryPath,
+      error: error instanceof Error ? error.message : String(error),
+    }, globalUpdate.backupPath ?? projectUpdate.backupPath);
+  }
+}
 ```
 
-In both `reconcileSettingsTarget({...})` calls, add `removalsOnly,` and change the `ownedHooks` line to pass the third argument:
+The only changes from the body plan 012 left: `partitionByTarget` is no longer called here (it moved into `fullMode`), a `mode` is chosen after the registry is loaded, both calls pass `change`, and the registry comes from `mode.buildRegistry`.
+
+**2g.** In `packages/settings-reconciler/src/index.ts`, replace the reconciler export block and the type export line below it with:
+
+<!-- block: index-exports -->
 
 ```ts
-      ownedHooks: collectOwnedHooks(currentRegistry, "global", skipKeys),
+export {
+  reconcile,
+  mergeHooks,
+  removeStaleHooks,
+  removeRevokedHooks,
+  mergeMcpServers,
+  removeStaleMcpServers,
+  removeRevokedMcpServers,
+  partitionByTarget,
+} from "./reconciler.js";
+
+export type { HookGroupRef, OwnedHook, ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
 ```
 
-(and `"project"` in the second call).
+**Verify**: `pnpm typecheck` → exit 0. `pnpm vitest run packages/settings-reconciler` → 144 pass, with the test files untouched. If any existing test fails, STOP.
 
-Replace the line `const nextRegistry = buildNewRegistry(manifest, currentRegistry, now);` with:
+### Step 3: Test the removals-only mode
+
+In `packages/settings-reconciler/test/reconciler.test.ts`:
+
+**3a.** In the import from `"../src/reconciler.js"`, add `removeRevokedHooks,` and `removeRevokedMcpServers,` so that the list reads:
+
+<!-- block: test-import -->
 
 ```ts
-    const nextRegistry = removalsOnly
-      ? pruneRegistry(currentRegistry, activeKeys, now)
-      : fullRegistry;
+import {
+  mergeHooks,
+  mergeMcpServers,
+  partitionByTarget,
+  reconcile,
+  removeRevokedHooks,
+  removeRevokedMcpServers,
+  removeStaleHooks,
+  removeStaleMcpServers,
+} from "../src/reconciler.js";
 ```
 
-**Verify**: `pnpm typecheck` → exit 0. `pnpm vitest run packages/settings-reconciler` → all existing tests pass unchanged.
+**3b.** At the end of `describe("pure reconciler helpers")`, add:
 
-### Step 2: Test the removals-only mode
-
-At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reconciler.test.ts`, add:
+<!-- block: tests-helpers -->
 
 ```ts
-  it("removalsOnly removes revoked entries and adds nothing", async () => {
+  it("removes exactly the named legacy groups and owned commands", () => {
+    const userHook = { type: "command", command: "echo user-bash" };
+    const keptLegacy = {
+      matcher: "joyus:keep",
+      hooks: [{ type: "command", command: "echo keep", timeout: 5 }],
+    };
+    const currentHooks = {
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userHook, { type: "command", command: "echo audit", timeout: 5 }] },
+        keptLegacy,
+        { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo gone", timeout: 5 }] },
+      ],
+      // Same matcher, other event: not named, so it stays.
+      SessionStart: [
+        { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo other", timeout: 5 }] },
+      ],
+    };
+
+    const result = removeRevokedHooks(
+      currentHooks,
+      [{ event: "PreToolUse", matcher: "joyus:gone" }],
+      [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }]
+    );
+
+    expect(result).toEqual({
+      PreToolUse: [{ matcher: "Bash", hooks: [userHook] }, keptLegacy],
+      SessionStart: currentHooks.SessionStart,
+    });
+    expect(result["PreToolUse"]![1]).toBe(keptLegacy);
+    // The input is not mutated, and nothing named means nothing removed.
+    expect(currentHooks.PreToolUse).toHaveLength(3);
+    expect(removeRevokedHooks(currentHooks, [], [])).toEqual(currentHooks);
+  });
+
+  it("removes exactly the named MCP servers", () => {
+    const userServer = { command: "python" };
+    const currentServers = {
+      "user-mcp": userServer,
+      "joyus:keep": { command: "node" },
+      "joyus:gone": { command: "bun" },
+    };
+
+    const result = removeRevokedMcpServers(currentServers, ["joyus:gone", "joyus:absent"]);
+
+    expect(result).toEqual({ "user-mcp": userServer, "joyus:keep": { command: "node" } });
+    expect(result["user-mcp"]).toBe(userServer);
+    expect(Object.keys(currentServers)).toHaveLength(3);
+  });
+```
+
+**3c.** At the very end of the file, after the closing `});` of `describe("reconcile")`, add this new block:
+
+<!-- block: tests-removals -->
+
+```ts
+describe("reconcile in removals-only mode", () => {
+  const INSTALLED_AT = "2026-03-01T00:00:00.000Z";
+
+  function hookEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      type: "hook",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      event: "PreToolUse",
+      target: "global",
+      installed_at: INSTALLED_AT,
+      ...overrides,
+    };
+  }
+
+  function mcpEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      type: "mcp",
+      bundle: "core",
+      manifest_version: "1.0.0",
+      target: "global",
+      installed_at: INSTALLED_AT,
+      ...overrides,
+    };
+  }
+
+  async function seedRegistry(
+    workspace: Awaited<ReturnType<typeof createWorkspace>>,
+    entries: Record<string, unknown>
+  ): Promise<void> {
+    await writeJson(workspace.registryPath, {
+      schema_version: "1.0",
+      entries,
+      last_reconciled: INSTALLED_AT,
+    });
+  }
+
+  async function readEntries(
+    workspace: Awaited<ReturnType<typeof createWorkspace>>
+  ): Promise<Record<string, unknown>> {
+    return ((await readJson(workspace.registryPath)) as { entries: Record<string, unknown> })
+      .entries;
+  }
+
+  function removalsOnly(workspace: Awaited<ReturnType<typeof createWorkspace>>) {
+    return { ...createConfig(workspace), removalsOnly: true };
+  }
+
+  it("removes revoked entries from both files and adds nothing", async () => {
     const workspace = await createWorkspace();
-    const installedAt = "2026-03-01T00:00:00.000Z";
     const userHook = { type: "command", command: "echo user-bash" };
 
     await writeJson(workspace.globalSettingsPath, {
@@ -485,6 +1345,10 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
             matcher: "Bash",
             hooks: [userHook, { type: "command", command: "echo revoked", timeout: 5 }],
           },
+          {
+            matcher: "joyus:old-hook",
+            hooks: [{ type: "command", command: "echo old", timeout: 5 }],
+          },
         ],
       },
       mcpServers: {
@@ -492,28 +1356,17 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
         "user-mcp": { command: "python" },
       },
     });
-    await writeJson(workspace.registryPath, {
-      schema_version: "1.0",
-      entries: {
-        "hook:PreToolUse:joyus:revoked": {
-          type: "hook",
-          bundle: "core",
-          manifest_version: "1.0.0",
-          event: "PreToolUse",
-          matcher: "Bash",
-          command: "echo revoked",
-          target: "global",
-          installed_at: installedAt,
-        },
-        "mcp:joyus:old-mcp": {
-          type: "mcp",
-          bundle: "core",
-          manifest_version: "1.0.0",
-          target: "global",
-          installed_at: installedAt,
-        },
-      },
-      last_reconciled: installedAt,
+    await writeJson(workspace.projectSettingsPath, {
+      mcpServers: { "joyus:project-mcp": { command: "bun" } },
+    });
+    await seedRegistry(workspace, {
+      "hook:PreToolUse:joyus:revoked": hookEntry({ matcher: "Bash", command: "echo revoked" }),
+      "hook:PreToolUse:joyus:old-hook": hookEntry({
+        matcher: "joyus:old-hook",
+        command: "echo old",
+      }),
+      "mcp:joyus:old-mcp": mcpEntry(),
+      "mcp:joyus:project-mcp": mcpEntry({ target: "project" }),
     });
 
     // The new manifest lists only brand-new entries.
@@ -522,26 +1375,25 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
         hooks: [createHook({ id: "joyus:new", matcher: "Edit", command: "echo new" })],
         mcps: [createMcp({ id: "joyus:new-mcp" })],
       }),
-      { ...createConfig(workspace), removalsOnly: true }
+      removalsOnly(workspace)
     );
 
     expect(result).toMatchObject({
       status: "success",
       entriesAdded: 0,
       entriesUpdated: 0,
-      entriesRemoved: 2,
+      entriesRemoved: 4,
     });
     expect(await readJson(workspace.globalSettingsPath)).toEqual({
       hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] },
       mcpServers: { "user-mcp": { command: "python" } },
     });
-    const registry = (await readJson(workspace.registryPath)) as { entries: Record<string, unknown> };
-    expect(registry.entries).toEqual({});
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({});
+    expect(await readEntries(workspace)).toEqual({});
   });
 
-  it("removalsOnly leaves a still-listed entry exactly as installed", async () => {
+  it("leaves a still-listed entry exactly as installed when its command changes", async () => {
     const workspace = await createWorkspace();
-    const installedAt = "2026-03-01T00:00:00.000Z";
     const settings = {
       hooks: {
         PreToolUse: [
@@ -549,23 +1401,11 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
         ],
       },
     };
-    const entry = {
-      type: "hook",
-      bundle: "core",
-      manifest_version: "1.0.0",
-      event: "PreToolUse",
-      matcher: "Bash",
-      command: "echo audit",
-      target: "global",
-      installed_at: installedAt,
-    };
+    const entry = hookEntry({ matcher: "Bash", command: "echo audit" });
 
     await writeJson(workspace.globalSettingsPath, settings);
-    await writeJson(workspace.registryPath, {
-      schema_version: "1.0",
-      entries: { "hook:PreToolUse:joyus:audit": entry },
-      last_reconciled: installedAt,
-    });
+    const before = await readFile(workspace.globalSettingsPath, "utf8");
+    await seedRegistry(workspace, { "hook:PreToolUse:joyus:audit": entry });
 
     // Same id, new command and version: a full reconcile would update it.
     const result = await reconcile(
@@ -573,7 +1413,7 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
         version: "2.0.0",
         hooks: [createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit v2" })],
       }),
-      { ...createConfig(workspace), removalsOnly: true }
+      removalsOnly(workspace)
     );
 
     expect(result).toMatchObject({
@@ -583,21 +1423,314 @@ At the end of `describe("reconcile")` in `packages/settings-reconciler/test/reco
       entriesRemoved: 0,
     });
     expect(result.backupPath).toBeUndefined();
-    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
-    const registry = (await readJson(workspace.registryPath)) as { entries: Record<string, unknown> };
-    expect(registry.entries).toEqual({ "hook:PreToolUse:joyus:audit": entry });
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(before);
+    expect(await readEntries(workspace)).toEqual({ "hook:PreToolUse:joyus:audit": entry });
   });
+
+  it("keeps an MCP server where it is when its target changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      mcpServers: { "joyus:mcp": { command: "node" }, "joyus:dropped": { command: "bun" } },
+    });
+    await seedRegistry(workspace, {
+      "mcp:joyus:mcp": mcpEntry(),
+      "mcp:joyus:dropped": mcpEntry(),
+    });
+    // joyus:mcp moves to the project file; joyus:dropped is revoked.
+    const manifest = createManifest({ mcps: [createMcp({ target: "project" })] });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+    await expect(readFile(workspace.projectSettingsPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(await readEntries(workspace)).toEqual({ "mcp:joyus:mcp": mcpEntry() });
+
+    // Sync works again: the full reconcile moves it.
+    const moved = await reconcile(manifest, createConfig(workspace));
+
+    expect(moved).toMatchObject({ status: "success", entriesUpdated: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({});
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+  });
+
+  it("keeps a joyus: group where it is when its matcher changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:old-name",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entry = hookEntry({ matcher: "joyus:old-name", command: "echo guard" });
+    await seedRegistry(workspace, { "hook:PreToolUse:joyus:guard": entry });
+    const manifest = createManifest({
+      hooks: [createHook({ id: "joyus:guard", matcher: "joyus:new-name", command: "echo guard" })],
+    });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    expect(await readEntries(workspace)).toEqual({ "hook:PreToolUse:joyus:guard": entry });
+
+    await reconcile(manifest, createConfig(workspace));
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:new-name",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("keeps a hook where it is when its event or its real matcher changes, until a full reconcile moves it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              { type: "command", command: "echo audit", timeout: 5 },
+              { type: "command", command: "echo lint", timeout: 5 },
+            ],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entries = {
+      "hook:PreToolUse:joyus:audit": hookEntry({ matcher: "Bash", command: "echo audit" }),
+      "hook:PreToolUse:joyus:lint": hookEntry({ matcher: "Bash", command: "echo lint" }),
+    };
+    await seedRegistry(workspace, entries);
+    // joyus:audit moves to another event, joyus:lint to another matcher.
+    const manifest = createManifest({
+      hooks: [
+        createHook({
+          id: "joyus:audit",
+          event: "PostToolUse",
+          matcher: "Bash",
+          command: "echo audit",
+        }),
+        createHook({ id: "joyus:lint", matcher: "Edit", command: "echo lint" }),
+      ],
+    });
+
+    const removed = await reconcile(manifest, removalsOnly(workspace));
+
+    expect(removed).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    expect(await readEntries(workspace)).toEqual(entries);
+
+    await reconcile(manifest, createConfig(workspace));
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          { matcher: "Edit", hooks: [{ type: "command", command: "echo lint", timeout: 5 }] },
+        ],
+        PostToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 5 }] },
+        ],
+      },
+    });
+  });
+
+  it("keeps a place that a still-listed hook uses, and keeps the registry entry that owns it", async () => {
+    const workspace = await createWorkspace();
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "echo shared", timeout: 5 }] },
+          {
+            matcher: "joyus:shared-group",
+            hooks: [{ type: "command", command: "echo group", timeout: 5 }],
+          },
+        ],
+      },
+    };
+    await writeJson(workspace.globalSettingsPath, settings);
+    const entries = {
+      // Revoked ids. A listed hook declares the same command, and a listed
+      // registry entry records the same group.
+      "hook:PreToolUse:joyus:first": hookEntry({ matcher: "Bash", command: "echo shared" }),
+      "hook:PreToolUse:joyus:old-owner": hookEntry({
+        matcher: "joyus:shared-group",
+        command: "echo group",
+      }),
+      "hook:PreToolUse:joyus:co-owner": hookEntry({
+        matcher: "joyus:shared-group",
+        command: "echo group",
+      }),
+    };
+    await seedRegistry(workspace, entries);
+
+    const result = await reconcile(
+      createManifest({
+        hooks: [
+          createHook({ id: "joyus:second", matcher: "Bash", command: "echo shared" }),
+          // Listed, and its manifest matcher has changed since it was installed.
+          createHook({ id: "joyus:co-owner", matcher: "joyus:renamed", command: "echo group" }),
+        ],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 0 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(settings);
+    // Nothing was removed, so no ownership record is dropped either.
+    expect(await readEntries(workspace)).toEqual(entries);
+  });
+
+  it("removes a revoked group recorded before the matcher field existed, and leaves the user's own command", async () => {
+    const workspace = await createWorkspace();
+    const userEntry = { type: "command", command: "echo audit", timeout: 30 };
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [userEntry] },
+          {
+            matcher: "joyus:legacy",
+            hooks: [{ type: "command", command: "echo legacy", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "user-mcp": { command: "python" } },
+    });
+    await seedRegistry(workspace, {
+      // Written before plan 012: keyed by matcher, no matcher or command field.
+      "hook:PreToolUse:joyus:legacy": hookEntry(),
+      // The user already had this command: a matcher, but no command.
+      "hook:PreToolUse:joyus:audit": hookEntry({ matcher: "Bash" }),
+      // A hand-edited entry without the reserved prefix is never acted on.
+      "mcp:user-mcp": mcpEntry(),
+    });
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "success", entriesRemoved: 3 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userEntry] }] },
+      mcpServers: { "user-mcp": { command: "python" } },
+    });
+    expect(await readEntries(workspace)).toEqual({});
+  });
+
+  it("works from a repaired registry when the registry file is missing", async () => {
+    const workspace = await createWorkspace();
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          { matcher: "joyus:gone", hooks: [{ type: "command", command: "echo gone", timeout: 5 }] },
+          {
+            matcher: "joyus:guard-group",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "joyus:gone-mcp": { command: "node" }, "joyus:mcp": { command: "node" } },
+    });
+
+    const result = await reconcile(
+      createManifest({
+        // Listed under an id that differs from its matcher: repair cannot know
+        // the id, so the group is kept because a listed hook declares it.
+        hooks: [createHook({ id: "joyus:guard", matcher: "joyus:guard-group", command: "echo guard" })],
+        mcps: [createMcp()],
+      }),
+      removalsOnly(workspace)
+    );
+
+    expect(result).toMatchObject({ status: "success", entriesAdded: 0, entriesRemoved: 2 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "joyus:guard-group",
+            hooks: [{ type: "command", command: "echo guard", timeout: 5 }],
+          },
+        ],
+      },
+      mcpServers: { "joyus:mcp": { command: "node" } },
+    });
+    expect(Object.keys(await readEntries(workspace)).sort()).toEqual([
+      "hook:PreToolUse:joyus:guard-group",
+      "mcp:joyus:mcp",
+    ]);
+  });
+
+  it("rolls back and reports the failure like a full reconcile", async () => {
+    const workspace = await createWorkspace();
+    const original = { mcpServers: { "joyus:old-mcp": { command: "node" } } };
+    await writeJson(workspace.globalSettingsPath, original);
+    await seedRegistry(workspace, { "mcp:joyus:old-mcp": mcpEntry() });
+    vi.spyOn(registryModule, "writeRegistry").mockRejectedValueOnce(
+      new Error("registry write failed")
+    );
+
+    const result = await reconcile(createManifest(), removalsOnly(workspace));
+
+    expect(result).toMatchObject({ status: "rolled_back", error: "registry write failed" });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(original);
+  });
+});
 ```
 
-**Verify**: `pnpm vitest run packages/settings-reconciler` → all pass, including the two new tests. Commit (commit 1).
+**Verify**: `pnpm vitest run packages/settings-reconciler` → 155 pass. Commit (commit 2).
 
-### Step 3: Rewrite the handler
+### Step 4: Rewrite the handler
 
 In `apps/desktop-companion/src/sidecar/configCheckWiring.ts`:
 
-**3a.** Delete the `getManagedEntryIds` and `hasRevocation` functions. Keep `getBundleNames`.
+**4a.** Delete the `getManagedEntryIds` and `hasRevocation` functions. Keep `getBundleNames`.
 
-**3b.** Replace the returned async function (everything from `return async (manifest: DistributionManifest): Promise<void> => {` to its closing `};`) with:
+**4b.** In `resolveTargetVersion`, replace these lines:
+
+```ts
+  const versions = [...new Set(Object.values(manifest.bundles).map((bundle) => bundle.version))];
+  if (versions.length === 0) {
+    return undefined;
+  }
+
+  if (versions.length === 1) {
+    return versions[0];
+  }
+```
+
+with:
+
+<!-- block: resolve-version -->
+
+```ts
+  const versions = [...new Set(Object.values(manifest.bundles).map((bundle) => bundle.version))];
+  // No bundles: undefined. One version: that version.
+  if (versions.length <= 1) {
+    return versions[0];
+  }
+```
+
+The result is the same for every input. The separate "no bundles" branch has to go because the new handler never asks for a version when the manifest has no bundles, and an unreachable branch fails the coverage gate.
+
+**4c.** Replace the returned async function (everything from `return async (manifest: DistributionManifest): Promise<void> => {` to its closing `};`) with:
+
+<!-- block: handler -->
 
 ```ts
   return async (manifest: DistributionManifest): Promise<void> => {
@@ -654,7 +1787,7 @@ In `apps/desktop-companion/src/sidecar/configCheckWiring.ts`:
     }
 
     // Removals never depend on synced skill files, so they are applied on
-    // every cycle. Additions and updates wait for a successful sync.
+    // every cycle. Additions, updates and moves wait for a successful sync.
     try {
       const reconcileResult = await reconcileFn(
         manifest,
@@ -705,45 +1838,77 @@ In `apps/desktop-companion/src/sidecar/configCheckWiring.ts`:
 
 On the success path the call is still `reconcileFn(manifest, config.reconcileConfig)`, exactly as before.
 
-**Verify**: `pnpm typecheck` → exit 0. Do NOT run the wiring tests yet.
+**Verify**: `pnpm typecheck` → exit 0. `grep -c 'hasRevocation\|getManagedEntryIds\|shouldAttemptReconcile' apps/desktop-companion/src/sidecar/configCheckWiring.ts` → `0`. Do not treat the wiring tests as a check yet: at this point ten tests in `configCheckWiring.test.ts` and one in `mainConfigCheckWiring.test.ts` fail, which Step 5 fixes.
 
-### Step 4: Update the wiring tests, under a throwaway home directory
+### Step 5: Update the wiring tests
 
-**Read this first.** After Step 3, reconcile runs on every cycle. Any test that builds a handler without `reconcileFn` and without a `reconcileConfig` that points at temp paths will now run the real reconciler against `~/.claude/settings.json`. To make that impossible while you work, create a throwaway home and use it for every run of this test file:
-
-```bash
-export SAFE_HOME="$(mktemp -d)"
-```
-
-Then always run: `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts`
-
-Apply these rules to `describe("createConfigChangeHandler failure isolation")`. Do not change the three tests in `describe("createConfigChangeHandler integration")` unless one fails; they use real temp paths and successful syncs.
-
-- **Rule A — every handler gets a mocked reconcile.** In every test in this `describe` block, if the object passed to `createConfigChangeHandler` has no `reconcileFn`, add `reconcileFn: vi.fn().mockResolvedValue(createReconcileResult()),`. This includes "uses the default logger and non-Error string formatting paths without throwing".
-- **Rule B — an incomplete cycle rejects.** If the test's `syncSkillsFn` does not resolve with `status: "success"` (it returns `offline`, `locked` or another status, or rejects), or its `reconcileFn` resolves with `rolled_back` or `error`, or rejects, or no target version can be resolved for a manifest that has bundles, then the handler call must be asserted as a rejection. Replace `await handler(<manifest>);` with:
+**5a. Edit W.** In `apps/desktop-companion/test/sidecar/configCheckWiring.test.ts`, inside `describe("createConfigChangeHandler failure isolation")`, several handler calls must now be asserted as rejections. "Edit W" for a handler variable `X` and a message `M` means: change the line
 
 ```ts
-    await expect(handler(<manifest>)).rejects.toThrow("managed tooling update incomplete");
+    await X({
 ```
 
-  Keep every `logger.error` / `logger.warn` / `writeTenantConfigFn` assertion that follows; those calls still happen before the rejection. For a test that already uses `await expect(handler(...)).resolves.toBeUndefined()` and falls under this rule, change it to the `rejects` form. In a test that calls the handler more than once, apply the rule to each call separately.
-- **Rule C — reconcile is no longer skipped.** Replace each `expect(reconcileFn).not.toHaveBeenCalled();` with an assertion that it ran in removals-only mode:
+to
+
+```ts
+    await expect(X({
+```
+
+and change the first following line that is exactly `    });` (four spaces, closing the call) to
+
+```ts
+    })).rejects.toThrow("M");
+```
+
+Keep every assertion that follows; those calls still happen before the rejection. Apply the table below, one row per existing test. The three messages are:
+
+- **M1** = `managed tooling update incomplete (skill sync failed, reconcile ok)`
+- **M2** = `managed tooling update incomplete (skill sync failed, reconcile failed)`
+- **M3** = `managed tooling update incomplete (skill sync ok, reconcile failed)`
+
+| Existing test | Edit W | Swap | New title |
+|---|---|---|---|
+| "skips reconcile on offline sync when there is no revocation, but still writes tenant config" | `handler` → M1 | A, replacing `expect(reconcileFn).not.toHaveBeenCalled();` | "runs a removals-only reconcile when sync is offline, writes tenant config, and rejects so the poller retries" |
+| "treats managed entry removal within the same bundle as a revocation" | `handler` → M1 | A, replacing `expect(reconcileFn).toHaveBeenCalledOnce();` | "applies an entry removal within a bundle through a removals-only reconcile when sync is offline" |
+| "reconciles an initial empty manifest when no target version can be resolved" | — | B | "reconciles an initial empty manifest without attempting a sync" |
+| "logs non-success sync results, reconcile failures, and tenant config write failures" | `handler` → M2 | — | keep |
+| "logs rolled-back reconcile results after a successful sync" | `handler` → M3 | — | keep |
+| "falls back to unknown reconcile errors when the result omits an error message" | `rolledBackHandler` → M3, `errorHandler` → M3 | — | keep |
+| "logs sync exceptions, reconcile exceptions and error statuses" | `throwingHandler` → M2, `errorStatusHandler` → M3 | — | keep |
+| "logs thrown reconcile errors after a successful sync" | `handler` → M3 | — | keep |
+| "logs ambiguous version resolution and skips reconcile unless the manifest is a revocation" | `handler` → M1 | A, replacing `expect(reconcileFn).not.toHaveBeenCalled();` | "logs ambiguous version resolution, runs a removals-only reconcile, and rejects" |
+| "uses the default logger and non-Error string formatting paths without throwing" | — | C | "uses the default logger and non-Error string formatting paths" |
+
+The replacement for a reconcile assertion ("Swap A" in the table) is these two lines:
+
+<!-- block: wiring-removals-assert -->
 
 ```ts
     expect(reconcileFn).toHaveBeenCalledOnce();
-    expect(reconcileFn).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ removalsOnly: true }),
-    );
+    expect(reconcileFn).toHaveBeenCalledWith(expect.anything(), { removalsOnly: true });
 ```
 
-- **Rule D — an empty manifest skips sync silently.** In "reconciles an initial empty manifest when no target version can be resolved", delete the `expect(logger.warn).toHaveBeenCalledWith(...)` assertion (three lines) and add `expect(logger.warn).not.toHaveBeenCalled();`. The handler call in this test still resolves.
-- **Renames.** Rename tests whose titles no longer describe them. At minimum:
-  - "skips reconcile on offline sync when there is no revocation, but still writes tenant config" → "runs a removals-only reconcile when sync is offline, writes tenant config, and rejects so the poller retries"
-  - "logs ambiguous version resolution and skips reconcile unless the manifest is a revocation" → "logs ambiguous version resolution, runs a removals-only reconcile, and rejects"
-  - "uses the default logger and non-Error string formatting paths without throwing" → "uses the default logger and non-Error string formatting paths"
+"Swap B" replaces the three-line assertion `expect(logger.warn).toHaveBeenCalledWith("configCheckWiring: skipping skill sync because no target version could be resolved.");` with:
 
-Then add three tests at the end of that `describe` block:
+<!-- block: wiring-empty-assert -->
+
+```ts
+    expect(logger.warn).not.toHaveBeenCalled();
+```
+
+"Swap C" replaces the line `    ).resolves.toBeUndefined();` with:
+
+<!-- block: wiring-resolves-replacement -->
+
+```ts
+    ).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
+```
+
+Two tests in that block are not in the table and stay as they are: "still reconciles revocation manifests when sync is offline" and "compares manifests correctly when bundles only define MCP servers". Do not change the three existing tests in `describe("createConfigChangeHandler integration")`.
+
+**5b.** At the end of `describe("createConfigChangeHandler failure isolation")`, add:
+
+<!-- block: wiring-new-isolation -->
 
 ```ts
   it("applies revocations when sync is locked, with no previous manifest in memory", async () => {
@@ -760,7 +1925,6 @@ Then add three tests at the end of that `describe` block:
         status: "locked",
         filesUpdated: 0,
         metadataPath: "/tmp/meta.json",
-        version: "v1.0.0",
         noop: true,
       }),
       reconcileFn,
@@ -851,40 +2015,229 @@ Then add three tests at the end of that `describe` block:
     expect(reconcileFn).toHaveBeenNthCalledWith(1, manifest, { removalsOnly: true });
     expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
   });
+
+  it("syncs the earlier version of the configured bundle when the new manifest drops that bundle but keeps others", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi.fn().mockResolvedValue({
+      status: "success",
+      filesUpdated: 0,
+      metadataPath: "/tmp/meta.json",
+      version: "v1.0.0",
+      noop: true,
+    });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    expect(syncSkillsFn).toHaveBeenCalledWith(
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenCalledWith(manifest, undefined);
+  });
+
+  it("keeps retrying when the configured bundle is missing and no earlier manifest is known", async () => {
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi.fn();
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      logger,
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "configCheckWiring: skipping skill sync because no target version could be resolved.",
+    );
+    expect(syncSkillsFn).not.toHaveBeenCalled();
+    expect(reconcileFn).toHaveBeenCalledWith(manifest, { removalsOnly: true });
+  });
 ```
 
-If the sync result objects in the existing tests have a different shape from the ones above, copy the shape used by the existing tests in this file.
+**5c.** At the end of `describe("createConfigChangeHandler integration")`, add this test. It runs the real reconciler on temp paths through the handler:
+
+<!-- block: wiring-new-integration -->
+
+```ts
+  it("removes a revoked server while sync is locked, keeps one whose target changed, and finishes once sync succeeds", async () => {
+    const workspace = await createWorkspace();
+    const reconcileConfig = {
+      globalSettingsPath: workspace.globalSettingsPath,
+      projectSettingsPath: workspace.projectSettingsPath,
+      registryPath: workspace.registryPath,
+      backupDir: workspace.backupDir,
+      now: () => FIXED_NOW,
+    };
+    const success = {
+      status: "success",
+      filesUpdated: 1,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      version: "v1.0.0",
+      noop: false,
+    };
+    const locked = {
+      status: "locked",
+      filesUpdated: 0,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      noop: true,
+    };
+    const syncSkillsFn = vi
+      .fn()
+      .mockResolvedValueOnce(success)
+      .mockResolvedValueOnce(locked)
+      .mockResolvedValueOnce(success);
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: workspace.skillsDir,
+        cacheDir: workspace.cacheDir,
+      },
+      reconcileConfig,
+      syncSkillsFn,
+    });
+    const server = (id: string, target: "global" | "project") => ({
+      id,
+      command: "node",
+      args: [`${id}.mjs`],
+      target,
+    });
+
+    // Cycle 1, sync works: two servers are installed in the global file.
+    await handler(
+      createManifest(workspace, {
+        bundles: {
+          core: {
+            version: "v1.0.0",
+            mcpServers: [server("joyus:stays", "global"), server("joyus:revoked", "global")],
+          },
+        },
+      }),
+    );
+
+    // Cycle 2, sync is locked: one server is dropped, the other changes target
+    // and a new one appears.
+    const next = createManifest(workspace, {
+      bundles: {
+        core: {
+          version: "v1.0.0",
+          mcpServers: [server("joyus:stays", "project"), server("joyus:added", "global")],
+        },
+      },
+    });
+    await expect(handler(next)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+
+    // Only the revocation was applied. Nothing moved, nothing was added.
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:stays": { command: "node", args: ["joyus:stays.mjs"] } },
+    });
+    await expect(readFile(workspace.projectSettingsPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+
+    // Cycle 3, the poller retries the same manifest and sync works again.
+    await expect(handler(next)).resolves.toBeUndefined();
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:added": { command: "node", args: ["joyus:added.mjs"] } },
+    });
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({
+      mcpServers: { "joyus:stays": { command: "node", args: ["joyus:stays.mjs"] } },
+    });
+  });
+```
+
+**5d.** In `apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts`, in the test "passes optional managed-tooling config through and logs handler warnings and errors", replace the statement `await capturedOnSync?.({ ... });` (eight lines, from `await capturedOnSync?.({` to its closing `});`) with:
+
+<!-- block: main-reject -->
+
+```ts
+    await expect(
+      capturedOnSync?.({
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: {
+          "bundle-a": { version: "v1.0.0" },
+          "bundle-b": { version: "v2.0.0" },
+        },
+      }),
+    ).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
+```
 
 **Verify**:
-1. `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` → all pass.
-2. `ls -A "$SAFE_HOME"` → prints nothing. If it lists `.claude` or anything else, a test reached the real default paths: find the handler that lacks `reconcileFn` (Rule A) and fix it, delete the contents of `$SAFE_HOME`, and rerun both checks.
-3. `grep -c 'not.toHaveBeenCalled' apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` — every remaining match must be about something other than `reconcileFn` being skipped because of a sync failure. Read each one.
+1. `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts apps/desktop-companion/test/sidecar/configCheckPoller.test.ts` → 56 + 5 + 21 pass.
+2. `ls -A "$SAFE_HOME"` → must not list `.claude`. (`.joyus` may be there; see Step 1.) If `.claude` is listed, a test reached the real default paths: STOP and report which handler has neither a mocked `reconcileFn` nor a full set of temp paths.
+3. `git status --short` → no file outside the in-scope list, and in particular nothing under `.claude/`.
 
-### Step 5: Run the full gates
+### Step 6: Run the full gates
 
-Run `pnpm typecheck`, then `pnpm coverage` (with your normal `HOME`; Step 4 proved the wiring tests stay inside temp paths).
+Run `pnpm typecheck`, then `HOME="$SAFE_HOME" pnpm coverage`.
 
-**Verify**: both exit 0, and the coverage summary shows 100% for `configCheckWiring.ts` and `reconciler.ts`. If a branch in the handler is uncovered, add a focused test for it; do not add a `v8 ignore` comment. Commit (commit 2).
+**Verify**: both exit 0, and the coverage summary shows 100% for `configCheckWiring.ts` and `reconciler.ts`. If a branch is uncovered in code this plan added, STOP and report it: the reference run showed 100% for both files, so a gap means the code or the tests differ from this plan. Do not add a `v8 ignore` comment. `ls -A "$SAFE_HOME"` → still no `.claude`. Commit (commit 3).
 
 ## Test plan
 
-- Reconciler: two new tests for removals-only mode (revoked entries removed and nothing added; a still-listed entry left byte-for-byte as installed).
-- Wiring: about ten existing tests updated by Rules A–D; three new tests (locked sync with no previous manifest still removes; configured reconcile paths are passed through; a retry after sync recovers performs a full reconcile and resolves).
-- Structural pattern: the existing tests in `describe("createConfigChangeHandler failure isolation")`.
-- Verification: the commands in Steps 2, 4 and 5.
+- Reconciler helpers: two new tests (`removeRevokedHooks`, `removeRevokedMcpServers`).
+- Reconciler, removals-only, through real files, nine new tests: revoked entries are removed from both files and nothing is added; a still-listed entry whose command changed is left byte for byte; an MCP server whose target changed stays put, a genuinely revoked one beside it is removed, and a later full reconcile moves the first; the same for a `joyus:` group whose matcher changed; the same for a hook whose event changed and one whose real matcher changed; a place that a still-listed hook uses is kept together with its ownership record; an entry from before the matcher field, a user-owned entry and an entry without the reserved prefix; a missing registry file; a rollback.
+- Wiring: ten existing tests edited by the table in Step 5; five new handler tests (locked sync with no earlier manifest; configured paths passed through; retry after sync recovers; the earlier-manifest fallback, with and without an earlier manifest); one new integration test through the real reconciler.
+- One test in `mainConfigCheckWiring.test.ts` moved to temp paths and changed to expect the rejection.
+- Verification: the commands in Steps 1, 2, 3, 5 and 6.
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
 - [ ] `pnpm typecheck` exits 0
-- [ ] `pnpm vitest run packages/settings-reconciler` exits 0
-- [ ] `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts` exits 0, and `ls -A "$SAFE_HOME"` prints nothing afterward
-- [ ] `pnpm coverage` exits 0
+- [ ] `pnpm vitest run packages/settings-reconciler` exits 0 with 155 tests
+- [ ] `HOME="$SAFE_HOME" pnpm vitest run apps/desktop-companion/test/sidecar/configCheckWiring.test.ts apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` exits 0 with 61 tests, and `ls -A "$SAFE_HOME"` does not list `.claude` afterward
+- [ ] `HOME="$SAFE_HOME" pnpm coverage` exits 0
 - [ ] `grep -c 'hasRevocation\|getManagedEntryIds\|shouldAttemptReconcile' apps/desktop-companion/src/sidecar/configCheckWiring.ts` prints 0
 - [ ] `grep -c 'removalsOnly' apps/desktop-companion/src/sidecar/configCheckWiring.ts` prints 1
-- [ ] `grep -c 'removalsOnly' packages/settings-reconciler/src/reconciler.ts` prints 6 or more
-- [ ] `git diff --stat main..HEAD -- apps/desktop-companion/src/sidecar/configCheckPoller.ts packages/skill-sync` prints nothing
+- [ ] `grep -c 'removalsOnly' packages/settings-reconciler/src/reconciler.ts` prints 4
+- [ ] `grep -c '"/tmp/global-settings.json"' apps/desktop-companion/test/sidecar/mainConfigCheckWiring.test.ts` prints 0
+- [ ] `git diff --stat ec00055 -- apps/desktop-companion/src/sidecar/configCheckPoller.ts apps/desktop-companion/src/sidecar/main.ts packages/skill-sync` prints nothing
 - [ ] `git status --short` lists only the in-scope files
 - [ ] `plans/README.md` status row for 013 updated
 
@@ -892,20 +2245,34 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
-- Commit `ec00055` is not an ancestor of `HEAD`, or plan 012 has not landed (`grep -c 'collectOwnedHooks' packages/settings-reconciler/src/reconciler.ts` prints 0).
-- The handler or the reconciler code does not match the excerpts in "Current state".
-- `ls -A "$SAFE_HOME"` shows files and you cannot find which test created them.
-- An existing wiring test fails and none of Rules A–D explains the change it needs. Report the test name and the failing assertion; do not delete the test or loosen it.
-- A test in `describe("createConfigChangeHandler integration")` fails. Those run the real sync and reconcile on temp paths with a successful sync, and should be unaffected.
-- A test outside these two test files fails (for example `mainConfigCheckWiring.test.ts` or the poller tests).
-- You find yourself changing `configCheckPoller.ts` or any file under `packages/skill-sync/`.
+- Commit `ec00055` is not an ancestor of `HEAD`, or plan 012 has not landed as written (drift check 3).
+- The handler, `main.ts` or the reconciler code does not match the excerpts in "Current state".
+- After Step 2, an existing reconciler test fails. The full reconcile path must not change.
+- `ls -A "$SAFE_HOME"` lists `.claude` at any point.
+- An existing wiring test fails after Step 5 and the table does not cover it. Report the test name and the failing assertion; do not delete the test or loosen it.
+- One of the three existing tests in `describe("createConfigChangeHandler integration")` fails. Those run the real sync mock and the real reconcile on temp paths with a successful sync, and must be unaffected.
+- A test outside the three test files named in the commands fails.
+- You find yourself changing `configCheckPoller.ts`, `main.ts` or any file under `packages/skill-sync/`.
 - A step's verification fails twice after a reasonable fix attempt.
 
 ## Maintenance notes
 
-- **Retry cadence.** An incomplete cycle is retried every poll interval (5 minutes by default) for as long as it stays incomplete. A permanent problem, such as a manifest with several bundle versions and no `SKILL_SYNC_BUNDLE`, therefore logs on every tick. `main.ts` prints the rejection as `configCheckWiring: poll failed: ...`.
+What removals-only mode still gets wrong, stated plainly:
+
+- **A changed command is not a revocation.** If the manifest keeps an id and replaces its command, the old command keeps running until a sync succeeds. Removals-only never updates. To withdraw a command at once, the manifest must drop the id.
+- **One id on two events.** If a manifest lists the same hook id under two events and later drops one of them, removals-only keeps both, because the id is still listed. The next full reconcile removes the dropped one. This is the price of keeping a hook whose event merely changed.
+- **Old-format entries whose id differs from their matcher.** Entries written before plan 012, and entries rebuilt after the registry file was lost, are keyed by matcher. Removals-only treats that matcher as the id. If the manifest lists the hook under a different id, the group is still kept as long as some listed hook declares the same event and matcher. If the manifest *also* changed that matcher in the same update, the group is removed early and comes back with the next full reconcile.
+- **Nothing the registry does not record.** A `joyus:` group or server that is in settings but not in the registry is left alone in removals-only mode. A full reconcile still removes those by prefix. A tool-scoped hook whose registry record was lost is never removed (plan 012's limit).
+- **Kept entries are not counted.** When a revoked entry is kept because its place is still in use, `entriesRemoved` does not count it, and its registry entry stays until the next full reconcile.
+
+About the handler:
+
+- **Retry cadence.** An incomplete cycle is retried every poll interval (5 minutes by default) for as long as it stays incomplete, and each retry runs a removals-only reconcile and rewrites the tenant config. `main.ts` prints the rejection as `configCheckWiring: poll failed: ...`.
+- **Permanent problems log on every tick.** Two known ones: a manifest with several bundle versions and no `SKILL_SYNC_BUNDLE`; and a configured bundle that is missing from a manifest that still has other bundles, when no earlier manifest is in memory (after a restart). In both, revocations are applied but nothing is ever added. The second is pinned by the test "keeps retrying when the configured bundle is missing and no earlier manifest is known". Whether a missing configured bundle should count as "nothing to sync" is a product decision this plan does not take.
+- **A `skipped` reconcile counts as done.** `reconcile` returns `skipped` for an unsupported manifest schema version. The handler does not retry that.
 - **Stale lock.** `@joyus/skill-sync` takes a lock file with no owner or timestamp. After a crash, sync returns `locked` forever. With this plan, revocations still go through, but additions stay blocked until the lock is removed. Fixing the lock is a separate plan.
 - **Skill files are not removed.** When a bundle is revoked, its hooks and MCP servers leave `settings.json`, but the synced skill files stay on disk.
 - **`initialManifest` / `lastManifest`** are now used only as a fallback for the sync target version when the configured bundle is missing from the new manifest.
 - **Manifest transport.** `ec00055` withholds the API token from a non-https manifest URL but still fetches the manifest. Whoever controls that response can install shell commands as hooks. Requiring https (or loopback) for the manifest URL is a recorded open question.
-- Reviewer focus: no test in the wiring file may construct a handler that can reach the real reconciler with default paths, and the handler must reject whenever either half did not complete.
+- **An older leak this plan does not fix.** `mainConfigCheckWiring.test.ts` creates `~/.joyus/session-manager.db` in the real home directory, because `startSidecar` wires the real session manager. Recorded in `plans/README.md`.
+- Reviewer focus: no test may construct a handler that can reach the real reconciler with default paths; the handler must reject whenever either half did not complete; and `removalsOnlyMode` must never remove anything under an id the manifest still lists.
