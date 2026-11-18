@@ -7,6 +7,7 @@ import { Sites } from "../../src/ui/pages/Sites";
 import type { LocalSite } from "../../src/ui/components/LocalSiteCard";
 import type { RemoteEnvironment } from "../../src/ui/components/RemoteEnvironmentCard";
 import type { TaskBranch } from "../../src/ui/components/TaskBranchCard";
+import { waitFor } from "./pageTestUtils";
 import { installTauriInternals } from "./tauriInternals";
 
 let dom: JSDOM;
@@ -61,16 +62,6 @@ function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
     prTitle: undefined,
     ...overrides,
   };
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 80; i++) {
-    if (predicate()) return;
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  }
-  throw new Error("Timed out waiting for condition");
 }
 
 function button(label: string): HTMLButtonElement {

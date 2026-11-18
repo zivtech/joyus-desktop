@@ -88,14 +88,15 @@ const WAIT_FOR_TIMEOUT_MS = 3_000;
  */
 export async function waitFor(
   predicate: () => boolean,
-  description = "condition",
+  description: string | (() => string) = "condition",
   timeoutMs = WAIT_FOR_TIMEOUT_MS,
 ): Promise<void> {
   const deadline = realNow() + timeoutMs;
   for (;;) {
     if (predicate()) return;
     if (realNow() >= deadline) {
-      throw new Error(`Timed out after ${timeoutMs}ms waiting for ${description}`);
+      const text = typeof description === "function" ? description() : description;
+      throw new Error(`Timed out after ${timeoutMs}ms waiting for ${text}`);
     }
     await act(async () => {
       await new Promise((resolve) => realSetTimeout(resolve, 1));

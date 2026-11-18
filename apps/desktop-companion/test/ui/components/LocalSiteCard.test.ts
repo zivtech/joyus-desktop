@@ -20,7 +20,7 @@ interface ReactButtonProps {
 async function waitForInvokeCount(count: number): Promise<void> {
   await waitFor(
     () => invokeMock.mock.calls.length >= count,
-    `invoke to be called ${count} time(s); got ${invokeMock.mock.calls.length}`,
+    () => `invoke to be called ${count} time(s); got ${invokeMock.mock.calls.length}`,
   );
 }
 
