@@ -231,6 +231,36 @@ describe("Sites page", () => {
     }, undefined);
   });
 
+  it("still loads sites when subscribing to drift signals fails", async () => {
+    installTauriInternals(dom.window, (cmd) => {
+      switch (cmd) {
+        case "site_list_local":
+        case "site_list_remote":
+          return [];
+        case "session_counts_by_repo":
+          return {};
+        default:
+          return undefined;
+      }
+    });
+    // `listen` registers its handler through transformCallback; making that throw
+    // sends safeListen down its catch path on purpose, whatever the import timing.
+    const transformCallback = vi.fn(() => {
+      throw new Error("listen unavailable");
+    });
+    (dom.window as unknown as {
+      __TAURI_INTERNALS__: { transformCallback: unknown };
+    }).__TAURI_INTERNALS__.transformCallback = transformCallback;
+
+    mountSites();
+    await waitFor(
+      () => transformCallback.mock.calls.length > 0,
+      "safeListen to reach listen (transformCallback never called)",
+    );
+    await waitFor(() => container.textContent?.includes("No local sites") === true, "sites to load");
+    expect(container.textContent).not.toContain("Could not load local sites.");
+  });
+
   it("shows local and remote error states when loading fails", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -432,6 +462,14 @@ describe("Sites page", () => {
     await waitFor(() => container.textContent?.includes("Acme Web") === true);
     await click("▼");
     await waitFor(() => container.textContent?.includes("Build feature") === true);
+    // An event emitted before the page has subscribed is dropped; wait for the subscription.
+    await waitFor(
+      () => tauri.invoke.mock.calls.some(
+        ([cmd, args]) => cmd === "plugin:event|listen"
+          && (args as { event?: string } | undefined)?.event === "state.driftSignal",
+      ),
+      "the page to subscribe to drift signals",
+    );
 
     act(() => {
       tauri.emit("state.driftSignal", {

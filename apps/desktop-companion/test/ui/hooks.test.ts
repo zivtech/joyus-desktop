@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { waitFor } from "./pageTestUtils";
+import { installTauriInternals } from "./tauriInternals";
 import { useChromeAvailable } from "../../src/ui/hooks/useChromeAvailable";
 import { useGovernance, type GovernanceDecision } from "../../src/ui/hooks/useGovernance";
 import { useReconSetup } from "../../src/ui/hooks/useRecon";
@@ -417,6 +418,40 @@ describe("UI hooks", () => {
     });
 
     expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back quietly when the default Tauri event bus rejects a subscription", async () => {
+    const hooks: Array<[string, () => unknown]> = [
+      ["useGovernance", () => useGovernance()],
+      ["useSyncStatus", () => useSyncStatus()],
+      ["useServerStatus", () => useServerStatus()],
+      ["useTauriEvent", () => useTauriEvent<string>("ready")],
+    ];
+
+    for (const [name, useHook] of hooks) {
+      installTauriInternals(dom.window, () => undefined);
+      // `listen` registers its handler through transformCallback; throwing there
+      // sends the hook's default listener down its catch path on purpose,
+      // whatever the dynamic import timing.
+      const transformCallback = vi.fn(() => {
+        throw new Error("event bus unavailable");
+      });
+      (dom.window as unknown as {
+        __TAURI_INTERNALS__: { transformCallback: unknown };
+      }).__TAURI_INTERNALS__.transformCallback = transformCallback;
+
+      mountHook(useHook);
+      await waitFor(
+        () => transformCallback.mock.calls.length > 0,
+        `${name} to reach the default listen (transformCallback never called)`,
+      );
+      await flushEffects();
+
+      act(() => {
+        root?.unmount();
+      });
+      root = undefined;
+    }
   });
 
   it("keeps default non-Tauri fallbacks quiet", async () => {

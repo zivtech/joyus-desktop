@@ -54,6 +54,14 @@ describe("Dashboard page", () => {
     expect(harness.container.textContent).toContain("up to date");
     expect(harness.container.textContent).toContain("2026-06-13T11:00:00Z");
 
+    // An event emitted before the page has subscribed is dropped; wait for the subscription.
+    await waitFor(
+      () => tauri.invoke.mock.calls.some(
+        ([cmd, args]) => cmd === "plugin:event|listen"
+          && (args as { event?: string } | undefined)?.event === "state:server-changed",
+      ),
+      "the dashboard to subscribe to server changes",
+    );
     await act(async () => {
       tauri.emit("state:server-changed", {
         id: "srv-2",

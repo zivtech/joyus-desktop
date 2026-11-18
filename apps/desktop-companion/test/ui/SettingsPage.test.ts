@@ -88,7 +88,12 @@ describe("Settings page", () => {
     await waitFor(() => harness.container.textContent?.includes("Version: 1.0.0") === true);
 
     await clickSwitch(0);
-    await waitFor(() => tauri.invoke.mock.calls.some(([cmd]) => cmd === "toggle_autostart"));
+    await waitFor(
+      () => tauri.invoke.mock.calls.some(([cmd]) => cmd === "toggle_autostart")
+        && tauri.invoke.mock.calls.some(([cmd, args]) => cmd === "set_config"
+          && (args as { key?: string } | undefined)?.key === "autoStart"),
+      "both set_config(autoStart) and toggle_autostart to be invoked",
+    );
     expect(tauri.invoke).toHaveBeenCalledWith("set_config", { key: "autoStart", value: false }, undefined);
     expect(tauri.invoke).toHaveBeenCalledWith("toggle_autostart", { enabled: false }, undefined);
 

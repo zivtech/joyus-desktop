@@ -114,6 +114,11 @@ describe("Sessions page", () => {
     expect(tauri.invoke).toHaveBeenCalledWith("session_set_mode", { mode: "advisory" }, undefined);
     expect(container.textContent).toContain("Affects new tasks only");
 
+    // An event emitted before the page has subscribed is dropped; wait for the subscription.
+    await waitFor(
+      () => tauri.invoke.mock.calls.some(([cmd]) => cmd === "plugin:event|listen"),
+      "the page to subscribe to drift signals",
+    );
     act(() => {
       tauri.emit("state.driftSignal", {
         taskBranchId: "tb-active",
@@ -210,6 +215,36 @@ describe("Sessions page", () => {
 
     click("Advisory");
     await waitFor(() => modeTimers.length === 3, "mode-note timer #3 to be armed");
+  });
+
+  it("still loads tasks when subscribing to drift signals fails", async () => {
+    installTauriInternals(dom.window, (cmd) => {
+      switch (cmd) {
+        case "session_list":
+          return [];
+        case "session_get_mode":
+          return { mode: "managed" };
+        default:
+          return undefined;
+      }
+    });
+    // `listen` registers its handler through transformCallback; making that throw
+    // sends safeListen down its catch path on purpose, whatever the import timing.
+    const internals = (dom.window as unknown as {
+      __TAURI_INTERNALS__: { transformCallback: (callback: unknown) => number };
+    }).__TAURI_INTERNALS__;
+    const transformCallback = vi.fn(() => {
+      throw new Error("listen unavailable");
+    });
+    internals.transformCallback = transformCallback;
+
+    mountSessions();
+    await waitFor(
+      () => transformCallback.mock.calls.length > 0,
+      "safeListen to reach listen (transformCallback never called)",
+    );
+    await waitFor(() => container.textContent?.includes("No active tasks") === true, "tasks to load");
+    expect(container.textContent).not.toContain("Could not load tasks.");
   });
 
   it("shows loading, error, and empty states", async () => {
