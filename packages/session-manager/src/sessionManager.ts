@@ -177,14 +177,28 @@ export class SessionManager {
       throw new SessionNotFoundError(taskBranchId);
     }
 
-    if (!opts.force) {
-      const hasChanges = await this.hasUncommittedChanges(taskBranchId);
+    // A session whose worktree was never created has nothing to check.
+    if (!opts.force && branch.worktreePath !== "") {
+      let hasChanges = false;
+      try {
+        hasChanges = await this.hasUncommittedChanges(taskBranchId);
+      } catch {
+        // The check could not run, for example because the worktree folder
+        // was deleted by hand. Git decides below: without --force it refuses
+        // a worktree with modified or untracked files.
+      }
       if (hasChanges) {
         throw new UncommittedChangesError(taskBranchId);
       }
     }
 
-    await this.worktreeManager.removeWorktree(branch.worktreePath);
+    // The caller's choice is passed on: without force, git itself refuses to
+    // remove a worktree with modified or untracked files, which also covers a
+    // change made after the check above. If removal fails, this throws and the
+    // session is not marked deleted.
+    await this.worktreeManager.removeWorktree(branch.worktreePath, branch.repoPath, {
+      force: opts.force,
+    });
     this.store.softDelete(taskBranchId);
     this.detector.stopPolling(branch.sessionId);
   }

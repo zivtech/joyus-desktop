@@ -12,6 +12,7 @@ import type {
   TaskBranchStore,
 } from "../src/taskBranchStore.js";
 import type { WorktreeManager } from "../src/worktreeManager.js";
+import { createWorktreeManager } from "../src/worktreeManager.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -376,7 +377,11 @@ describe("SessionManager", () => {
         manager.delete(branch.id, { force: true }),
       ).resolves.not.toThrow();
 
-      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(branch.worktreePath);
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: true },
+      );
       expect(store.softDelete).toHaveBeenCalledWith(branch.id);
     });
 
@@ -391,6 +396,106 @@ describe("SessionManager", () => {
       await manager.delete(branch.id, { force: true });
 
       expect(stopPollingSpy).toHaveBeenCalledWith(branch.sessionId);
+    });
+
+    it("passes force:false through, so git can refuse a worktree that became dirty", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      const execGit = makeExecGit();
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: false },
+      );
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
+
+    it("keeps the session when the worktree cannot be removed", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      const worktreeManager = makeWorktreeManager({
+        removeWorktree: vi.fn().mockRejectedValue(new Error("worktree is locked")),
+      });
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const stopPollingSpy = vi.spyOn(detector, "stopPolling");
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await expect(manager.delete(branch.id, { force: true })).rejects.toThrow(
+        "worktree is locked",
+      );
+      expect(store.softDelete).not.toHaveBeenCalled();
+      expect(stopPollingSpy).not.toHaveBeenCalled();
+    });
+
+    it("keeps the session when both the removal and the check that follows it fail", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // The real worktree manager, with a git that fails every time: first
+      // "worktree remove", then "worktree list".
+      const execGit = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("remove failed"))
+        .mockRejectedValueOnce(new Error("list failed"));
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(
+        store,
+        createWorktreeManager(execGit),
+        detector,
+        execGit,
+      );
+
+      await expect(manager.delete(branch.id, { force: true })).rejects.toThrow("remove failed");
+      expect(execGit).toHaveBeenNthCalledWith(
+        1,
+        ["worktree", "remove", "--force", branch.worktreePath],
+        branch.repoPath,
+      );
+      expect(execGit).toHaveBeenNthCalledWith(2, ["worktree", "list", "--porcelain"], branch.repoPath);
+      expect(store.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("lets git decide when the uncommitted-changes check cannot run", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // The worktree folder was deleted by hand, so git cannot start in it.
+      const execGit = vi.fn().mockRejectedValue(new Error("spawn git ENOENT"));
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: false },
+      );
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
+
+    it("skips the uncommitted-changes check for a session that never had a worktree", async () => {
+      const branch = makeBranch({ worktreePath: "", branchName: "", status: "broken" });
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // This git would report changes if it were asked.
+      const execGit = makeExecGit("M file.ts");
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(execGit).not.toHaveBeenCalled();
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith("", branch.repoPath, {
+        force: false,
+      });
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
     });
   });
 
