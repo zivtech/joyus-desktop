@@ -957,6 +957,68 @@ describe("recon.export", () => {
 
     removeTempDir(outsideRoot);
   });
+
+  it("stores a file that does not compress, byte for byte", async () => {
+    // One byte deflates to three bytes, so the writer must store it raw.
+    await writeFile(path.join(engagementDir, "one.txt"), "x");
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt32LE(0)).toBe(0x04034b50); // local file header
+    expect(zip.readUInt16LE(8)).toBe(0);          // method: stored
+    expect(zip.readUInt32LE(18)).toBe(1);         // stored size
+    expect(zip.readUInt32LE(22)).toBe(1);         // original size
+    const nameLength = zip.readUInt16LE(26);
+    expect(zip.subarray(30, 30 + nameLength).toString("utf8")).toBe(
+      path.join("engagement", "one.txt"),
+    );
+    expect(zip.subarray(30 + nameLength, 30 + nameLength + 1).toString("utf8")).toBe("x");
+  });
+
+  it("deflates a file that compresses", async () => {
+    await writeFile(path.join(engagementDir, "big.txt"), "a".repeat(500));
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt16LE(8)).toBe(8);            // method: deflate
+    expect(zip.readUInt32LE(18)).toBeLessThan(500); // compressed size
+    expect(zip.readUInt32LE(22)).toBe(500);         // original size
+  });
+
+  it("stores an empty file as a zero-length entry", async () => {
+    await writeFile(path.join(engagementDir, "empty.txt"), "");
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt16LE(8)).toBe(0);  // method: stored
+    expect(zip.readUInt32LE(18)).toBe(0); // stored size
+    expect(zip.readUInt32LE(22)).toBe(0); // original size
+    // End-of-archive record is the last 22 bytes; total entries at offset 10.
+    const eocd = zip.subarray(zip.length - 22);
+    expect(eocd.readUInt32LE(0)).toBe(0x06054b50);
+    expect(eocd.readUInt16LE(10)).toBe(1);
+  });
 });
 
 // ===========================================================================

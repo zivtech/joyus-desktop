@@ -551,8 +551,8 @@ export function registerReconMethods(
 
       // Use deflate if it's smaller, otherwise store raw
       const useDeflate = compressedData.length < fileData.length;
-      const storedData = useDeflate ? compressedData : /* v8 ignore next */ fileData;
-      const method = useDeflate ? 8 : /* v8 ignore next */ 0; // 8 = deflate, 0 = stored
+      const storedData = useDeflate ? compressedData : fileData;
+      const method = useDeflate ? 8 : 0; // 8 = deflate, 0 = stored
 
       const nameBytes = Buffer.from(archivePath, "utf8");
       const crc = crc32(fileData);
