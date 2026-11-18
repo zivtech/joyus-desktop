@@ -14,6 +14,7 @@ import { readRegistry, repairRegistry, writeRegistry } from "./registry.js";
 import {
   createSettingsBackup,
   readSettingsFile,
+  readSettingsFileStrict,
   rollbackSettings,
   writeSettingsFile,
 } from "./settingsFile.js";
@@ -412,7 +413,7 @@ async function reconcileSettingsTarget(options: {
   hooks: readonly ManifestHook[];
   mcps: readonly ManifestMcpServer[];
 }): Promise<SettingsUpdateResult> {
-  const currentSettings = await readSettingsFile(options.settingsPath);
+  const currentSettings = await readSettingsFileStrict(options.settingsPath);
   const currentHooksValue = currentSettings["hooks"];
   const currentMcpValue = currentSettings["mcpServers"];
   const currentHooks = normalizeHooksRecord(currentHooksValue);
