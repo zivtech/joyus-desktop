@@ -301,6 +301,56 @@ describe("slugify (via recon.create)", () => {
     })) as { clientSlug: string; engagementDir: string };
     expect(result.clientSlug).toBe("a-b-c");
   });
+
+  it("falls back to a hashed slug when the name has no ASCII letters or digits", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "!!!",
+      url: "https://symbols.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string; engagementDir: string; engagementId: string };
+
+    expect(result.clientSlug).toBe("client-e84c538e");
+    // The engagement directory is a child of the root, never the root itself.
+    expect(result.engagementDir).toBe(path.join(tmpRoot, "client-e84c538e"));
+    expect(result.engagementId.startsWith("client-e84c538e-")).toBe(true);
+  });
+
+  it("falls back to a hashed slug for a non-Latin name", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "日本電気",
+      url: "https://nec.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+
+    expect(result.clientSlug).toBe("client-944e0446");
+  });
+
+  it("gives different symbol-only names different slugs", async () => {
+    const first = (await ipc._invoke("recon.create", {
+      clientName: "!!!",
+      url: "https://a.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+    const second = (await ipc._invoke("recon.create", {
+      clientName: "???",
+      url: "https://b.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+
+    expect(second.clientSlug).toBe("client-a03b221c");
+    expect(second.clientSlug).not.toBe(first.clientSlug);
+  });
+
+  it("does not use the reserved exports directory as a client slug", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "Exports",
+      url: "https://exports.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string; engagementDir: string };
+
+    expect(result.clientSlug).toBe("client-2f4dcf59");
+    expect(path.basename(result.engagementDir)).not.toBe("exports");
+  });
 });
 
 // ===========================================================================
