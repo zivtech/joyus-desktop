@@ -288,9 +288,7 @@ export function registerReconMethods(
     const engagementId = `${clientSlug}-${datePart}-${timePart}`;
 
     const engagementDir = path.join(
-      os.homedir(),
-      "Documents",
-      "joyus-recon-engagements",
+      runtimeDeps.engagementRoot ?? defaultEngagementRoot(),
       clientSlug,
     );
 
