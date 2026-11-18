@@ -1324,6 +1324,7 @@ describe("createConfigChangeHandler failure isolation", () => {
         cacheDir: "/tmp/cache",
       },
       syncSkillsFn: vi.fn().mockRejectedValue("string failure"),
+      reconcileFn: vi.fn().mockResolvedValue(createReconcileResult()),
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 

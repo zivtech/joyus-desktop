@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Readable } from "node:stream";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { startSidecar } from "../../src/sidecar/main";
 import type { SidecarDeps } from "../../src/sidecar/main";
 import type { ServiceDeps } from "../../src/sidecar/services";
@@ -98,6 +101,8 @@ describe("startSidecar managed tooling wiring", () => {
   });
 
   it("passes optional managed-tooling config through and logs handler warnings and errors", async () => {
+    // Every path the real handler can touch lives under this throwaway folder.
+    const root = await mkdtemp(join(tmpdir(), "main-config-check-wiring-"));
     let capturedOnSync: ((manifest: {
       schema_version: string;
       tenant_id: string;
@@ -108,9 +113,12 @@ describe("startSidecar managed tooling wiring", () => {
       managedToolingConfig: {
         manifestUrl: "https://example.com/manifest.json",
         intervalMs: 15_000,
-        tenantConfigPath: "/tmp/tenant-config.json",
+        tenantConfigPath: join(root, "tenant-config.json"),
         reconcileConfig: {
-          globalSettingsPath: "/tmp/global-settings.json",
+          globalSettingsPath: join(root, "home", "settings.json"),
+          projectSettingsPath: join(root, "project", "settings.json"),
+          registryPath: join(root, "home", ".joyus-managed.json"),
+          backupDir: join(root, "backups"),
         },
         syncConfig: {
           repoUrl: "file:///repo.git",
@@ -150,6 +158,7 @@ describe("startSidecar managed tooling wiring", () => {
     expect(deps.stderr.write).toHaveBeenCalledWith(
       "configCheckWiring: skipping skill sync because no target version could be resolved.\n",
     );
+    await rm(root, { recursive: true, force: true });
   });
 
   it("forwards the managed-tooling fetchImpl to the config-check wiring", () => {
