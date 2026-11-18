@@ -113,11 +113,18 @@ function normalizeMcpRecord(value: unknown): Record<string, unknown> {
   return { ...value };
 }
 
+/** The timeout written when the manifest gives none. */
+const DEFAULT_HOOK_TIMEOUT = 5;
+
+function writtenTimeout(hook: ManifestHook): number {
+  return hook.timeout ?? DEFAULT_HOOK_TIMEOUT;
+}
+
 function buildCommandHook(hook: ManifestHook): Record<string, unknown> {
   return {
     type: "command",
     command: hook.command,
-    timeout: hook.timeout ?? 5,
+    timeout: writtenTimeout(hook),
   };
 }
 
@@ -129,6 +136,8 @@ export interface OwnedHook {
   readonly event: string;
   readonly matcher: string;
   readonly command: string;
+  /** The timeout that was written. Absent in records made before it was stored. */
+  readonly timeout?: number;
 }
 
 const MANAGED_PREFIX = "joyus:";
@@ -141,16 +150,16 @@ function isLegacyManagedMatcher(matcher: string): boolean {
   return matcher.startsWith(MANAGED_PREFIX);
 }
 
+function groupKey(event: string, matcher: string): string {
+  return JSON.stringify([event, matcher]);
+}
+
 function hookKey(event: string, matcher: string, command: string): string {
   return JSON.stringify([event, matcher, command]);
 }
 
 function hookRegistryKey(hook: ManifestHook): string {
   return `hook:${hook.event}:${hook.id}`;
-}
-
-function ownedHookKeys(ownedHooks: readonly OwnedHook[]): Set<string> {
-  return new Set(ownedHooks.map((owned) => hookKey(owned.event, owned.matcher, owned.command)));
 }
 
 /** A group this tool can read: an object with the given matcher and a hook list. */
@@ -165,10 +174,63 @@ function hasCommand(entry: unknown, command: string): boolean {
   return isRecord(entry) && entry["command"] === command;
 }
 
+/** True when the entry is exactly what this tool writes: these three keys and no others. */
+function isEntryAsWritten(entry: unknown, command: string, timeout: number | undefined): boolean {
+  return (
+    timeout !== undefined &&
+    isRecord(entry) &&
+    Object.keys(entry).length === 3 &&
+    entry["type"] === "command" &&
+    entry["command"] === command &&
+    entry["timeout"] === timeout
+  );
+}
+
 function replaceAt(list: readonly unknown[], index: number, value: unknown): unknown[] {
   const next = list.slice();
   next[index] = value;
   return next;
+}
+
+interface EntryLocation {
+  readonly groupIndex: number;
+  readonly group: Record<string, unknown> & { hooks: unknown[] };
+  readonly entryIndex: number;
+}
+
+/**
+ * Finds the entry this tool wrote for `command` among the groups of one event
+ * that have `matcher`. The user may have added a copy of the same command
+ * anywhere in those groups, so position proves nothing: an entry that is
+ * exactly what was written (same timeout, no other keys) wins. Only when no
+ * entry is, or the written timeout is unknown, the first entry with the
+ * command is taken.
+ */
+function locateWrittenEntry(
+  eventGroups: readonly unknown[],
+  matcher: string,
+  command: string,
+  timeout: number | undefined
+): EntryLocation | undefined {
+  let firstWithCommand: EntryLocation | undefined;
+
+  for (const [groupIndex, group] of eventGroups.entries()) {
+    if (!isGroupFor(group, matcher)) {
+      continue;
+    }
+    for (const [entryIndex, entry] of group.hooks.entries()) {
+      if (!hasCommand(entry, command)) {
+        continue;
+      }
+      const location = { groupIndex, group, entryIndex };
+      if (isEntryAsWritten(entry, command, timeout)) {
+        return location;
+      }
+      firstWithCommand ??= location;
+    }
+  }
+
+  return firstWithCommand;
 }
 
 interface HookMergePlan {
@@ -184,7 +246,11 @@ function planHookMerge(
 ): HookMergePlan {
   const original = normalizeHooksRecord(currentHooks);
   const merged = normalizeHooksRecord(currentHooks);
-  const ownedKeys = ownedHookKeys(ownedHooks);
+  // What this tool wrote for each owned command: from the registry at first,
+  // then from this run.
+  const written = new Map<string, number | undefined>(
+    ownedHooks.map((owned) => [hookKey(owned.event, owned.matcher, owned.command), owned.timeout])
+  );
   const userOwned: ManifestHook[] = [];
 
   for (const hook of manifestHooks) {
@@ -204,11 +270,13 @@ function planHookMerge(
       continue;
     }
 
+    const key = hookKey(hook.event, hook.matcher, hook.command);
+
     // The identical command was in this group before this run and the registry
     // does not say this tool wrote it: it is the user's. Leave it exactly as it
     // is and do not claim it.
     const userHadIt =
-      !ownedKeys.has(hookKey(hook.event, hook.matcher, hook.command)) &&
+      !written.has(key) &&
       (original[hook.event] ?? []).some(
         (group) =>
           isGroupFor(group, hook.matcher) &&
@@ -221,17 +289,12 @@ function planHookMerge(
 
     // Ours already (from the registry, or added earlier in this run): refresh
     // that one entry in place.
-    const ownedGroupIndex = eventGroups.findIndex(
-      (group) =>
-        isGroupFor(group, hook.matcher) &&
-        group.hooks.some((entry) => hasCommand(entry, hook.command))
-    );
-    const ownedGroup = eventGroups[ownedGroupIndex];
-    if (isGroupFor(ownedGroup, hook.matcher)) {
-      const entryIndex = ownedGroup.hooks.findIndex((entry) => hasCommand(entry, hook.command));
-      merged[hook.event] = replaceAt(eventGroups, ownedGroupIndex, {
-        ...ownedGroup,
-        hooks: replaceAt(ownedGroup.hooks, entryIndex, commandHook),
+    const ours = locateWrittenEntry(eventGroups, hook.matcher, hook.command, written.get(key));
+    written.set(key, writtenTimeout(hook));
+    if (ours !== undefined) {
+      merged[hook.event] = replaceAt(eventGroups, ours.groupIndex, {
+        ...ours.group,
+        hooks: replaceAt(ours.group.hooks, ours.entryIndex, commandHook),
       });
       continue;
     }
@@ -255,28 +318,39 @@ export function mergeHooks(
   return planHookMerge(currentHooks, manifestHooks, ownedHooks).hooks;
 }
 
-export function removeStaleHooks(
+/**
+ * Drops the legacy managed groups for which `dropLegacyGroup` says so, and
+ * from every other group the one entry this tool wrote for each command in
+ * `staleOwned`. Two records of the same command remove one entry: this tool
+ * wrote one.
+ */
+function filterHookGroups(
   currentHooks: Record<string, unknown[]>,
-  activeHooks: readonly ManifestHook[],
-  ownedHooks: readonly OwnedHook[] = []
+  dropLegacyGroup: (event: string, matcher: string) => boolean,
+  staleOwned: readonly OwnedHook[]
 ): Record<string, unknown[]> {
-  const activeMatchers = new Set(activeHooks.map((hook) => hook.matcher));
-  const activeKeys = new Set(
-    activeHooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
-  );
-  // Each stale key is used up by the first entry it removes: this tool wrote
-  // one entry per key, so it removes at most one.
-  const staleKeys = ownedHookKeys(ownedHooks);
-  for (const key of activeKeys) {
-    staleKeys.delete(key);
+  const hooks = normalizeHooksRecord(currentHooks);
+
+  // Decide first which entries go, so that removing one cannot shift another.
+  const dropped = new Set<string>();
+  for (const owned of staleOwned) {
+    const ours = locateWrittenEntry(
+      hooks[owned.event] ?? [],
+      owned.matcher,
+      owned.command,
+      owned.timeout
+    );
+    if (ours !== undefined) {
+      dropped.add(JSON.stringify([owned.event, ours.groupIndex, ours.entryIndex]));
+    }
   }
 
   const nextHooks: Record<string, unknown[]> = {};
 
-  for (const [event, groups] of Object.entries(normalizeHooksRecord(currentHooks))) {
+  for (const [event, groups] of Object.entries(hooks)) {
     const nextGroups: unknown[] = [];
 
-    for (const group of groups) {
+    for (const [groupIndex, group] of groups.entries()) {
       if (!isRecord(group) || typeof group["matcher"] !== "string") {
         nextGroups.push(group);
         continue;
@@ -285,7 +359,7 @@ export function removeStaleHooks(
       const matcher = group["matcher"];
 
       if (isLegacyManagedMatcher(matcher)) {
-        if (activeMatchers.has(matcher)) {
+        if (!dropLegacyGroup(event, matcher)) {
           nextGroups.push(group);
         }
         continue;
@@ -296,13 +370,9 @@ export function removeStaleHooks(
         continue;
       }
 
-      const keptHooks = group.hooks.filter((entry) => {
-        if (!isRecord(entry) || typeof entry["command"] !== "string") {
-          return true;
-        }
-        // Set.delete returns true only for the first entry with a stale key.
-        return !staleKeys.delete(hookKey(event, matcher, entry["command"]));
-      });
+      const keptHooks = group.hooks.filter(
+        (_entry, entryIndex) => !dropped.has(JSON.stringify([event, groupIndex, entryIndex]))
+      );
 
       if (keptHooks.length === group.hooks.length) {
         // Nothing of ours to remove: keep the same object.
@@ -319,6 +389,27 @@ export function removeStaleHooks(
   }
 
   return nextHooks;
+}
+
+export function removeStaleHooks(
+  currentHooks: Record<string, unknown[]>,
+  activeHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
+): Record<string, unknown[]> {
+  // A legacy group stays only while the manifest lists it under the same event.
+  const activeGroups = new Set(activeHooks.map((hook) => groupKey(hook.event, hook.matcher)));
+  const activeKeys = new Set(
+    activeHooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
+  );
+  const staleOwned = ownedHooks.filter(
+    (owned) => !activeKeys.has(hookKey(owned.event, owned.matcher, owned.command))
+  );
+
+  return filterHookGroups(
+    currentHooks,
+    (event, matcher) => !activeGroups.has(groupKey(event, matcher)),
+    staleOwned
+  );
 }
 
 export function mergeMcpServers(
@@ -403,7 +494,16 @@ function collectOwnedHooks(registry: ManagedRegistry, target: SettingsTarget): O
       entry.matcher !== undefined &&
       entry.command !== undefined
     ) {
-      owned.push({ event: entry.event, matcher: entry.matcher, command: entry.command });
+      owned.push(
+        entry.timeout === undefined
+          ? { event: entry.event, matcher: entry.matcher, command: entry.command }
+          : {
+              event: entry.event,
+              matcher: entry.matcher,
+              command: entry.command,
+              timeout: entry.timeout,
+            }
+      );
     }
   }
 
@@ -510,6 +610,7 @@ function buildNewRegistry(
             event: hook.event,
             matcher: hook.matcher,
             command: hook.command,
+            timeout: writtenTimeout(hook),
             target,
             installed_at: installedAt,
           };
@@ -542,6 +643,7 @@ function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean
     left.event === right.event &&
     left.matcher === right.matcher &&
     left.command === right.command &&
+    left.timeout === right.timeout &&
     left.target === right.target &&
     left.installed_at === right.installed_at
   );

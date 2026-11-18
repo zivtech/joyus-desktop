@@ -376,14 +376,147 @@ describe("pure reconciler helpers", () => {
     expect(removeStaleHooks(installed, [])).toEqual(installed);
   });
 
-  it("removes one entry per owned command, even when the user added a duplicate", () => {
+  it("finds its own entry by what it wrote when the user added a copy of the command before it", () => {
+    const userCopy = { type: "command", command: "echo audit", timeout: 30, note: "mine" };
     const ours = { type: "command", command: "echo audit", timeout: 5 };
-    const userCopy = { type: "command", command: "echo audit", timeout: 30 };
-    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit" }];
+    const currentHooks = { PreToolUse: [{ matcher: "Bash", hooks: [userCopy, ours] }] };
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 }];
+    const managed = createHook({
+      id: "joyus:audit",
+      matcher: "Bash",
+      command: "echo audit",
+      timeout: 20,
+    });
+
+    // Refresh: the managed entry changes, the user's copy does not.
+    const refreshed = mergeHooks(currentHooks, [managed], owned);
+    expect(refreshed).toEqual({
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [userCopy, { type: "command", command: "echo audit", timeout: 20 }],
+        },
+      ],
+    });
+    // Revocation: the managed entry goes, the user's copy stays.
+    expect(removeStaleHooks(currentHooks, [], owned)).toEqual({
+      PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }],
+    });
+  });
+
+  it("does not mistake a copy with the same timeout and an extra key for its own", () => {
+    const userCopy = { type: "command", command: "echo audit", timeout: 5, note: "mine" };
+    const ours = { type: "command", command: "echo audit", timeout: 5 };
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 }];
 
     expect(
-      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [ours, userCopy] }] }, [], owned)
+      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [userCopy, ours] }] }, [], owned)
     ).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }] });
+  });
+
+  it("finds its own entry in a later group with the same matcher", () => {
+    const userCopy = { type: "command", command: "echo audit" };
+    const ours = { type: "command", command: "echo audit", timeout: 5 };
+    const currentHooks = {
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userCopy] },
+        { matcher: "Bash", hooks: [ours] },
+      ],
+    };
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 }];
+    const managed = createHook({
+      id: "joyus:audit",
+      matcher: "Bash",
+      command: "echo audit",
+      timeout: 20,
+    });
+
+    expect(mergeHooks(currentHooks, [managed], owned)).toEqual({
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userCopy] },
+        { matcher: "Bash", hooks: [{ type: "command", command: "echo audit", timeout: 20 }] },
+      ],
+    });
+    expect(removeStaleHooks(currentHooks, [], owned)).toEqual({
+      PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }],
+    });
+  });
+
+  it("keeps the user's earlier copy when two manifest hooks share one command", () => {
+    const userCopy = { type: "command", command: "echo audit", timeout: 30 };
+    const currentHooks = {
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userCopy, { type: "command", command: "echo audit", timeout: 5 }] },
+      ],
+    };
+    const owned = [{ event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 }];
+    const first = createHook({ id: "joyus:a", matcher: "Bash", command: "echo audit", timeout: 20 });
+    const second = createHook({ id: "joyus:b", matcher: "Bash", command: "echo audit", timeout: 7 });
+
+    // The second hook refreshes what the first one just wrote, not the user's copy.
+    expect(mergeHooks(currentHooks, [first, second], owned)).toEqual({
+      PreToolUse: [
+        { matcher: "Bash", hooks: [userCopy, { type: "command", command: "echo audit", timeout: 7 }] },
+      ],
+    });
+  });
+
+  it("removes one entry when a copy cannot be told from its own", () => {
+    const ours = { type: "command", command: "echo audit", timeout: 5 };
+    const exactCopy = { type: "command", command: "echo audit", timeout: 5 };
+    const editedCopy = { type: "command", command: "echo audit", timeout: 30 };
+
+    // An exact copy: whichever goes, one identical entry is left.
+    expect(
+      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [exactCopy, ours] }] }, [], [
+        { event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 },
+      ])
+    ).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [ours] }] });
+
+    // A record without a timeout (written before it was stored) falls back to
+    // position: the first entry with the command is taken, even if it is the
+    // user's. This is a known limit.
+    expect(
+      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [editedCopy, ours] }] }, [], [
+        { event: "PreToolUse", matcher: "Bash", command: "echo audit" },
+      ])
+    ).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [ours] }] });
+
+    // Two records of one command remove one entry.
+    expect(
+      removeStaleHooks({ PreToolUse: [{ matcher: "Bash", hooks: [ours, editedCopy] }] }, [], [
+        { event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 },
+        { event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 },
+      ])
+    ).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [editedCopy] }] });
+  });
+
+  it("ignores an owned command that is no longer in the file", () => {
+    const userGroup = { matcher: "Bash", hooks: [{ type: "command", command: "echo user-bash" }] };
+    const owned = [
+      { event: "PreToolUse", matcher: "Bash", command: "echo audit", timeout: 5 },
+      { event: "SessionStart", matcher: "startup", command: "echo hello", timeout: 5 },
+    ];
+
+    const result = removeStaleHooks({ PreToolUse: [userGroup] }, [], owned);
+
+    expect(result).toEqual({ PreToolUse: [userGroup] });
+    expect(result["PreToolUse"]![0]).toBe(userGroup);
+  });
+
+  it("removes a joyus: group when the manifest moves its hook to another event", () => {
+    const currentHooks = {
+      PreToolUse: [
+        { matcher: "joyus:hook", hooks: [{ type: "command", command: "echo global hook", timeout: 5 }] },
+      ],
+    };
+    const moved = createHook({ event: "PostToolUse" });
+
+    expect(removeStaleHooks(mergeHooks(currentHooks, [moved]), [moved])).toEqual({
+      PostToolUse: [
+        { matcher: "joyus:hook", hooks: [{ type: "command", command: "echo global hook", timeout: 5 }] },
+      ],
+    });
   });
 
   it("leaves malformed groups and entries untouched", () => {
@@ -520,6 +653,7 @@ describe("reconcile", () => {
           event: "PreToolUse",
           matcher: "joyus:hook",
           command: "echo global hook",
+          timeout: 5,
           target: "global",
           installed_at: installedAt,
         },
@@ -942,6 +1076,7 @@ describe("reconcile", () => {
         event: "PreToolUse",
         matcher: "joyus:hook",
         command: "echo repaired new",
+        timeout: 5,
         target: "global",
         installed_at: FIXED_NOW.toISOString(),
       },
@@ -1166,6 +1301,7 @@ describe("reconcile", () => {
       event: "PreToolUse",
       matcher: "Bash",
       command: "echo audit",
+      timeout: 5,
       target: "global",
       installed_at: FIXED_NOW.toISOString(),
     });
@@ -1272,6 +1408,125 @@ describe("reconcile", () => {
     expect(await readJson(workspace.globalSettingsPath)).toEqual(userSettings);
   });
 
+  it("keeps a copy of a managed command that the user adds before it", async () => {
+    const workspace = await createWorkspace();
+    const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+    await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+
+    // The user adds the same command, with their own fields, ahead of the managed entry.
+    const userCopy = { type: "command", command: "echo audit", timeout: 30, note: "mine" };
+    await writeJson(workspace.globalSettingsPath, {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userCopy, { type: "command", command: "echo audit", timeout: 5 }],
+          },
+        ],
+      },
+    });
+
+    // The manifest changes the timeout: only the managed entry is refreshed.
+    await reconcile(
+      createManifest({ hooks: [{ ...managed, timeout: 20 }] }),
+      createConfig(workspace)
+    );
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userCopy, { type: "command", command: "echo audit", timeout: 20 }],
+          },
+        ],
+      },
+    });
+
+    // Revocation removes the managed entry and leaves the user's copy.
+    const revoked = await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(revoked).toMatchObject({ status: "success", entriesRemoved: 1 });
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userCopy] }] },
+    });
+  });
+
+  it("writes two-space JSON when it changes a file, with the same content", async () => {
+    const workspace = await createWorkspace();
+    const userSettings = {
+      model: "example-model",
+      hooks: {
+        PreToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: "echo user" }] }],
+      },
+    };
+    await mkdir(dirname(workspace.globalSettingsPath), { recursive: true });
+    await writeFile(workspace.globalSettingsPath, JSON.stringify(userSettings, null, 4), "utf8");
+    const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+
+    await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+    await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+
+    // The content is back to the user's. The layout is this tool's, not the user's.
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(userSettings);
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(
+      JSON.stringify(userSettings, null, 2) + "\n"
+    );
+  });
+
+  it("moves a joyus: group when its hook changes event", async () => {
+    const workspace = await createWorkspace();
+    await reconcile(createManifest({ hooks: [createHook()] }), createConfig(workspace));
+
+    await reconcile(
+      createManifest({ hooks: [createHook({ event: "PostToolUse" })] }),
+      createConfig(workspace)
+    );
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: {
+        PostToolUse: [
+          {
+            matcher: "joyus:hook",
+            hooks: [{ type: "command", command: "echo global hook", timeout: 5 }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("treats a registry file of the wrong shape as lost and rebuilds it", async () => {
+    const wrongShapes = [
+      "{}",
+      '{"entries":null}',
+      '{"schema_version":"1.0","entries":{"hook:PreToolUse:joyus:hook":null},"last_reconciled":"x"}',
+      "[]",
+      '"text"',
+    ];
+
+    for (const content of wrongShapes) {
+      const workspace = await createWorkspace();
+      await writeJson(workspace.globalSettingsPath, {
+        hooks: {
+          PreToolUse: [
+            { matcher: "joyus:hook", hooks: [{ type: "command", command: "echo old", timeout: 5 }] },
+          ],
+        },
+      });
+      await writeFile(workspace.registryPath, content, "utf8");
+
+      const result = await reconcile(
+        createManifest({ hooks: [createHook({ command: "echo new" })] }),
+        createConfig(workspace)
+      );
+
+      // Repaired from settings, as for a missing file: the group is known, so it is an update.
+      expect(result).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 1 });
+      const registry = (await readJson(workspace.registryPath)) as {
+        entries: Record<string, { command?: string }>;
+      };
+      expect(registry.entries["hook:PreToolUse:joyus:hook"]).toMatchObject({ command: "echo new" });
+    }
+  });
+
   it("takes ownership once the user removes their own identical command", async () => {
     const workspace = await createWorkspace();
     await writeJson(workspace.globalSettingsPath, {
@@ -1365,6 +1620,61 @@ describe("reconcile", () => {
     // Known limit: a later revocation leaves it in place.
     await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
     expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(installedText);
+  });
+
+  it("still owns a command whose registry record has no timeout", async () => {
+    const workspace = await createWorkspace();
+    const installedAt = "2026-03-01T00:00:00.000Z";
+    const userHook = { type: "command", command: "echo user-bash" };
+    const settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [userHook, { type: "command", command: "echo audit", timeout: 5 }],
+          },
+        ],
+      },
+    };
+    const seedRegistry = () =>
+      writeJson(workspace.registryPath, {
+        schema_version: "1.0",
+        entries: {
+          "hook:PreToolUse:joyus:audit": {
+            type: "hook",
+            bundle: "core",
+            manifest_version: "1.0.0",
+            event: "PreToolUse",
+            matcher: "Bash",
+            command: "echo audit",
+            target: "global",
+            installed_at: installedAt,
+          },
+        },
+        last_reconciled: installedAt,
+      });
+    const managed = createHook({ id: "joyus:audit", matcher: "Bash", command: "echo audit" });
+
+    // Still listed: the record gains the timeout, and settings do not change.
+    await writeJson(workspace.globalSettingsPath, settings);
+    await seedRegistry();
+    const kept = await reconcile(createManifest({ hooks: [managed] }), createConfig(workspace));
+    expect(kept).toMatchObject({ status: "success", entriesAdded: 0, entriesUpdated: 1 });
+    expect(kept.backupPath).toBeUndefined();
+    const registry = (await readJson(workspace.registryPath)) as {
+      entries: Record<string, { timeout?: number; installed_at: string }>;
+    };
+    expect(registry.entries["hook:PreToolUse:joyus:audit"]).toMatchObject({
+      timeout: 5,
+      installed_at: installedAt,
+    });
+
+    // Revoked while the record still has no timeout: the command is removed.
+    await seedRegistry();
+    await reconcile(createManifest({ hooks: [] }), createConfig(workspace));
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [userHook] }] },
+    });
   });
 
   it("upgrades a registry entry written before ownership fields existed", async () => {

@@ -290,3 +290,34 @@ describe("repairRegistry", () => {
     ]);
   });
 });
+
+describe("readRegistry shape check", () => {
+  it("returns undefined for JSON that is not a registry", async () => {
+    const dir = await tmpDir();
+    const filePath = join(dir, "registry.json");
+    const wrongShapes = [
+      "{}",
+      "null",
+      "[]",
+      '"text"',
+      '{"entries":null}',
+      '{"entries":[]}',
+      '{"entries":{"hook:PreToolUse:joyus:test":null}}',
+      '{"entries":{"hook:PreToolUse:joyus:test":"text"}}',
+    ];
+
+    for (const content of wrongShapes) {
+      await writeFile(filePath, content, "utf8");
+      expect(await readRegistry(filePath)).toBeUndefined();
+    }
+  });
+
+  it("accepts a registry with no entries", async () => {
+    const dir = await tmpDir();
+    const filePath = join(dir, "registry.json");
+    const empty = { schema_version: "1.0", entries: {}, last_reconciled: "2026-01-01T00:00:00.000Z" };
+    await writeFile(filePath, JSON.stringify(empty), "utf8");
+
+    expect(await readRegistry(filePath)).toEqual(empty);
+  });
+});

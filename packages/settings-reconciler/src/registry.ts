@@ -32,6 +32,8 @@ export interface RegistryEntry {
    * tool must never refresh or remove it.
    */
   readonly command?: string;
+  /** Hooks only: the timeout written with the command. Tells this tool's entry from a copy the user added. */
+  readonly timeout?: number;
   readonly target: SettingsTarget;
   readonly installed_at: string;
 }
@@ -44,10 +46,27 @@ export interface ManagedRegistry {
 
 // T008: Read registry
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** An object with an `entries` object whose values are all objects. */
+function isRegistryShape(value: unknown): value is ManagedRegistry {
+  return (
+    isPlainObject(value) &&
+    isPlainObject(value["entries"]) &&
+    Object.values(value["entries"]).every(isPlainObject)
+  );
+}
+
+/**
+ * Returns undefined when the file is missing, is not JSON, or is JSON of the
+ * wrong shape. The caller then rebuilds the registry from the settings files.
+ */
 export async function readRegistry(registryPath: string): Promise<ManagedRegistry | undefined> {
   try {
-    const raw = await readFile(registryPath, "utf8");
-    return JSON.parse(raw) as ManagedRegistry;
+    const parsed: unknown = JSON.parse(await readFile(registryPath, "utf8"));
+    return isRegistryShape(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -63,10 +82,6 @@ export async function writeRegistry(registryPath: string, registry: ManagedRegis
 }
 
 // T010: Repair registry from prefix scanning
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 const HOOK_EVENT_TYPES: readonly HookEventType[] = [
   "PreToolUse",
