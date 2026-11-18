@@ -203,6 +203,34 @@ async function isWorktreeHealthy(
   }
 }
 
+// ─── Merged Detection (used by detectMerged) ─────────────────────────────────
+
+/**
+ * Reflog subjects that `git commit` writes: "commit: ...",
+ * "commit (amend): ...", "commit (merge): ...". Movements of the branch that
+ * create no commit on it have other subjects ("branch: Created from HEAD",
+ * "merge main: Fast-forward", "rebase (finish): ...", "reset: moving to ...").
+ */
+const COMMIT_REFLOG_SUBJECT = /^commit( \([^)]*\))?: /;
+
+/**
+ * True when the branch's reflog shows at least one commit made on it.
+ * `git branch --merged` also lists a branch that never had a commit of its
+ * own, including one that was only fast-forwarded, and such a branch must
+ * not be reported as merged. No reflog (expired or disabled) means false.
+ */
+async function hasCommitsMadeOnBranch(
+  execGit: ExecGit,
+  branchName: string,
+  repoPath: string,
+): Promise<boolean> {
+  const { stdout } = await execGit(
+    ["reflog", "show", "--format=%gs", `refs/heads/${branchName}`],
+    repoPath,
+  );
+  return stdout.split("\n").some((subject) => COMMIT_REFLOG_SUBJECT.test(subject));
+}
+
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
@@ -387,8 +415,12 @@ export function openTaskBranchStore(dbPath?: string): TaskBranchStore {
           );
           const branches = stdout
             .split("\n")
-            .map((line) => line.replace(/^\*?\s+/, "").trim());
-          if (branches.includes(row.branch_name)) {
+            // "*" marks the current branch, "+" one checked out in another worktree.
+            .map((line) => line.replace(/^[*+]?\s+/, "").trim());
+          if (
+            branches.includes(row.branch_name) &&
+            (await hasCommitsMadeOnBranch(execGit, row.branch_name, row.repo_path))
+          ) {
             updateStatusStmt.run("merged", row.id);
           }
         } catch {
