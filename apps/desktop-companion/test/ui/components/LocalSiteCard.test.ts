@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalSiteCard, type LocalSite } from "../../../src/ui/components/LocalSiteCard";
+import { waitFor } from "../pageTestUtils";
 
 const noop = () => {};
 let dom: JSDOM;
@@ -17,12 +18,10 @@ interface ReactButtonProps {
 }
 
 async function waitForInvokeCount(count: number): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    if (invokeMock.mock.calls.length >= count) return;
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  }
+  await waitFor(
+    () => invokeMock.mock.calls.length >= count,
+    () => `invoke to be called ${count} time(s); got ${invokeMock.mock.calls.length}`,
+  );
 }
 
 function makeSite(overrides: Partial<LocalSite> = {}): LocalSite {

@@ -72,14 +72,36 @@ export function mount(
   });
 }
 
-export async function waitFor(predicate: () => boolean, attempts = 80): Promise<void> {
-  for (let i = 0; i < attempts; i++) {
+// Captured at module load, before any test can spy on, mock, or fake the globals.
+// A test that replaces `setTimeout` (or installs fake timers) must not change how
+// `waitFor` yields or how it measures time, or its budget collapses to a few ms.
+const realSetTimeout = globalThis.setTimeout.bind(globalThis);
+const realNow = performance.now.bind(performance);
+
+const WAIT_FOR_TIMEOUT_MS = 3_000;
+
+/**
+ * Polls `predicate` inside `act` until it is true or a wall-clock deadline passes.
+ * Throws on timeout. The budget is real elapsed time, not an iteration count,
+ * because a loaded machine can take far longer than N event-loop turns to finish
+ * work such as a dynamic `import()`.
+ */
+export async function waitFor(
+  predicate: () => boolean,
+  description: string | (() => string) = "condition",
+  timeoutMs = WAIT_FOR_TIMEOUT_MS,
+): Promise<void> {
+  const deadline = realNow() + timeoutMs;
+  for (;;) {
     if (predicate()) return;
+    if (realNow() >= deadline) {
+      const text = typeof description === "function" ? description() : description;
+      throw new Error(`Timed out after ${timeoutMs}ms waiting for ${text}`);
+    }
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => realSetTimeout(resolve, 1));
     });
   }
-  throw new Error("Timed out waiting for condition");
 }
 
 export function findButton(harness: PageHarness, label: string, index = 0): HTMLButtonElement {

@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { waitFor } from "./pageTestUtils";
 import { useChromeAvailable } from "../../src/ui/hooks/useChromeAvailable";
 import { useGovernance, type GovernanceDecision } from "../../src/ui/hooks/useGovernance";
 import { useReconSetup } from "../../src/ui/hooks/useRecon";
@@ -52,14 +53,6 @@ async function flushEffects(): Promise<void> {
   await act(async () => {
     await flushPromises();
   });
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    if (predicate()) return;
-    await flushEffects();
-  }
-  throw new Error("Timed out waiting for condition");
 }
 
 describe("UI hooks", () => {

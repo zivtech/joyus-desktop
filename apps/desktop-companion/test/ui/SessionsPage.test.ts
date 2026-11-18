@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sessions } from "../../src/ui/pages/Sessions";
 import type { TaskBranch } from "../../src/ui/components/TaskBranchCard";
+import { waitFor } from "./pageTestUtils";
 import { installTauriInternals } from "./tauriInternals";
 
 let dom: JSDOM;
@@ -30,16 +31,6 @@ function makeBranch(overrides: Partial<TaskBranch> = {}): TaskBranch {
     prTitle: undefined,
     ...overrides,
   };
-}
-
-async function waitFor(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 80; i++) {
-    if (predicate()) return;
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  }
-  throw new Error("Timed out waiting for condition");
 }
 
 function click(label: string): void {
@@ -203,12 +194,12 @@ describe("Sessions page", () => {
     await waitFor(() => container.textContent?.includes("No active tasks") === true);
 
     click("Advisory");
-    await waitFor(() => modeTimers.length === 1);
+    await waitFor(() => modeTimers.length === 1, "mode-note timer #1 to be armed");
     expect(tauri.invoke).toHaveBeenCalledWith("session_set_mode", { mode: "advisory" }, undefined);
     expect(container.textContent).toContain("Affects new tasks only");
 
     click("Auto-managed");
-    await waitFor(() => modeTimers.length === 2);
+    await waitFor(() => modeTimers.length === 2, "mode-note timer #2 to be armed");
     expect(tauri.invoke).toHaveBeenCalledWith("session_set_mode", { mode: "managed" }, undefined);
     expect(clearTimeoutSpy).toHaveBeenCalled();
 
@@ -218,7 +209,7 @@ describe("Sessions page", () => {
     await waitFor(() => container.textContent?.includes("Affects new tasks only") === false);
 
     click("Advisory");
-    await waitFor(() => modeTimers.length === 3);
+    await waitFor(() => modeTimers.length === 3, "mode-note timer #3 to be armed");
   });
 
   it("shows loading, error, and empty states", async () => {

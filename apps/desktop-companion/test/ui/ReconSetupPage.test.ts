@@ -72,6 +72,44 @@ describe("ReconSetup page", () => {
     await clickButton(harness, "Finish");
   });
 
+  it("shows the checking state while the skill file check is pending", async () => {
+    let releaseSkillCheck!: (value: { found: boolean }) => void;
+    const skillCheck = new Promise<{ found: boolean }>((resolve) => {
+      releaseSkillCheck = resolve;
+    });
+    installTauriInternals(harness.dom.window, (cmd) => {
+      switch (cmd) {
+        case "check_claude_binary":
+          return { found: true, version: "1.0.0" };
+        case "credentials_list":
+          return [];
+        case "credentials_verify":
+          return [
+            { key: "ANTHROPIC_API_KEY", valid: true },
+            { key: "DATAFORSEO_USERNAME", valid: true },
+            { key: "DATAFORSEO_PASSWORD", valid: true },
+            { key: "CRUX_API_KEY", valid: true },
+          ];
+        case "get_sync_status":
+          return { version: "9.9.9" };
+        case "check_skill_file":
+          return skillCheck;
+        default:
+          return undefined;
+      }
+    });
+
+    await mountReconSetup();
+    await advanceThroughCredentials();
+    await waitFor(
+      () => harness.container.textContent?.includes("Checking skill file") === true,
+      "the pending skill-file check spinner",
+    );
+
+    releaseSkillCheck({ found: true });
+    await waitFor(() => harness.container.textContent?.includes("Recon Operator skill ready (v9.9.9)") === true);
+  });
+
   it("supports retrying Claude detection after a failed check", async () => {
     let attempts = 0;
     installTauriInternals(harness.dom.window, (cmd) => {
