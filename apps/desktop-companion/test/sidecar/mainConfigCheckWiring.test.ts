@@ -138,14 +138,16 @@ describe("startSidecar managed tooling wiring", () => {
 
     startSidecar(deps);
 
-    await capturedOnSync?.({
-      schema_version: "1.0",
-      tenant_id: "tenant-1",
-      bundles: {
-        "bundle-a": { version: "v1.0.0" },
-        "bundle-b": { version: "v2.0.0" },
-      },
-    });
+    await expect(
+      capturedOnSync?.({
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: {
+          "bundle-a": { version: "v1.0.0" },
+          "bundle-b": { version: "v2.0.0" },
+        },
+      }),
+    ).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
 
     expect(deps.createConfigCheckWiringFn).toHaveBeenCalledWith(
       expect.objectContaining({

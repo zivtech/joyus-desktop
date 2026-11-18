@@ -60,51 +60,6 @@ function getBundleNames(manifest: DistributionManifest): string[] {
   return Object.keys(manifest.bundles).sort();
 }
 
-function getManagedEntryIds(manifest: DistributionManifest): Set<string> {
-  const ids = new Set<string>();
-
-  for (const bundle of Object.values(manifest.bundles)) {
-    for (const hook of bundle.hooks ?? []) {
-      ids.add(`hook:${hook.event}:${hook.matcher}`);
-    }
-
-    for (const server of bundle.mcpServers ?? []) {
-      ids.add(`mcp:${server.id}`);
-    }
-  }
-
-  return ids;
-}
-
-function hasRevocation(
-  previousManifest: DistributionManifest | undefined,
-  nextManifest: DistributionManifest,
-): boolean {
-  if (getBundleNames(nextManifest).length === 0) {
-    return true;
-  }
-
-  if (previousManifest === undefined) {
-    return false;
-  }
-
-  const nextBundles = new Set(getBundleNames(nextManifest));
-  for (const bundleName of getBundleNames(previousManifest)) {
-    if (!nextBundles.has(bundleName)) {
-      return true;
-    }
-  }
-
-  const nextEntries = getManagedEntryIds(nextManifest);
-  for (const entryId of getManagedEntryIds(previousManifest)) {
-    if (!nextEntries.has(entryId)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function resolveTargetVersion(
   manifest: DistributionManifest,
   bundleName?: string,
@@ -114,11 +69,8 @@ function resolveTargetVersion(
   }
 
   const versions = [...new Set(Object.values(manifest.bundles).map((bundle) => bundle.version))];
-  if (versions.length === 0) {
-    return undefined;
-  }
-
-  if (versions.length === 1) {
+  // No bundles: undefined. One version: that version.
+  if (versions.length <= 1) {
     return versions[0];
   }
 
@@ -171,79 +123,82 @@ export function createConfigChangeHandler(
 
   return async (manifest: DistributionManifest): Promise<void> => {
     const previousManifest = lastManifest;
-    const shouldReconcileForRevocation = hasRevocation(
-      previousManifest,
-      manifest,
-    );
+    // A manifest with no bundles revokes everything; there is nothing to sync.
+    const nothingToSync = getBundleNames(manifest).length === 0;
 
-    let shouldAttemptReconcile = true;
-    let targetVersion: string | undefined;
+    let syncOk = nothingToSync;
+    let reconcileOk = false;
 
+    if (!nothingToSync) {
+      let targetVersion: string | undefined;
+
+      try {
+        targetVersion = resolveSyncTargetVersion(
+          manifest,
+          previousManifest,
+          config.syncConfig.bundleName,
+        );
+      } catch (error: unknown) {
+        logger.error(
+          `configCheckWiring: ${formatError(error)}`,
+        );
+      }
+
+      if (targetVersion === undefined) {
+        logger.warn(
+          "configCheckWiring: skipping skill sync because no target version could be resolved.",
+        );
+      } else {
+        try {
+          const syncResult = await syncSkillsFn({
+            ...config.syncConfig,
+            targetVersion,
+          });
+
+          if (syncResult.status === "success") {
+            syncOk = true;
+          } else if (syncResult.status === "offline") {
+            logger.warn(
+              `configCheckWiring: skill sync is offline for ${targetVersion}.`,
+            );
+          } else {
+            logger.error(
+              `configCheckWiring: skill sync returned ${syncResult.status}.`,
+            );
+          }
+        } catch (error: unknown) {
+          logger.error(
+            `configCheckWiring: skill sync failed: ${formatError(error)}`,
+          );
+        }
+      }
+    }
+
+    // Removals never depend on synced skill files, so they are applied on
+    // every cycle. Additions, updates and moves wait for a successful sync.
     try {
-      targetVersion = resolveSyncTargetVersion(
+      const reconcileResult = await reconcileFn(
         manifest,
-        previousManifest,
-        config.syncConfig.bundleName,
+        syncOk
+          ? config.reconcileConfig
+          : { ...config.reconcileConfig, removalsOnly: true },
       );
+
+      if (reconcileResult.status === "rolled_back") {
+        logger.error(
+          `configCheckWiring: reconcile rolled back: ${reconcileResult.error ?? "unknown error"}`,
+        );
+      } else if (reconcileResult.status === "error") {
+        logger.error(
+          `configCheckWiring: reconcile failed: ${reconcileResult.error ?? "unknown error"}`,
+        );
+      } else {
+        reconcileOk = true;
+      }
     } catch (error: unknown) {
       logger.error(
-        `configCheckWiring: ${formatError(error)}`,
+        `configCheckWiring: reconcile threw: ${formatError(error)}`,
       );
-      shouldAttemptReconcile = shouldReconcileForRevocation;
-    }
-
-    if (targetVersion === undefined) {
-      logger.warn(
-        "configCheckWiring: skipping skill sync because no target version could be resolved.",
-      );
-      shouldAttemptReconcile = shouldReconcileForRevocation;
-    } else {
-      try {
-        const syncResult = await syncSkillsFn({
-          ...config.syncConfig,
-          targetVersion,
-        });
-
-        if (syncResult.status === "offline") {
-          logger.warn(
-            `configCheckWiring: skill sync is offline for ${targetVersion}.`,
-          );
-          shouldAttemptReconcile = shouldReconcileForRevocation;
-        } else if (syncResult.status !== "success") {
-          logger.error(
-            `configCheckWiring: skill sync returned ${syncResult.status}.`,
-          );
-          shouldAttemptReconcile = false;
-        }
-      } catch (error: unknown) {
-        logger.error(
-          `configCheckWiring: skill sync failed: ${formatError(error)}`,
-        );
-        shouldAttemptReconcile = false;
-      }
-    }
-
-    if (shouldAttemptReconcile) {
-      try {
-        const reconcileResult = await reconcileFn(
-          manifest,
-          config.reconcileConfig,
-        );
-
-        if (reconcileResult.status === "rolled_back") {
-          logger.error(
-            `configCheckWiring: reconcile rolled back: ${reconcileResult.error ?? "unknown error"}`,
-          );
-        } else if (reconcileResult.status === "error") {
-          logger.error(
-            `configCheckWiring: reconcile failed: ${reconcileResult.error ?? "unknown error"}`,
-          );
-        }
-      } catch (error: unknown) {
-        logger.error(
-          `configCheckWiring: reconcile threw: ${formatError(error)}`,
-        );
-      }
     }
 
     try {
@@ -258,6 +213,14 @@ export function createConfigChangeHandler(
     }
 
     lastManifest = manifest;
+
+    if (!syncOk || !reconcileOk) {
+      // Rejecting tells the poller this manifest is not finished. The poller
+      // keeps the old content hash and calls this handler again next tick.
+      throw new Error(
+        `configCheckWiring: managed tooling update incomplete (skill sync ${syncOk ? "ok" : "failed"}, reconcile ${reconcileOk ? "ok" : "failed"}); will retry.`,
+      );
+    }
   };
 }
 
