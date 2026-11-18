@@ -28,7 +28,10 @@
   3. **Merged detection needs a commit made on the branch** (review finding 4), read from the branch's reflog subjects. A fresh branch, and a branch that was only fast-forwarded, rebased or reset, are not marked. The rule was chosen with a real git repository; see "What git really prints". No database column is added: the experiment shows a recorded creation commit could not tell the two cases apart either.
   4. The test code that the first version left as `// ...` is written out, and a new test file runs the real git binary.
   Part A (one worktree per session) was not challenged and is unchanged in design. All of the code in the Steps was run against the package's existing tests before this revision was published. See "What was run".
-- **Reviewed**: 2026-11-18 by an independent replay with real git. It executed cleanly and the full gates pass. Three items are open, one of them a relative-path case in which a failed removal is still reported as success. Read items 10–12 under "Independent replay of the revised plans" in `plans/README.md` before executing.
+- **Revised again**: 2026-11-18, after an independent replay of the first revision found three open items (items 10–12 under "Independent replay of the revised plans" in `plans/README.md`). What changed:
+  1. A relative worktree path is resolved against the repository before it is compared with git's listing, because that is how git read it (item 10). Before, a refused removal of such a worktree was reported as success.
+  2. `delete` without `force` no longer fails when the uncommitted-changes check cannot run, for example after the worktree folder was deleted by hand. Git decides instead. The check is skipped for a session that never had a worktree (item 11).
+  3. The maintenance notes state what an empty commit, a fast-forward from another branch, and the cost of detection mean for the merged rule (item 12).
 
 ## Why this matters
 
@@ -323,18 +326,19 @@ On 2026-11-18, outside the repository, in a copy of branch `fix/008-hermetic-rec
 
 - The unmodified package: 134 tests pass. The app's tests that use the session manager (`apps/desktop-companion/test/integration`, `test/acceptance` and `test/sidecar/sessionWiring.test.ts`, 156 tests, several of them with real git worktrees): all pass.
 - All source changes with the test files untouched: exactly the five tests named above fail. The 156 app tests still pass.
-- After all steps: 162 package tests pass, eight of them against the real git binary; the 156 app tests pass; `tsc --noEmit` over the whole workspace exits 0; coverage is 100% statements, branches, functions and lines for `sessionManager.ts`, `worktreeManager.ts` and `taskBranchStore.ts`.
-- Eight deliberate defects were put into the reference one at a time, among them the two the review found (verify with a listing that hides git failures; count any movement of the branch as work), plus: compare paths as plain strings, always pass `--force`, strip only the `*` prefix, drop the empty-path guard, skip the wait for a creation in flight, and force every delete. Each made at least one new test fail. The plain-string comparison failed two of the real-git tests on this machine, because its temp folder is under `/tmp`.
-- This plan was then replayed: a script took the code blocks from this file, applied them to a fresh copy as the Steps describe, and ran the tests after each step. Result: 134 tests pass after Step 1, 139 after Step 2; exactly the three named tests fail after Step 3; 148 pass after Step 4; exactly the two named tests fail after Step 5; 154 pass after Step 6 and 162 after Step 7; the 156 app tests pass; coverage is 100% for the three source files; and the seven resulting files were byte-identical to the reference.
+- After all steps: 167 package tests pass, ten of them against the real git binary; the 156 app tests pass; `tsc --noEmit` over the whole workspace exits 0; coverage is 100% statements, branches, functions and lines for `sessionManager.ts`, `worktreeManager.ts` and `taskBranchStore.ts`.
+- On a complete copy of the branch with these files in place: both typechecks exit 0, and `vitest run --coverage`, the command behind `pnpm coverage`, exits 0 with 147 test files, 2,353 tests and 100%.
+- Eleven deliberate defects were put into the reference one at a time, among them the two the outside review found (verify with a listing that hides git failures; count any movement of the branch as work) and the relative-path case from the independent replay. The others: compare paths as plain strings, always pass `--force`, strip only the `*` prefix, drop the empty-path guard, skip the wait for a creation in flight, force every delete, let a failed uncommitted-changes check stop the delete, and run that check for an empty worktree path. Each made at least one test fail. The plain-string comparison failed three of the real-git tests on this machine, because its temp folder is under `/tmp`.
+- This plan was then replayed: a script took the code blocks from this file, applied them to a fresh copy as the Steps describe, and ran the tests after each step. Result: 134 tests pass after Step 1, 139 after Step 2; exactly the three named tests fail after Step 3; 151 pass after Step 4; exactly the two named tests fail after Step 5; 157 pass after Step 6 and 167 after Step 7; and the seven resulting files were byte-identical to the reference.
 
-Not run: `pnpm coverage` over the whole repository; any git version other than 2.50.1; Linux or Windows; the code inside the real application (nothing in the UI reaches it yet).
+Not run: any git version other than 2.50.1; Linux or Windows; the code inside the real application (nothing in the UI reaches it yet).
 
 ## Commands you will need
 
 | Purpose | Command | Expected on success |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | exit 0 |
-| Package tests | `pnpm vitest run packages/session-manager` | all pass (134 before this plan, 162 after) |
+| Package tests | `pnpm vitest run packages/session-manager` | all pass (134 before this plan, 167 after) |
 | App tests that use the session manager | `pnpm vitest run apps/desktop-companion/test/integration apps/desktop-companion/test/acceptance apps/desktop-companion/test/sidecar/sessionWiring.test.ts` | all pass (156) |
 | Full coverage gate | `pnpm coverage` | exit 0, thresholds met |
 
@@ -363,7 +367,7 @@ Known flaky tests, unrelated to this plan: `apps/desktop-companion/test/ui/Sessi
 - The database schema. Do not add a column.
 - Deleting the `joyus/...` branch when a session is deleted. Only the worktree is removed; the branch keeps the user's commits. That is the current design.
 - `isWorktreeHealthy` in `worktreeManager.ts` and the function of the same name in `taskBranchStore.ts`. Both still compare paths as plain strings. See "Maintenance notes".
-- `hasUncommittedChanges` and the check before it in `delete`.
+- `hasUncommittedChanges` itself. Only the way `delete` uses it changes.
 - `sessionCloser.ts`, `gitPusher.ts`, `prCreator.ts`.
 - Any test under `apps/`. None needs to change.
 
@@ -706,7 +710,7 @@ In `test/sessionManager.test.ts`:
 
 ```ts
 import { realpath } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 import type { ExecGit } from "./taskBranchStore";
 
@@ -809,7 +813,12 @@ export function createWorktreeManager(
     worktreePath: string,
     repoPath: string,
   ): Promise<boolean> {
-    const wanted = await resolveLikeGit(worktreePath, resolveRealPath);
+    // Git ran inside `repoPath`, so a relative worktree path means what git
+    // took it to mean: relative to the repository, not to this process.
+    const wanted = await resolveLikeGit(
+      resolve(repoPath, worktreePath),
+      resolveRealPath,
+    );
     for (const listed of await listWorktreesStrict(repoPath)) {
       if ((await resolveLikeGit(listed, resolveRealPath)) === wanted) {
         return true;
@@ -905,13 +914,28 @@ export function createWorktreeManager(
 }
 ```
 
-What changed against the old file: `removeWorktree` takes the repository path and the caller's `force`; it returns at once for an empty path; after a failed removal it asks git, through `listWorktreesStrict`, whether the worktree is still registered, and throws the original error if it is or if that question fails. `resolveLikeGit` resolves symbolic links on both sides before comparing. `createWorktree`, `isWorktreeHealthy` and the public `listWorktrees` behave as before.
+What changed against the old file: `removeWorktree` takes the repository path and the caller's `force`; it returns at once for an empty path; after a failed removal it asks git, through `listWorktreesStrict`, whether the worktree is still registered, and throws the original error if it is or if that question fails. Before comparing, a relative worktree path is resolved against the repository, and `resolveLikeGit` resolves symbolic links on both sides. `createWorktree`, `isWorktreeHealthy` and the public `listWorktrees` behave as before.
 
-**3b.** In `src/sessionManager.ts`, in `delete`, replace the line `await this.worktreeManager.removeWorktree(branch.worktreePath);` with:
+**3b.** In `src/sessionManager.ts`, in `delete`, replace the uncommitted-changes check and the removal: everything from the line `    if (!opts.force) {` up to, but not including, the line `    this.store.softDelete(taskBranchId);`. Put this in their place:
 
 <!-- block: sm-delete-src -->
 
 ```ts
+    // A session whose worktree was never created has nothing to check.
+    if (!opts.force && branch.worktreePath !== "") {
+      let hasChanges = false;
+      try {
+        hasChanges = await this.hasUncommittedChanges(taskBranchId);
+      } catch {
+        // The check could not run, for example because the worktree folder
+        // was deleted by hand. Git decides below: without --force it refuses
+        // a worktree with modified or untracked files.
+      }
+      if (hasChanges) {
+        throw new UncommittedChangesError(taskBranchId);
+      }
+    }
+
     // The caller's choice is passed on: without force, git itself refuses to
     // remove a worktree with modified or untracked files, which also covers a
     // change made after the check above. If removal fails, this throws and the
@@ -921,11 +945,21 @@ What changed against the old file: `removeWorktree` takes the repository path an
     });
 ```
 
+The check still throws `UncommittedChangesError` when `git status` reports changes. Two things are new. A session stored with an empty worktree path skips the check. And when the check itself cannot run, `delete` goes on to the removal without `--force`, where git refuses a worktree with modified or untracked files.
+
 **Verify**: `pnpm typecheck` → exit 0. Then `pnpm vitest run packages/session-manager`: **exactly three tests must fail**: the two in `worktreeManager.test.ts` and the one in `sessionManager.test.ts` named in "Current state". If any other test fails, STOP.
 
 #### Step 4: Test Part B
 
-**4a.** In `test/worktreeManager.test.ts`, replace the whole `describe("removeWorktree", ...)` block (two tests) with:
+**4a.** In `test/worktreeManager.test.ts`, replace the first line, `import { join } from "node:path";`, with:
+
+<!-- block: wm-import -->
+
+```ts
+import { join, resolve } from "node:path";
+```
+
+Then replace the whole `describe("removeWorktree", ...)` block (two tests) with:
 
 <!-- block: wm-remove -->
 
@@ -1027,6 +1061,23 @@ describe("removeWorktree", () => {
     await expect(
       mgr.removeWorktree("/link/.joyus-worktrees/stuck", "/link", { force: true }),
     ).rejects.toThrow("locked");
+  });
+
+  it("takes a relative worktree path as relative to the repository, as git does", async () => {
+    // Git ran inside "repo", so for git this path is repo/repo/.joyus-worktrees/stuck.
+    const listedPath = resolve("repo", "repo/.joyus-worktrees/stuck");
+    const execGit: ExecGit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("contains modified or untracked files"))
+      .mockResolvedValueOnce({
+        stdout: `worktree ${resolve("repo")}\n\nworktree ${listedPath}\n\n`,
+        stderr: "",
+      });
+
+    const mgr = createWorktreeManager(execGit);
+    await expect(
+      mgr.removeWorktree("repo/.joyus-worktrees/stuck", "repo", { force: false }),
+    ).rejects.toThrow("contains modified or untracked files");
   });
 
   it("compares paths as given when nothing on the path can be resolved", async () => {
@@ -1145,11 +1196,48 @@ import { createWorktreeManager } from "../src/worktreeManager.js";
       expect(execGit).toHaveBeenNthCalledWith(2, ["worktree", "list", "--porcelain"], branch.repoPath);
       expect(store.softDelete).not.toHaveBeenCalled();
     });
+
+    it("lets git decide when the uncommitted-changes check cannot run", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // The worktree folder was deleted by hand, so git cannot start in it.
+      const execGit = vi.fn().mockRejectedValue(new Error("spawn git ENOENT"));
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: false },
+      );
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
+
+    it("skips the uncommitted-changes check for a session that never had a worktree", async () => {
+      const branch = makeBranch({ worktreePath: "", branchName: "", status: "broken" });
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // This git would report changes if it were asked.
+      const execGit = makeExecGit("M file.ts");
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(execGit).not.toHaveBeenCalled();
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith("", branch.repoPath, {
+        force: false,
+      });
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
 ```
 
-The third of these is the case the review asked for: the real worktree manager, with a git that fails both the removal and the listing.
+The third of these is the case the outside review asked for: the real worktree manager, with a git that fails both the removal and the listing. The last two cover a check that cannot run and a session that never had a worktree.
 
-**Verify**: `pnpm vitest run packages/session-manager` → 148 pass. The app tests command from "Commands you will need" → 156 pass. Commit (commit 2).
+**Verify**: `pnpm vitest run packages/session-manager` → 151 pass. The app tests command from "Commands you will need" → 156 pass. Commit (commit 2).
 
 ### Part C — merged detection
 
@@ -1370,7 +1458,7 @@ In `test/taskBranchStore.test.ts`, inside `describe("detectMerged")`:
   });
 ```
 
-**Verify**: `pnpm vitest run packages/session-manager` → 154 pass. Commit (commit 3).
+**Verify**: `pnpm vitest run packages/session-manager` → 157 pass. Commit (commit 3).
 
 ### Part D — the same checks against real git
 
@@ -1389,6 +1477,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { FileModificationDetector } from "../src/fileModificationDetector.js";
+import { SessionManager } from "../src/sessionManager.js";
 import { openTaskBranchStore } from "../src/taskBranchStore.js";
 import type { ExecGit, TaskBranchStore } from "../src/taskBranchStore.js";
 import { createWorktreeManager } from "../src/worktreeManager.js";
@@ -1578,10 +1668,63 @@ describe("removeWorktree against real git", () => {
     ).rejects.toThrow("contains modified or untracked files");
     expect(existsSync(worktree)).toBe(true);
   });
+
+  it("still sees a refused worktree when the stored paths are relative", async () => {
+    const previousCwd = process.cwd();
+    process.chdir(root);
+    try {
+      // What the worktree manager stores when the repository path is relative.
+      const worktree = join("repo", ".joyus-worktrees", "relative");
+      await execGit(["worktree", "add", "-q", "-b", "joyus/relative", worktree], "repo");
+      // Git ran inside the repository and took the path as relative to it.
+      const actual = join(repo, "repo", ".joyus-worktrees", "relative");
+      await writeFile(join(actual, "new.txt"), "not committed\n");
+
+      await expect(
+        createWorktreeManager(execGit).removeWorktree(worktree, "repo", { force: false }),
+      ).rejects.toThrow("contains modified or untracked files");
+      expect(existsSync(actual)).toBe(true);
+    } finally {
+      process.chdir(previousCwd);
+    }
+  });
+});
+
+describe("SessionManager.delete against real git", () => {
+  it("deletes a session without force after its worktree folder was deleted by hand", async () => {
+    const store = openTaskBranchStore(join(root, "sessions.db"));
+    try {
+      const worktree = await addSessionWorktree("handgone");
+      const created = store.create({
+        sessionId: "sess-handgone",
+        repoPath: repo,
+        worktreePath: worktree,
+        branchName: "joyus/handgone",
+        missionLabel: "handgone",
+        missionSource: "inferred",
+        mode: "managed",
+      });
+      const manager = new SessionManager(
+        store,
+        createWorktreeManager(execGit),
+        new FileModificationDetector(execGit, 10_000),
+        execGit,
+      );
+      await rm(worktree, { recursive: true, force: true });
+
+      await manager.delete(created.id, { force: false });
+
+      expect(store.findBySessionId("sess-handgone")).toBeUndefined();
+      const { stdout } = await execGit(["worktree", "list", "--porcelain"], repo);
+      expect(stdout).not.toContain(".joyus-worktrees/handgone");
+    } finally {
+      store.close();
+    }
+  });
 });
 ```
 
-**Verify**: `pnpm vitest run packages/session-manager` → 162 pass. If a test in the new file fails, STOP and report the test name, the assertion, and the output of `git --version`. Do not change an assertion to match what your git prints. Commit (commit 4).
+**Verify**: `pnpm vitest run packages/session-manager` → 167 pass. If a test in the new file fails, STOP and report the test name, the assertion, and the output of `git --version`. Do not change an assertion to match what your git prints. Commit (commit 4).
 
 ### Step 8: Run the full gates
 
@@ -1592,18 +1735,18 @@ Run `pnpm typecheck`, then `pnpm coverage`.
 ## Test plan
 
 - Part A (5 tests): two concurrent events create one worktree and one record; a waiting event retries after a failed creation; a failing event reaches `onError`; the default handler logs to stderr; the factory passes `onError` through.
-- Part B, worktree manager (8 tests, replacing 2): `--force` only when forced, inside the repository; an empty path calls nothing; an already-missing worktree is success; a worktree git still lists is an error; removal and listing both failing is an error; a resolved path is recognized; paths are compared as given when nothing resolves.
-- Part B, `delete` (3 new tests, 1 changed): `force:false` reaches the worktree manager; a failed removal does not mark the session deleted or stop polling; removal and listing both failing, through the real worktree manager, makes `delete` reject without marking the session deleted.
+- Part B, worktree manager (9 tests, replacing 2): `--force` only when forced, inside the repository; an empty path calls nothing; an already-missing worktree is success; a worktree git still lists is an error; removal and listing both failing is an error; a resolved path is recognized; a relative path is read as git read it; paths are compared as given when nothing resolves.
+- Part B, `delete` (5 new tests, 1 changed): `force:false` reaches the worktree manager; a failed removal does not mark the session deleted or stop polling; removal and listing both failing, through the real worktree manager, makes `delete` reject without marking the session deleted; a check that cannot run leaves the decision to git; a session without a worktree skips the check.
 - Part C (6 new tests, 2 changed): a `+`-prefixed branch with a commit is marked; an amended commit counts; a fresh branch is not marked; a branch that only moved (fast-forward, pull, rebase, reset, `switch -C`, cherry-pick fast-forward) is not marked; an empty reflog is not marked; an unreadable reflog is not marked and does not throw.
-- Part D (8 tests, real git): fresh branch; fast-forwarded without work; a real commit before and after a true merge; a real commit that was rebased and fast-forwarded into main; clean removal without force; a dirty worktree refused, then forced; a folder deleted by hand, removed twice; a refused worktree in a repository reached through a symbolic link.
-- Verification: `pnpm vitest run packages/session-manager` → 162 pass.
+- Part D (10 tests, real git): fresh branch; fast-forwarded without work; a real commit before and after a true merge; a real commit that was rebased and fast-forwarded into main; clean removal without force; a dirty worktree refused, then forced; a folder deleted by hand, removed twice; a refused worktree in a repository reached through a symbolic link; a refused worktree stored under relative paths; a session deleted without force after its folder was deleted by hand.
+- Verification: `pnpm vitest run packages/session-manager` → 167 pass.
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
 - [ ] `pnpm typecheck` exits 0
-- [ ] `pnpm vitest run packages/session-manager` exits 0 with 162 tests
+- [ ] `pnpm vitest run packages/session-manager` exits 0 with 167 tests
 - [ ] `pnpm vitest run apps/desktop-companion/test/integration apps/desktop-companion/test/acceptance apps/desktop-companion/test/sidecar/sessionWiring.test.ts` exits 0
 - [ ] `pnpm coverage` exits 0
 - [ ] `grep -c 'void this.onFileModification' packages/session-manager/src/sessionManager.ts` prints 0
@@ -1633,6 +1776,9 @@ What the merged rule still gets wrong, stated plainly:
 
 - **Work that was committed and then thrown away.** A branch that once had a commit, was then reset back to main, and so has nothing of its own, is listed by `--merged` and has a `commit` subject in its reflog. It is marked merged although nothing landed. Nothing is lost by that: the branch holds no work.
 - **Work that reached the branch without `git commit`.** A branch whose only changes came from `git cherry-pick`, `git revert`, `git am`, or a tool that moves the ref directly has no `commit` subject. It is never marked merged and stays active or stale. This is the cautious side: a session is never marked merged without evidence. Widening the rule to `cherry-pick:` needs care, because `cherry-pick: fast-forward` is a move.
+- **An empty commit counts as work.** `git commit --allow-empty` writes `commit: <message>`, so a branch with only an empty commit is marked merged once main has it. Measured.
+- **Work merged in from another branch does not count.** If the session branch is fast-forwarded to another branch that holds real work, its reflog says `merge <branch>: Fast-forward`. No commit was made on the session branch, so it is never marked merged. Measured.
+- **Cost at start-up.** Detection runs `git branch --merged HEAD` once per session and `git reflog show` once per session that is listed, one after another. The independent replay measured about one second for 40 sessions. Caching the first call per repository is an easy follow-up.
 - **Reflog expiry and disabled reflogs.** Git prunes reflog entries (90 days by default). A branch whose `commit` entries have expired, or a repository with `core.logAllRefUpdates=false`, is never marked merged.
 - **Squash and rebase merges by a hosting service.** `git branch --merged` does not list a branch that was squash-merged or rebased on the server. Those sessions stay active or stale. Detecting them needs the pull-request state, which `sessionCloser.ts` already tracks.
 - **"Merged into what".** The question is asked against `HEAD` of the main checkout, whatever branch that is. Unchanged by this plan.
@@ -1643,8 +1789,9 @@ About removal:
 - **If git cannot be asked, a session cannot be deleted.** When the removal fails and the listing fails too (the repository folder is gone, git is not installed, the disk is unreadable), `delete` rejects and the session stays. That is the point of review finding 3, and it means a session whose whole repository was deleted needs manual cleanup. Deciding that "repository folder missing" may count as "gone" is a small follow-up, not taken here.
 - **A locked worktree is not removed**, with or without `force`. Git wants `--force` twice for that. `delete` rejects with git's message.
 - **Without `force`, two things can refuse.** The check in `delete` throws `UncommittedChangesError` when `git status --porcelain` prints anything. If a file changes after that check, git itself refuses and `delete` rejects with git's message instead. Callers must handle both.
-- **Health checks still compare plain strings.** `isWorktreeHealthy` in `worktreeManager.ts` and its twin in `taskBranchStore.ts` look for the stored path in git's listing. For a repository under a symbolic link (every repository under `/tmp` on macOS) they report "not found". Found while revising this plan; recorded in `plans/README.md` as a follow-up.
-- **A broken session and a non-forced delete.** A session stored with `worktreePath: ""` makes the uncommitted-changes check run `git status` in the sidecar's own working directory. Found while revising this plan; recorded in `plans/README.md` as a follow-up. A forced delete of such a session works: `removeWorktree` returns at once for an empty path.
+- **Health checks still compare plain strings.** `isWorktreeHealthy` in `worktreeManager.ts` and its twin in `taskBranchStore.ts` look for the stored path in git's listing. For a repository under a symbolic link (every repository under `/tmp` on macOS) they report "not found". Recorded in `plans/README.md` as F21.
+- **Relative repository paths.** If a relative `repoPath` is ever stored, git creates the worktree relative to the repository, while the stored worktree path is relative to the process. This plan makes the removal check read the path as git does. It does not make the stored path point at the real folder, and nothing in the package rejects a relative `repoPath`.
+- **A check that cannot run is not an error any more.** When `git status` cannot run in the worktree, `delete` without `force` goes on and lets `git worktree remove` decide. If git is missing altogether, the removal fails too and `delete` rejects with that error.
 - **Session branches are kept.** Deleting a session removes its worktree, not its `joyus/...` branch.
 - **Not reachable from the UI yet.** The sidecar registers the session methods, but the Rust shell has no commands for them and nothing sends `session.fileModified`. When those are added, wire `onError` in `sessionWiring.ts` to the sidecar's error notification instead of relying on the stderr default.
 - Reviewer focus: no code path may start `onFileModification` without a `.catch`; `delete` must not call `softDelete` after a failed removal; `removeWorktree` must not resolve unless git removed the worktree or a successful listing shows it is gone; and `detectMerged` must not mark a branch without a `commit` subject in its reflog.
