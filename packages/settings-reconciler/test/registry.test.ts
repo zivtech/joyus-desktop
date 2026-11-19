@@ -241,4 +241,83 @@ describe("repairRegistry", () => {
     expect(reconciledMs).toBeGreaterThanOrEqual(before);
     expect(reconciledMs).toBeLessThanOrEqual(after);
   });
+
+  it("returns empty registry when the settings file holds JSON that is not an object", async () => {
+    const dir = await tmpDir();
+    const settingsPath = join(dir, "settings.json");
+    const fixedDate = new Date("2026-03-01T00:00:00.000Z");
+
+    for (const content of ["null", "[]", '"text"', "5"]) {
+      await writeFile(settingsPath, content, "utf8");
+
+      const registry = await repairRegistry(settingsPath, () => fixedDate);
+
+      expect(registry).toEqual({
+        schema_version: "1.0",
+        entries: {},
+        last_reconciled: fixedDate.toISOString(),
+      });
+    }
+  });
+
+  it("skips hook groups and sections that are not objects", async () => {
+    const dir = await tmpDir();
+    const settingsPath = join(dir, "settings.json");
+    const fixedDate = new Date("2026-03-01T00:00:00.000Z");
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [null, "text", ["joyus:in-a-list"], { matcher: "joyus:real", hooks: [] }],
+          SessionStart: "not-a-list",
+        },
+        mcpServers: ["joyus:in-a-list"],
+      }),
+      "utf8"
+    );
+    expect(Object.keys((await repairRegistry(settingsPath, () => fixedDate)).entries)).toEqual([
+      "hook:PreToolUse:joyus:real",
+    ]);
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({ hooks: null, mcpServers: { "joyus:mcp": { command: "node" } } }),
+      "utf8"
+    );
+    expect(Object.keys((await repairRegistry(settingsPath, () => fixedDate)).entries)).toEqual([
+      "mcp:joyus:mcp",
+    ]);
+  });
+});
+
+describe("readRegistry shape check", () => {
+  it("returns undefined for JSON that is not a registry", async () => {
+    const dir = await tmpDir();
+    const filePath = join(dir, "registry.json");
+    const wrongShapes = [
+      "{}",
+      "null",
+      "[]",
+      '"text"',
+      '{"entries":null}',
+      '{"entries":[]}',
+      '{"entries":{"hook:PreToolUse:joyus:test":null}}',
+      '{"entries":{"hook:PreToolUse:joyus:test":"text"}}',
+    ];
+
+    for (const content of wrongShapes) {
+      await writeFile(filePath, content, "utf8");
+      expect(await readRegistry(filePath)).toBeUndefined();
+    }
+  });
+
+  it("accepts a registry with no entries", async () => {
+    const dir = await tmpDir();
+    const filePath = join(dir, "registry.json");
+    const empty = { schema_version: "1.0", entries: {}, last_reconciled: "2026-01-01T00:00:00.000Z" };
+    await writeFile(filePath, JSON.stringify(empty), "utf8");
+
+    expect(await readRegistry(filePath)).toEqual(empty);
+  });
 });

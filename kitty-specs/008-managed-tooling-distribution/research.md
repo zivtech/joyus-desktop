@@ -15,6 +15,8 @@ Event types include: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionSt
 
 Matchers are glob patterns (e.g., `"*"`, `"Bash"`, `"Edit|Write|MultiEdit"`). Using `"joyus:<name>"` as the matcher pattern uniquely identifies managed hooks and won't collide with tool-name matchers used by user/plugin hooks.
 
+> **Superseded (plan 012, 2026-11).** The matcher is functional in Claude Code: on tool events it is compared with the tool name, so a hook whose matcher is `joyus:<name>` never runs there. Ownership is now recorded in the registry file as the event, matcher and command that were written. Managed hooks may use real matchers and are merged into the matching group beside the user's hooks. A command the user already had is never claimed. Groups with a `joyus:` matcher are still recognized as wholly managed.
+
 **Alternatives considered**: Single-value-per-event (rejected — format is arrays). Embedding managed hooks inside existing matcher groups (rejected — complicates merge and identification).
 
 ## R2: Atomic File Writes on macOS and Windows

@@ -49,7 +49,16 @@ interface SettingsUpdateResult {
   readonly backupPath: string | undefined;
   readonly changed: boolean;
   readonly existedBefore: boolean;
+  /** Registry keys of manifest hooks whose command the user already had. */
+  readonly userOwnedHookKeys: readonly string[];
 }
+
+const NO_SETTINGS_UPDATE: SettingsUpdateResult = {
+  backupPath: undefined,
+  changed: false,
+  existedBefore: false,
+  userOwnedHookKeys: [],
+};
 
 const HOOK_EVENT_TYPES: readonly HookEventType[] = [
   "PreToolUse",
@@ -104,65 +113,303 @@ function normalizeMcpRecord(value: unknown): Record<string, unknown> {
   return { ...value };
 }
 
+/** The timeout written when the manifest gives none. */
+const DEFAULT_HOOK_TIMEOUT = 5;
+
+function writtenTimeout(hook: ManifestHook): number {
+  return hook.timeout ?? DEFAULT_HOOK_TIMEOUT;
+}
+
 function buildCommandHook(hook: ManifestHook): Record<string, unknown> {
   return {
     type: "command",
     command: hook.command,
-    timeout: hook.timeout ?? 5,
+    timeout: writtenTimeout(hook),
   };
+}
+
+/**
+ * A hook command this tool wrote to a settings file on an earlier run, as
+ * recorded in the registry.
+ */
+export interface OwnedHook {
+  readonly event: string;
+  readonly matcher: string;
+  readonly command: string;
+  /** The timeout that was written. Absent in records made before it was stored. */
+  readonly timeout?: number;
+}
+
+const MANAGED_PREFIX = "joyus:";
+
+/**
+ * Groups whose matcher starts with the reserved prefix are wholly managed
+ * (the original layout): every hook in them is ours.
+ */
+function isLegacyManagedMatcher(matcher: string): boolean {
+  return matcher.startsWith(MANAGED_PREFIX);
+}
+
+function groupKey(event: string, matcher: string): string {
+  return JSON.stringify([event, matcher]);
+}
+
+function hookKey(event: string, matcher: string, command: string): string {
+  return JSON.stringify([event, matcher, command]);
+}
+
+function hookRegistryKey(hook: ManifestHook): string {
+  return `hook:${hook.event}:${hook.id}`;
+}
+
+/** A group this tool can read: an object with the given matcher and a hook list. */
+function isGroupFor(
+  group: unknown,
+  matcher: string
+): group is Record<string, unknown> & { hooks: unknown[] } {
+  return isRecord(group) && group["matcher"] === matcher && Array.isArray(group["hooks"]);
+}
+
+function hasCommand(entry: unknown, command: string): boolean {
+  return isRecord(entry) && entry["command"] === command;
+}
+
+/** True when the entry is exactly what this tool writes: these three keys and no others. */
+function isEntryAsWritten(entry: unknown, command: string, timeout: number | undefined): boolean {
+  return (
+    timeout !== undefined &&
+    isRecord(entry) &&
+    Object.keys(entry).length === 3 &&
+    entry["type"] === "command" &&
+    entry["command"] === command &&
+    entry["timeout"] === timeout
+  );
+}
+
+function replaceAt(list: readonly unknown[], index: number, value: unknown): unknown[] {
+  const next = list.slice();
+  next[index] = value;
+  return next;
+}
+
+interface EntryLocation {
+  readonly groupIndex: number;
+  readonly group: Record<string, unknown> & { hooks: unknown[] };
+  readonly entryIndex: number;
+}
+
+/**
+ * Finds the entry this tool wrote for `command` among the groups of one event
+ * that have `matcher`. The user may have added a copy of the same command
+ * anywhere in those groups, so position proves nothing: an entry that is
+ * exactly what was written (same timeout, no other keys) wins. Only when no
+ * entry is, or the written timeout is unknown, the first entry with the
+ * command is taken.
+ */
+function locateWrittenEntry(
+  eventGroups: readonly unknown[],
+  matcher: string,
+  command: string,
+  timeout: number | undefined
+): EntryLocation | undefined {
+  let firstWithCommand: EntryLocation | undefined;
+
+  for (const [groupIndex, group] of eventGroups.entries()) {
+    if (!isGroupFor(group, matcher)) {
+      continue;
+    }
+    for (const [entryIndex, entry] of group.hooks.entries()) {
+      if (!hasCommand(entry, command)) {
+        continue;
+      }
+      const location = { groupIndex, group, entryIndex };
+      if (isEntryAsWritten(entry, command, timeout)) {
+        return location;
+      }
+      firstWithCommand ??= location;
+    }
+  }
+
+  return firstWithCommand;
+}
+
+interface HookMergePlan {
+  readonly hooks: Record<string, unknown[]>;
+  /** Manifest hooks left alone because the user already had the identical command. */
+  readonly userOwned: readonly ManifestHook[];
+}
+
+function planHookMerge(
+  currentHooks: Record<string, unknown[]>,
+  manifestHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[]
+): HookMergePlan {
+  const original = normalizeHooksRecord(currentHooks);
+  const merged = normalizeHooksRecord(currentHooks);
+  // What this tool wrote for each owned command: from the registry at first,
+  // then from this run.
+  const written = new Map<string, number | undefined>(
+    ownedHooks.map((owned) => [hookKey(owned.event, owned.matcher, owned.command), owned.timeout])
+  );
+  const userOwned: ManifestHook[] = [];
+
+  for (const hook of manifestHooks) {
+    const eventGroups = merged[hook.event] ?? [];
+    const commandHook = buildCommandHook(hook);
+
+    if (isLegacyManagedMatcher(hook.matcher)) {
+      // A legacy managed group is replaced as a whole, exactly as before.
+      const legacyIndex = eventGroups.findIndex(
+        (group) => isRecord(group) && group["matcher"] === hook.matcher
+      );
+      const legacyGroup = { matcher: hook.matcher, hooks: [commandHook] };
+      merged[hook.event] =
+        legacyIndex === -1
+          ? [...eventGroups, legacyGroup]
+          : replaceAt(eventGroups, legacyIndex, legacyGroup);
+      continue;
+    }
+
+    const key = hookKey(hook.event, hook.matcher, hook.command);
+
+    // The identical command was in this group before this run and the registry
+    // does not say this tool wrote it: it is the user's. Leave it exactly as it
+    // is and do not claim it.
+    const userHadIt =
+      !written.has(key) &&
+      (original[hook.event] ?? []).some(
+        (group) =>
+          isGroupFor(group, hook.matcher) &&
+          group.hooks.some((entry) => hasCommand(entry, hook.command))
+      );
+    if (userHadIt) {
+      userOwned.push(hook);
+      continue;
+    }
+
+    // Ours already (from the registry, or added earlier in this run): refresh
+    // that one entry in place.
+    const ours = locateWrittenEntry(eventGroups, hook.matcher, hook.command, written.get(key));
+    written.set(key, writtenTimeout(hook));
+    if (ours !== undefined) {
+      merged[hook.event] = replaceAt(eventGroups, ours.groupIndex, {
+        ...ours.group,
+        hooks: replaceAt(ours.group.hooks, ours.entryIndex, commandHook),
+      });
+      continue;
+    }
+
+    // Not installed yet: join the user's group for this matcher, or start one.
+    const groupIndex = eventGroups.findIndex((group) => isGroupFor(group, hook.matcher));
+    const group = eventGroups[groupIndex];
+    merged[hook.event] = isGroupFor(group, hook.matcher)
+      ? replaceAt(eventGroups, groupIndex, { ...group, hooks: [...group.hooks, commandHook] })
+      : [...eventGroups, { matcher: hook.matcher, hooks: [commandHook] }];
+  }
+
+  return { hooks: merged, userOwned };
 }
 
 export function mergeHooks(
   currentHooks: Record<string, unknown[]>,
-  manifestHooks: readonly ManifestHook[]
+  manifestHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
 ): Record<string, unknown[]> {
-  const merged = normalizeHooksRecord(currentHooks);
-
-  for (const hook of manifestHooks) {
-    const eventGroups = merged[hook.event] ?? [];
-    const existingIndex = eventGroups.findIndex(
-      (group) => isRecord(group) && group["matcher"] === hook.matcher
-    );
-
-    const nextGroup = {
-      matcher: hook.matcher,
-      hooks: [buildCommandHook(hook)],
-    };
-
-    if (existingIndex === -1) {
-      merged[hook.event] = [...eventGroups, nextGroup];
-      continue;
-    }
-
-    const nextGroups = eventGroups.slice();
-    nextGroups[existingIndex] = nextGroup;
-    merged[hook.event] = nextGroups;
-  }
-
-  return merged;
+  return planHookMerge(currentHooks, manifestHooks, ownedHooks).hooks;
 }
 
-export function removeStaleHooks(
+/**
+ * Drops the legacy managed groups for which `dropLegacyGroup` says so, and
+ * from every other group the one entry this tool wrote for each command in
+ * `staleOwned`. Two records of the same command remove one entry: this tool
+ * wrote one.
+ */
+function filterHookGroups(
   currentHooks: Record<string, unknown[]>,
-  activeIds: ReadonlySet<string>
+  dropLegacyGroup: (event: string, matcher: string) => boolean,
+  staleOwned: readonly OwnedHook[]
 ): Record<string, unknown[]> {
+  const hooks = normalizeHooksRecord(currentHooks);
+
+  // Decide first which entries go, so that removing one cannot shift another.
+  const dropped = new Set<string>();
+  for (const owned of staleOwned) {
+    const ours = locateWrittenEntry(
+      hooks[owned.event] ?? [],
+      owned.matcher,
+      owned.command,
+      owned.timeout
+    );
+    if (ours !== undefined) {
+      dropped.add(JSON.stringify([owned.event, ours.groupIndex, ours.entryIndex]));
+    }
+  }
+
   const nextHooks: Record<string, unknown[]> = {};
 
-  for (const [event, groups] of Object.entries(normalizeHooksRecord(currentHooks))) {
-    const filteredGroups = groups.filter((group) => {
+  for (const [event, groups] of Object.entries(hooks)) {
+    const nextGroups: unknown[] = [];
+
+    for (const [groupIndex, group] of groups.entries()) {
       if (!isRecord(group) || typeof group["matcher"] !== "string") {
-        return true;
+        nextGroups.push(group);
+        continue;
       }
 
-      return !group["matcher"].startsWith("joyus:") || activeIds.has(group["matcher"]);
-    });
+      const matcher = group["matcher"];
 
-    if (filteredGroups.length > 0) {
-      nextHooks[event] = filteredGroups;
+      if (isLegacyManagedMatcher(matcher)) {
+        if (!dropLegacyGroup(event, matcher)) {
+          nextGroups.push(group);
+        }
+        continue;
+      }
+
+      if (!isGroupFor(group, matcher)) {
+        nextGroups.push(group);
+        continue;
+      }
+
+      const keptHooks = group.hooks.filter(
+        (_entry, entryIndex) => !dropped.has(JSON.stringify([event, groupIndex, entryIndex]))
+      );
+
+      if (keptHooks.length === group.hooks.length) {
+        // Nothing of ours to remove: keep the same object.
+        nextGroups.push(group);
+      } else if (keptHooks.length > 0) {
+        nextGroups.push({ ...group, hooks: keptHooks });
+      }
+      // Otherwise every hook in the group was ours and is stale: drop the group.
+    }
+
+    if (nextGroups.length > 0) {
+      nextHooks[event] = nextGroups;
     }
   }
 
   return nextHooks;
+}
+
+export function removeStaleHooks(
+  currentHooks: Record<string, unknown[]>,
+  activeHooks: readonly ManifestHook[],
+  ownedHooks: readonly OwnedHook[] = []
+): Record<string, unknown[]> {
+  // A legacy group stays only while the manifest lists it under the same event.
+  const activeGroups = new Set(activeHooks.map((hook) => groupKey(hook.event, hook.matcher)));
+  const activeKeys = new Set(
+    activeHooks.map((hook) => hookKey(hook.event, hook.matcher, hook.command))
+  );
+  const staleOwned = ownedHooks.filter(
+    (owned) => !activeKeys.has(hookKey(owned.event, owned.matcher, owned.command))
+  );
+
+  return filterHookGroups(
+    currentHooks,
+    (event, matcher) => !activeGroups.has(groupKey(event, matcher)),
+    staleOwned
+  );
 }
 
 export function mergeMcpServers(
@@ -232,12 +479,35 @@ function collectAllMcpServers(manifest: DistributionManifest): ManifestMcpServer
   return Object.values(manifest.bundles).flatMap((bundle) => [...(bundle.mcpServers ?? [])]);
 }
 
-function buildActiveHookIds(hooks: readonly ManifestHook[]): ReadonlySet<string> {
-  return new Set(hooks.map((hook) => hook.matcher));
-}
-
 function buildActiveMcpIds(servers: readonly ManifestMcpServer[]): ReadonlySet<string> {
   return new Set(servers.map((server) => server.id));
+}
+
+function collectOwnedHooks(registry: ManagedRegistry, target: SettingsTarget): OwnedHook[] {
+  const owned: OwnedHook[] = [];
+
+  for (const entry of Object.values(registry.entries)) {
+    if (
+      entry.type === "hook" &&
+      entry.target === target &&
+      entry.event !== undefined &&
+      entry.matcher !== undefined &&
+      entry.command !== undefined
+    ) {
+      owned.push(
+        entry.timeout === undefined
+          ? { event: entry.event, matcher: entry.matcher, command: entry.command }
+          : {
+              event: entry.event,
+              matcher: entry.matcher,
+              command: entry.command,
+              timeout: entry.timeout,
+            }
+      );
+    }
+  }
+
+  return owned;
 }
 
 function scanManagedEntries(
@@ -310,22 +580,40 @@ async function repairRegistryFromSettings(
 function buildNewRegistry(
   manifest: DistributionManifest,
   currentRegistry: ManagedRegistry,
-  now: () => Date
+  now: () => Date,
+  userOwnedHookKeys: ReadonlySet<string>
 ): ManagedRegistry {
   const reconciledAt = now().toISOString();
   const entries: Record<string, RegistryEntry> = {};
 
   for (const [bundleName, bundle] of Object.entries(manifest.bundles)) {
     for (const hook of bundle.hooks ?? []) {
-      const key = `hook:${hook.event}:${hook.matcher}`;
-      entries[key] = {
-        type: "hook",
-        bundle: bundleName,
-        manifest_version: bundle.version,
-        event: hook.event,
-        target: resolveTarget(hook.target),
-        installed_at: currentRegistry.entries[key]?.installed_at ?? reconciledAt,
-      };
+      const key = hookRegistryKey(hook);
+      const target = resolveTarget(hook.target);
+      const installedAt = currentRegistry.entries[key]?.installed_at ?? reconciledAt;
+      // No command is recorded for a hook the user already had: the registry
+      // lists the hook, but does not own the entry in settings.
+      entries[key] = userOwnedHookKeys.has(key)
+        ? {
+            type: "hook",
+            bundle: bundleName,
+            manifest_version: bundle.version,
+            event: hook.event,
+            matcher: hook.matcher,
+            target,
+            installed_at: installedAt,
+          }
+        : {
+            type: "hook",
+            bundle: bundleName,
+            manifest_version: bundle.version,
+            event: hook.event,
+            matcher: hook.matcher,
+            command: hook.command,
+            timeout: writtenTimeout(hook),
+            target,
+            installed_at: installedAt,
+          };
     }
 
     for (const server of bundle.mcpServers ?? []) {
@@ -353,6 +641,9 @@ function registryEntryEquals(left: RegistryEntry, right: RegistryEntry): boolean
     left.bundle === right.bundle &&
     left.manifest_version === right.manifest_version &&
     left.event === right.event &&
+    left.matcher === right.matcher &&
+    left.command === right.command &&
+    left.timeout === right.timeout &&
     left.target === right.target &&
     left.installed_at === right.installed_at
   );
@@ -412,6 +703,7 @@ async function reconcileSettingsTarget(options: {
   now: () => Date;
   hooks: readonly ManifestHook[];
   mcps: readonly ManifestMcpServer[];
+  ownedHooks: readonly OwnedHook[];
 }): Promise<SettingsUpdateResult> {
   const currentSettings = await readSettingsFileStrict(options.settingsPath);
   const currentHooksValue = currentSettings["hooks"];
@@ -419,10 +711,9 @@ async function reconcileSettingsTarget(options: {
   const currentHooks = normalizeHooksRecord(currentHooksValue);
   const currentMcpServers = normalizeMcpRecord(currentMcpValue);
 
-  const nextHooks = removeStaleHooks(
-    mergeHooks(currentHooks, options.hooks),
-    buildActiveHookIds(options.hooks)
-  );
+  const hookPlan = planHookMerge(currentHooks, options.hooks, options.ownedHooks);
+  const userOwnedHookKeys = hookPlan.userOwned.map(hookRegistryKey);
+  const nextHooks = removeStaleHooks(hookPlan.hooks, options.hooks, options.ownedHooks);
   const nextMcpServers = removeStaleMcpServers(
     mergeMcpServers(currentMcpServers, options.mcps),
     buildActiveMcpIds(options.mcps)
@@ -451,11 +742,7 @@ async function reconcileSettingsTarget(options: {
   }
 
   if (settingsEqual(currentSettings, nextSettings)) {
-    return {
-      backupPath: undefined,
-      changed: false,
-      existedBefore: false,
-    };
+    return { ...NO_SETTINGS_UPDATE, userOwnedHookKeys };
   }
 
   const backupPath = await createSettingsBackup(
@@ -471,6 +758,7 @@ async function reconcileSettingsTarget(options: {
     backupPath,
     changed: true,
     existedBefore: backupPath !== undefined,
+    userOwnedHookKeys,
   };
 }
 
@@ -520,27 +808,21 @@ export async function reconcile(
   const maxBackups = config?.maxBackups ?? 5;
   const now = config?.now ?? (() => new Date());
 
-  const currentRegistry =
-    (await readRegistry(registryPath)) ??
-    (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
-
   const partition = partitionByTarget(
     collectAllHooks(manifest),
     collectAllMcpServers(manifest)
   );
 
-  let globalUpdate: SettingsUpdateResult = {
-    backupPath: undefined,
-    changed: false,
-    existedBefore: false,
-  };
-  let projectUpdate: SettingsUpdateResult = {
-    backupPath: undefined,
-    changed: false,
-    existedBefore: false,
-  };
+  let globalUpdate = NO_SETTINGS_UPDATE;
+  let projectUpdate = NO_SETTINGS_UPDATE;
 
   try {
+    // Inside the try: a failure while rebuilding a lost registry must end in
+    // "rolled_back", not in a rejected promise.
+    const currentRegistry =
+      (await readRegistry(registryPath)) ??
+      (await repairRegistryFromSettings(globalSettingsPath, projectSettingsPath, now));
+
     globalUpdate = await reconcileSettingsTarget({
       settingsPath: globalSettingsPath,
       backupDir: join(backupDir, "global"),
@@ -548,6 +830,7 @@ export async function reconcile(
       now,
       hooks: partition.global.hooks,
       mcps: partition.global.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "global"),
     });
 
     projectUpdate = await reconcileSettingsTarget({
@@ -557,9 +840,15 @@ export async function reconcile(
       now,
       hooks: partition.project.hooks,
       mcps: partition.project.mcps,
+      ownedHooks: collectOwnedHooks(currentRegistry, "project"),
     });
 
-    const nextRegistry = buildNewRegistry(manifest, currentRegistry, now);
+    const nextRegistry = buildNewRegistry(
+      manifest,
+      currentRegistry,
+      now,
+      new Set([...globalUpdate.userOwnedHookKeys, ...projectUpdate.userOwnedHookKeys])
+    );
     const counts = computeCounts(currentRegistry, nextRegistry);
 
     await writeRegistry(registryPath, nextRegistry);
