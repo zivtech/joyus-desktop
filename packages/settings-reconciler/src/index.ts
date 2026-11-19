@@ -22,11 +22,13 @@ export {
   reconcile,
   mergeHooks,
   removeStaleHooks,
+  removeRevokedHooks,
   mergeMcpServers,
   removeStaleMcpServers,
+  removeRevokedMcpServers,
   partitionByTarget,
 } from "./reconciler.js";
 
-export type { OwnedHook, ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
+export type { HookGroupRef, OwnedHook, ReconcileConfig, ReconcileResult, ReconcileStatus } from "./reconciler.js";
 
 export * from "./tenantConfig";

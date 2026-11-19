@@ -765,10 +765,171 @@ describe("createConfigChangeHandler integration", () => {
     expect(Object.keys(registry.entries)).toEqual(["mcp:joyus:bundle-b-mcp"]);
     expect(registry.entries["mcp:joyus:bundle-b-mcp"]?.bundle).toBe("bundle-b");
   });
+
+  it("removes a revoked server while sync is locked, keeps one whose target changed, and finishes once sync succeeds", async () => {
+    const workspace = await createWorkspace();
+    const reconcileConfig = {
+      globalSettingsPath: workspace.globalSettingsPath,
+      projectSettingsPath: workspace.projectSettingsPath,
+      registryPath: workspace.registryPath,
+      backupDir: workspace.backupDir,
+      now: () => FIXED_NOW,
+    };
+    const success = {
+      status: "success",
+      filesUpdated: 1,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      version: "v1.0.0",
+      noop: false,
+    };
+    const locked = {
+      status: "locked",
+      filesUpdated: 0,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      noop: true,
+    };
+    const syncSkillsFn = vi
+      .fn()
+      .mockResolvedValueOnce(success)
+      .mockResolvedValueOnce(locked)
+      .mockResolvedValueOnce(success);
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: workspace.skillsDir,
+        cacheDir: workspace.cacheDir,
+      },
+      reconcileConfig,
+      syncSkillsFn,
+    });
+    const server = (id: string, target: "global" | "project") => ({
+      id,
+      command: "node",
+      args: [`${id}.mjs`],
+      target,
+    });
+
+    // Cycle 1, sync works: two servers are installed in the global file.
+    await handler(
+      createManifest(workspace, {
+        bundles: {
+          core: {
+            version: "v1.0.0",
+            mcpServers: [server("joyus:stays", "global"), server("joyus:revoked", "global")],
+          },
+        },
+      }),
+    );
+
+    // Cycle 2, sync is locked: one server is dropped, the other changes target
+    // and a new one appears.
+    const next = createManifest(workspace, {
+      bundles: {
+        core: {
+          version: "v1.0.0",
+          mcpServers: [server("joyus:stays", "project"), server("joyus:added", "global")],
+        },
+      },
+    });
+    await expect(handler(next)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+
+    // Only the revocation was applied. Nothing moved, nothing was added.
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:stays": { command: "node", args: ["joyus:stays.mjs"] } },
+    });
+    await expect(readFile(workspace.projectSettingsPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+
+    // Cycle 3, the poller retries the same manifest and sync works again.
+    await expect(handler(next)).resolves.toBeUndefined();
+
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({
+      mcpServers: { "joyus:added": { command: "node", args: ["joyus:added.mjs"] } },
+    });
+    expect(await readJson(workspace.projectSettingsPath)).toEqual({
+      mcpServers: { "joyus:stays": { command: "node", args: ["joyus:stays.mjs"] } },
+    });
+  });
+
+  it("applies a revocation in the global file when sync is locked and the project file is broken", async () => {
+    const workspace = await createWorkspace();
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
+    const success = {
+      status: "success",
+      filesUpdated: 1,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      version: "v1.0.0",
+      noop: false,
+    };
+    const locked = {
+      status: "locked",
+      filesUpdated: 0,
+      metadataPath: join(workspace.skillsDir, ".sync-metadata.json"),
+      noop: true,
+    };
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: workspace.skillsDir,
+        cacheDir: workspace.cacheDir,
+      },
+      reconcileConfig: {
+        globalSettingsPath: workspace.globalSettingsPath,
+        projectSettingsPath: workspace.projectSettingsPath,
+        registryPath: workspace.registryPath,
+        backupDir: workspace.backupDir,
+        now: () => FIXED_NOW,
+      },
+      logger,
+      syncSkillsFn: vi.fn().mockResolvedValueOnce(success).mockResolvedValueOnce(locked),
+    });
+    const server = (id: string, target: "global" | "project") => ({
+      id,
+      command: "node",
+      args: [`${id}.mjs`],
+      target,
+    });
+
+    // Cycle 1, sync works: one server in each settings file.
+    await handler(
+      createManifest(workspace, {
+        bundles: {
+          core: {
+            version: "v1.0.0",
+            mcpServers: [server("joyus:in-global", "global"), server("joyus:in-project", "project")],
+          },
+        },
+      }),
+    );
+
+    // The project file is damaged, and the next manifest revokes both servers.
+    await writeFile(workspace.projectSettingsPath, "{ broken", "utf8");
+    await expect(
+      handler(createManifest(workspace, { bundles: { core: { version: "v1.0.0" } } })),
+    ).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile failed)");
+
+    // The global revocation landed. The damaged file was left alone and is reported.
+    expect(await readJson(workspace.globalSettingsPath)).toEqual({});
+    expect(await readFile(workspace.projectSettingsPath, "utf8")).toBe("{ broken");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining("configCheckWiring: reconcile failed: "),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining(workspace.projectSettingsPath),
+    );
+  });
 });
 
 describe("createConfigChangeHandler failure isolation", () => {
-  it("skips reconcile on offline sync when there is no revocation, but still writes tenant config", async () => {
+  it("runs a removals-only reconcile when sync is offline, writes tenant config, and rejects so the poller retries", async () => {
     const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
     const resolveConfigPathFn = vi.fn().mockReturnValue("/tmp/from-manifest.json");
     const writeTenantConfigFn = vi.fn().mockResolvedValue(undefined);
@@ -793,7 +954,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn,
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -802,9 +963,10 @@ describe("createConfigChangeHandler failure isolation", () => {
           config: { enabled: true },
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
 
-    expect(reconcileFn).not.toHaveBeenCalled();
+    expect(reconcileFn).toHaveBeenCalledOnce();
+    expect(reconcileFn).toHaveBeenCalledWith(expect.anything(), { removalsOnly: true });
     expect(resolveConfigPathFn).not.toHaveBeenCalled();
     expect(writeTenantConfigFn).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -863,7 +1025,7 @@ describe("createConfigChangeHandler failure isolation", () => {
     expect(writeTenantConfigFn).toHaveBeenCalledOnce();
   });
 
-  it("treats managed entry removal within the same bundle as a revocation", async () => {
+  it("applies an entry removal within a bundle through a removals-only reconcile when sync is offline", async () => {
     const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
 
     const handler = createConfigChangeHandler({
@@ -901,7 +1063,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -910,9 +1072,10 @@ describe("createConfigChangeHandler failure isolation", () => {
           hooks: [],
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
 
     expect(reconcileFn).toHaveBeenCalledOnce();
+    expect(reconcileFn).toHaveBeenCalledWith(expect.anything(), { removalsOnly: true });
   });
 
   it("compares manifests correctly when bundles only define MCP servers", async () => {
@@ -972,7 +1135,7 @@ describe("createConfigChangeHandler failure isolation", () => {
     expect(reconcileFn).toHaveBeenCalledOnce();
   });
 
-  it("reconciles an initial empty manifest when no target version can be resolved", async () => {
+  it("reconciles an initial empty manifest without attempting a sync", async () => {
     const logger = {
       error: vi.fn(),
       warn: vi.fn(),
@@ -997,9 +1160,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       bundles: {},
     });
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      "configCheckWiring: skipping skill sync because no target version could be resolved.",
-    );
+    expect(logger.warn).not.toHaveBeenCalled();
     expect(reconcileFn).toHaveBeenCalledOnce();
     expect(writeTenantConfigFn).toHaveBeenCalledOnce();
   });
@@ -1033,7 +1194,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn,
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1042,7 +1203,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           config: { enabled: true },
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile failed)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: skill sync returned locked.",
@@ -1081,7 +1242,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1089,7 +1250,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync ok, reconcile failed)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: reconcile rolled back: rollback",
@@ -1121,7 +1282,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await rolledBackHandler({
+    await expect(rolledBackHandler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1129,7 +1290,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync ok, reconcile failed)");
 
     const errorHandler = createConfigChangeHandler({
       syncConfig: {
@@ -1150,7 +1311,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await errorHandler({
+    await expect(errorHandler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1158,7 +1319,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync ok, reconcile failed)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: reconcile rolled back: unknown error",
@@ -1188,7 +1349,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn,
     });
 
-    await throwingHandler({
+    await expect(throwingHandler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1196,7 +1357,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile failed)");
 
     const errorStatusHandler = createConfigChangeHandler({
       syncConfig: {
@@ -1221,7 +1382,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn,
     });
 
-    await errorStatusHandler({
+    await expect(errorStatusHandler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1229,7 +1390,7 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync ok, reconcile failed)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: skill sync failed: git exploded",
@@ -1264,7 +1425,7 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
@@ -1272,14 +1433,14 @@ describe("createConfigChangeHandler failure isolation", () => {
           version: "v1.0.0",
         },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync ok, reconcile failed)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: reconcile threw: reconcile exploded",
     );
   });
 
-  it("logs ambiguous version resolution and skips reconcile unless the manifest is a revocation", async () => {
+  it("logs ambiguous version resolution, runs a removals-only reconcile, and rejects", async () => {
     const logger = {
       error: vi.fn(),
       warn: vi.fn(),
@@ -1297,14 +1458,14 @@ describe("createConfigChangeHandler failure isolation", () => {
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
-    await handler({
+    await expect(handler({
       schema_version: "1.0",
       tenant_id: "tenant-1",
       bundles: {
         "bundle-a": { version: "v1.0.0" },
         "bundle-b": { version: "v2.0.0" },
       },
-    });
+    })).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
 
     expect(logger.error).toHaveBeenCalledWith(
       "configCheckWiring: Unable to resolve skill-sync target version from manifest with multiple bundle versions; configure bundleName explicitly.",
@@ -1312,10 +1473,11 @@ describe("createConfigChangeHandler failure isolation", () => {
     expect(logger.warn).toHaveBeenCalledWith(
       "configCheckWiring: skipping skill sync because no target version could be resolved.",
     );
-    expect(reconcileFn).not.toHaveBeenCalled();
+    expect(reconcileFn).toHaveBeenCalledOnce();
+    expect(reconcileFn).toHaveBeenCalledWith(expect.anything(), { removalsOnly: true });
   });
 
-  it("uses the default logger and non-Error string formatting paths without throwing", async () => {
+  it("uses the default logger and non-Error string formatting paths", async () => {
     const handler = createConfigChangeHandler({
       syncConfig: {
         repoUrl: "file:///repo.git",
@@ -1324,6 +1486,7 @@ describe("createConfigChangeHandler failure isolation", () => {
         cacheDir: "/tmp/cache",
       },
       syncSkillsFn: vi.fn().mockRejectedValue("string failure"),
+      reconcileFn: vi.fn().mockResolvedValue(createReconcileResult()),
       writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
     });
 
@@ -1337,7 +1500,297 @@ describe("createConfigChangeHandler failure isolation", () => {
           },
         },
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("managed tooling update incomplete (skill sync failed, reconcile ok)");
+  });
+
+  it("applies revocations when sync is locked, with no previous manifest in memory", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn: vi.fn().mockResolvedValue({
+        status: "locked",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        noop: true,
+      }),
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { core: { version: "v1.0.0" } },
+    };
+
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok); will retry.",
+    );
+    expect(reconcileFn).toHaveBeenCalledWith(manifest, { removalsOnly: true });
+  });
+
+  it("passes the configured reconcile paths through in removals-only mode", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      reconcileConfig: { registryPath: "/tmp/registry.json" },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn: vi.fn().mockRejectedValue(new Error("git unreachable")),
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await expect(
+      handler({
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      }),
+    ).rejects.toThrow("managed tooling update incomplete");
+    expect(reconcileFn).toHaveBeenCalledWith(expect.anything(), {
+      registryPath: "/tmp/registry.json",
+      removalsOnly: true,
+    });
+  });
+
+  it("resolves and reconciles fully once sync succeeds", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: "offline",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: true,
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        filesUpdated: 1,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: false,
+      });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { core: { version: "v1.0.0" } },
+    };
+
+    // First cycle: offline, so removals only, and the handler rejects.
+    await expect(handler(manifest)).rejects.toThrow("managed tooling update incomplete");
+    // The poller calls again with the same manifest: now a full reconcile.
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    expect(reconcileFn).toHaveBeenNthCalledWith(1, manifest, { removalsOnly: true });
+    expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
+  });
+
+  it("syncs the earlier version of the configured bundle when the new manifest drops that bundle but keeps others", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi.fn().mockResolvedValue({
+      status: "success",
+      filesUpdated: 0,
+      metadataPath: "/tmp/meta.json",
+      version: "v1.0.0",
+      noop: true,
+    });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    expect(syncSkillsFn).toHaveBeenCalledWith(
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenCalledWith(manifest, undefined);
+  });
+
+  it("keeps retrying when the configured bundle is missing and no earlier manifest is known", async () => {
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi.fn();
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      logger,
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "configCheckWiring: skipping skill sync because no target version could be resolved.",
+    );
+    expect(syncSkillsFn).not.toHaveBeenCalled();
+    expect(reconcileFn).toHaveBeenCalledWith(manifest, { removalsOnly: true });
+  });
+
+  it("retries the sync with the earlier version after a failed sync in the cycle that dropped the configured bundle", async () => {
+    const reconcileFn = vi.fn().mockResolvedValue(createReconcileResult());
+    const syncSkillsFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: "offline",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: true,
+      })
+      .mockResolvedValueOnce({
+        status: "success",
+        filesUpdated: 0,
+        metadataPath: "/tmp/meta.json",
+        version: "v1.0.0",
+        noop: true,
+      });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    // The new manifest drops the configured bundle and keeps another one.
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    // First cycle: sync is offline, so removals only, and the handler rejects.
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync failed, reconcile ok)",
+    );
+    // The poller calls again with the same manifest. The earlier manifest is
+    // still the one that had the configured bundle, so sync is tried again.
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    expect(syncSkillsFn).toHaveBeenCalledTimes(2);
+    expect(syncSkillsFn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenNthCalledWith(1, manifest, { removalsOnly: true });
+    expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
+  });
+
+  it("keeps the earlier manifest when sync worked but reconcile did not finish", async () => {
+    const reconcileFn = vi
+      .fn()
+      .mockResolvedValueOnce(createReconcileResult("rolled_back", "/tmp/registry.json", "disk full"))
+      .mockResolvedValueOnce(createReconcileResult());
+    const syncSkillsFn = vi.fn().mockResolvedValue({
+      status: "success",
+      filesUpdated: 0,
+      metadataPath: "/tmp/meta.json",
+      version: "v1.0.0",
+      noop: true,
+    });
+    const handler = createConfigChangeHandler({
+      syncConfig: {
+        repoUrl: "file:///repo.git",
+        bundleName: "core",
+        destDir: "/tmp/skills",
+        cacheDir: "/tmp/cache",
+      },
+      initialManifest: {
+        schema_version: "1.0",
+        tenant_id: "tenant-1",
+        bundles: { core: { version: "v1.0.0" } },
+      },
+      tenantConfigPath: "/tmp/tenant-config.json",
+      syncSkillsFn,
+      reconcileFn,
+      writeTenantConfigFn: vi.fn().mockResolvedValue(undefined),
+    });
+    const manifest = {
+      schema_version: "1.0",
+      tenant_id: "tenant-1",
+      bundles: { other: { version: "v2.0.0" } },
+    };
+
+    await expect(handler(manifest)).rejects.toThrow(
+      "managed tooling update incomplete (skill sync ok, reconcile failed)",
+    );
+    await expect(handler(manifest)).resolves.toBeUndefined();
+
+    // Both cycles could still resolve the version from the earlier manifest.
+    expect(syncSkillsFn).toHaveBeenCalledTimes(2);
+    expect(syncSkillsFn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ targetVersion: "v1.0.0" }),
+    );
+    expect(reconcileFn).toHaveBeenNthCalledWith(2, manifest, undefined);
   });
 });
 
