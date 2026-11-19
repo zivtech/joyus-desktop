@@ -21,10 +21,17 @@ import {
   vi,
   beforeEach,
   afterEach,
+  afterAll,
   type MockInstance,
 } from "vitest";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, rmSync, existsSync as realExistsSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  readdirSync,
+  statSync,
+  existsSync as mockedExistsSync,
+} from "node:fs";
 import { readFile, writeFile, mkdir, symlink, writeFile as realWriteFile } from "node:fs/promises";
 import { promises as mockedFsPromises } from "node:fs";
 import { execSync } from "node:child_process";
@@ -55,6 +62,16 @@ vi.mock("node:child_process", async (importOriginal) => {
   };
 });
 
+const homedirBox = vi.hoisted(() => ({ value: "" }));
+
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>();
+  return {
+    ...actual,
+    homedir: () => homedirBox.value,
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Mock version-gate so tests can control autoSyncIfNeeded / checkVersion
 // without real filesystem access (readPinnedVersion reads distribution-config.json).
@@ -73,6 +90,24 @@ vi.mock("../../src/sidecar/version-gate", () => vgMock);
 
 import { registerReconMethods } from "../../src/sidecar/recon";
 import type { IpcHandler, MethodHandler } from "../../src/sidecar/ipc-handler";
+
+// Every test in this file sees this temp directory as the home directory, so
+// no code path can reach the real ~/Documents/joyus-recon-engagements.
+const FAKE_HOME = mkdtempSync(path.join(os.tmpdir(), "recon-fake-home-"));
+homedirBox.value = FAKE_HOME;
+const FAKE_DEFAULT_ROOT = path.join(FAKE_HOME, "Documents", "joyus-recon-engagements");
+
+/** True existence check. `existsSync` is mocked to always return true in this file. */
+function pathExists(target: string): boolean {
+  return statSync(target, { throwIfNoEntry: false }) !== undefined;
+}
+
+afterAll(() => {
+  const leftovers = pathExists(FAKE_DEFAULT_ROOT) ? readdirSync(FAKE_DEFAULT_ROOT) : [];
+  rmSync(FAKE_HOME, { recursive: true, force: true });
+  // A test that used the default root must clean up what it created there.
+  expect(leftovers).toEqual([]);
+});
 
 // ---------------------------------------------------------------------------
 // IPC test harness
@@ -139,9 +174,7 @@ function makeTempDir(): string {
 }
 
 function removeTempDir(dir: string): void {
-  if (realExistsSync(dir)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  rmSync(dir, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -218,23 +251,16 @@ function resolveCleanChild(fakeChild: FakeChild): void {
 
 describe("slugify (via recon.create)", () => {
   let ipc: InvokableMockIpc;
-  let tempDir: string;
+  let tmpRoot: string;
 
   beforeEach(() => {
+    tmpRoot = makeTempDir();
     ipc = makeIpc();
-    registerReconMethods(ipc);
-    // recon.create writes to ~/Documents/joyus-recon-engagements — redirect to a
-    // temp dir by monkey-patching os.homedir isn't viable in ESM.
-    // Instead we accept that these tests write to a real temp path and we will
-    // point engagementDir to a known subdir.  We capture the returned
-    // engagementDir and clean it up afterward.
-    tempDir = "";
+    registerReconMethods(ipc, undefined, { engagementRoot: tmpRoot });
   });
 
   afterEach(() => {
-    if (tempDir !== "" && realExistsSync(tempDir)) {
-      removeTempDir(tempDir);
-    }
+    removeTempDir(tmpRoot);
   });
 
   it("slugifies simple spaces to hyphens", async () => {
@@ -243,9 +269,9 @@ describe("slugify (via recon.create)", () => {
       url: "https://acme.example.com",
       accessMode: "rfp",
     })) as { clientSlug: string; engagementDir: string };
-    tempDir = path.dirname(result.engagementDir); // parent is clientSlug dir
     expect(result.clientSlug).toBe("acme-corp");
-    removeTempDir(result.engagementDir);
+    // Regression: recon.create must build the path from the injected root.
+    expect(path.dirname(result.engagementDir)).toBe(tmpRoot);
   });
 
   it("slugifies special characters to single hyphens", async () => {
@@ -254,10 +280,8 @@ describe("slugify (via recon.create)", () => {
       url: "https://muller.example.com",
       accessMode: "rfp",
     })) as { clientSlug: string; engagementDir: string };
-    tempDir = result.engagementDir;
     // ü -> collapse non-ascii + spaces + & + : + . all to hyphens -> "m-ller-sons-inc"
     expect(result.clientSlug).toBe("m-ller-sons-inc");
-    removeTempDir(result.engagementDir);
   });
 
   it("strips leading and trailing hyphens", async () => {
@@ -266,9 +290,7 @@ describe("slugify (via recon.create)", () => {
       url: "https://test.example.com",
       accessMode: "rfp",
     })) as { clientSlug: string; engagementDir: string };
-    tempDir = result.engagementDir;
     expect(result.clientSlug).toBe("test");
-    removeTempDir(result.engagementDir);
   });
 
   it("collapses multiple non-alphanumeric runs to a single hyphen", async () => {
@@ -277,9 +299,7 @@ describe("slugify (via recon.create)", () => {
       url: "https://abc.example.com",
       accessMode: "rfp",
     })) as { clientSlug: string; engagementDir: string };
-    tempDir = result.engagementDir;
     expect(result.clientSlug).toBe("a-b-c");
-    removeTempDir(result.engagementDir);
   });
 });
 
@@ -289,10 +309,16 @@ describe("slugify (via recon.create)", () => {
 
 describe("recon.create", () => {
   let ipc: InvokableMockIpc;
+  let tmpRoot: string;
 
   beforeEach(() => {
+    tmpRoot = makeTempDir();
     ipc = makeIpc();
-    registerReconMethods(ipc);
+    registerReconMethods(ipc, undefined, { engagementRoot: tmpRoot });
+  });
+
+  afterEach(() => {
+    removeTempDir(tmpRoot);
   });
 
   it("happy path: creates directory and writes .recon-meta.json", async () => {
@@ -306,31 +332,27 @@ describe("recon.create", () => {
       clientSlug: string;
     };
 
-    try {
-      expect(result.clientSlug).toBe("happy-path-co");
-      expect(typeof result.engagementId).toBe("string");
-      expect(result.engagementId.startsWith("happy-path-co-")).toBe(true);
-      expect(typeof result.engagementDir).toBe("string");
+    expect(result.clientSlug).toBe("happy-path-co");
+    expect(typeof result.engagementId).toBe("string");
+    expect(result.engagementId.startsWith("happy-path-co-")).toBe(true);
+    expect(typeof result.engagementDir).toBe("string");
 
-      // Directory must exist
-      expect(realExistsSync(result.engagementDir)).toBe(true);
+    // Directory must exist
+    expect(pathExists(result.engagementDir)).toBe(true);
 
-      // .recon-meta.json must exist and have correct fields
-      const metaPath = path.join(result.engagementDir, ".recon-meta.json");
-      expect(realExistsSync(metaPath)).toBe(true);
+    // .recon-meta.json must exist and have correct fields
+    const metaPath = path.join(result.engagementDir, ".recon-meta.json");
+    expect(pathExists(metaPath)).toBe(true);
 
-      const meta = JSON.parse(await readFile(metaPath, "utf8")) as Record<string, unknown>;
-      expect(meta["clientName"]).toBe("Happy Path Co");
-      expect(meta["clientSlug"]).toBe("happy-path-co");
-      expect(meta["url"]).toBe("https://happypath.example.com");
-      expect(meta["accessMode"]).toBe("full");
-      expect(typeof meta["engagementId"]).toBe("string");
-      expect(typeof meta["createdAt"]).toBe("string");
-      // createdAt should be a parseable ISO-8601 string
-      expect(Number.isNaN(new Date(meta["createdAt"] as string).getTime())).toBe(false);
-    } finally {
-      removeTempDir(result.engagementDir);
-    }
+    const meta = JSON.parse(await readFile(metaPath, "utf8")) as Record<string, unknown>;
+    expect(meta["clientName"]).toBe("Happy Path Co");
+    expect(meta["clientSlug"]).toBe("happy-path-co");
+    expect(meta["url"]).toBe("https://happypath.example.com");
+    expect(meta["accessMode"]).toBe("full");
+    expect(typeof meta["engagementId"]).toBe("string");
+    expect(typeof meta["createdAt"]).toBe("string");
+    // createdAt should be a parseable ISO-8601 string
+    expect(Number.isNaN(new Date(meta["createdAt"] as string).getTime())).toBe(false);
   });
 
   it("rejects null params", async () => {
@@ -375,6 +397,24 @@ describe("recon.create", () => {
       }),
     ).rejects.toThrow("missing required field: accessMode");
   });
+
+  it("uses the default engagement root when no runtime root is injected", async () => {
+    const defaultIpc = makeIpc();
+    registerReconMethods(defaultIpc);
+
+    const result = (await defaultIpc._invoke("recon.create", {
+      clientName: "Default Root Co",
+      url: "https://default.example.com",
+      accessMode: "rfp",
+    })) as { engagementDir: string };
+
+    try {
+      expect(result.engagementDir).toBe(path.join(FAKE_DEFAULT_ROOT, "default-root-co"));
+      expect(pathExists(result.engagementDir)).toBe(true);
+    } finally {
+      removeTempDir(result.engagementDir);
+    }
+  });
 });
 
 // ===========================================================================
@@ -385,7 +425,7 @@ describe("resolveScanScript", () => {
   let ipc: InvokableMockIpc;
   let tmpRoot: string;
   let engagementDir: string;
-  const existsSyncMock = vi.mocked(realExistsSync);
+  const existsSyncMock = vi.mocked(mockedExistsSync);
 
   beforeEach(async () => {
     tmpRoot = makeTempDir();
@@ -567,6 +607,7 @@ describe("recon.scan", () => {
 
   it("uses the default recon engagement root when no runtime root is injected", async () => {
     const defaultRoot = path.join(os.homedir(), "Documents", "joyus-recon-engagements");
+    expect(defaultRoot).toBe(FAKE_DEFAULT_ROOT);
     const defaultEngagementDir = path.join(defaultRoot, `coverage-${Date.now()}`);
     const defaultIpc = makeIpc();
     const spawnMock = await getSpawnMock();
@@ -683,7 +724,7 @@ describe("recon.export", () => {
 
     // .scan-overrides.json must be written to the engagement directory
     const overridePath = path.join(engagementDir, ".scan-overrides.json");
-    expect(realExistsSync(overridePath)).toBe(true);
+    expect(pathExists(overridePath)).toBe(true);
     const overrideData = JSON.parse(await readFile(overridePath, "utf8")) as {
       overriddenAt: string;
       findings: Array<{ file: string; line: number; pattern: string }>;
@@ -739,7 +780,7 @@ describe("recon.export", () => {
 
     const result = (await exportPromise) as { zipPath: string; size: number };
 
-    expect(realExistsSync(result.zipPath)).toBe(true);
+    expect(pathExists(result.zipPath)).toBe(true);
 
     // Use the system `unzip -l` to list archive contents and verify exclusions
     let unzipOutput: string;
@@ -792,7 +833,7 @@ describe("recon.export", () => {
 
     const result = (await exportPromise) as { zipPath: string; size: number };
 
-    expect(realExistsSync(result.zipPath)).toBe(true);
+    expect(pathExists(result.zipPath)).toBe(true);
 
     // Use the system `unzip -l` to verify the nested file is in the archive
     let unzipOutput: string;
@@ -907,8 +948,15 @@ describe("recon.checkVersion", () => {
 // ===========================================================================
 
 describe("recon.create with syncDeps (version gate)", () => {
+  let tmpRoot: string;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    tmpRoot = makeTempDir();
+  });
+
+  afterEach(() => {
+    removeTempDir(tmpRoot);
   });
 
   it("blocks creation when version is definitively mismatched (stale: false)", async () => {
@@ -944,22 +992,15 @@ describe("recon.create with syncDeps (version gate)", () => {
       versionCheck: { current: "2.0.0", pinned: "2.0.0", match: true },
     });
 
-    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+    registerReconMethods(ipc, { getSyncStatus, triggerSync }, { engagementRoot: tmpRoot });
 
-    let result: { engagementDir: string } | undefined;
-    try {
-      result = (await ipc._invoke("recon.create", {
-        clientName: "Version Match Co",
-        url: "https://example.com",
-        accessMode: "rfp",
-      })) as { engagementDir: string };
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "Version Match Co",
+      url: "https://example.com",
+      accessMode: "rfp",
+    })) as { engagementDir: string };
 
-      expect(typeof result.engagementDir).toBe("string");
-    } finally {
-      if (result?.engagementDir !== undefined && realExistsSync(result.engagementDir)) {
-        removeTempDir(result.engagementDir);
-      }
-    }
+    expect(typeof result.engagementDir).toBe("string");
   });
 
   it("allows creation when version is stale (fail-open: stale=true)", async () => {
@@ -973,22 +1014,15 @@ describe("recon.create with syncDeps (version gate)", () => {
       versionCheck: { current: null, pinned: "2.0.0", match: false, stale: true },
     });
 
-    registerReconMethods(ipc, { getSyncStatus, triggerSync });
+    registerReconMethods(ipc, { getSyncStatus, triggerSync }, { engagementRoot: tmpRoot });
 
-    let result: { engagementDir: string } | undefined;
-    try {
-      result = (await ipc._invoke("recon.create", {
-        clientName: "Stale Version Co",
-        url: "https://example.com",
-        accessMode: "rfp",
-      })) as { engagementDir: string };
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "Stale Version Co",
+      url: "https://example.com",
+      accessMode: "rfp",
+    })) as { engagementDir: string };
 
-      expect(typeof result.engagementDir).toBe("string");
-    } finally {
-      if (result?.engagementDir !== undefined && realExistsSync(result.engagementDir)) {
-        removeTempDir(result.engagementDir);
-      }
-    }
+    expect(typeof result.engagementDir).toBe("string");
   });
 
   it("wraps mkdir errors with a descriptive message", async () => {
