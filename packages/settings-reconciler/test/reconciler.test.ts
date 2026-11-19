@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -468,7 +468,14 @@ describe("reconcile", () => {
       entries: {},
       last_reconciled: FIXED_NOW.toISOString(),
     });
-    const readSettingsSpy = vi.spyOn(settingsFileModule, "readSettingsFile").mockResolvedValue({});
+    // The write path reads through the strict reader. Mock it, or this test
+    // reads (and could rewrite) the developer's real ~/.claude/settings.json.
+    const readSettingsSpy = vi
+      .spyOn(settingsFileModule, "readSettingsFileStrict")
+      .mockResolvedValue({});
+    // Registry repair uses the lenient reader. It does not run here, because
+    // readRegistry is mocked; keep it mocked so it can never reach a real file.
+    const lenientReadSpy = vi.spyOn(settingsFileModule, "readSettingsFile").mockResolvedValue({});
     const writeRegistrySpy = vi.spyOn(registryModule, "writeRegistry").mockResolvedValue();
 
     try {
@@ -492,6 +499,7 @@ describe("reconcile", () => {
       );
       expect(readSettingsSpy).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"));
       expect(readSettingsSpy).toHaveBeenCalledWith(".claude/settings.json");
+      expect(lenientReadSpy).not.toHaveBeenCalled();
       expect(writeRegistrySpy).toHaveBeenCalledWith(
         join(homedir(), ".claude", ".joyus-managed.json"),
         {
@@ -801,6 +809,50 @@ describe("reconcile", () => {
     await expect(readFile(workspace.registryPath, "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+
+  it("does not write a global settings file that is not valid JSON", async () => {
+    const workspace = await createWorkspace();
+    const truncated = '{ "permissions": { "deny": ["Bash(rm:*)"] }, ';
+    await mkdir(dirname(workspace.globalSettingsPath), { recursive: true });
+    await writeFile(workspace.globalSettingsPath, truncated, "utf8");
+
+    const result = await reconcile(
+      createManifest({ hooks: [createHook()] }),
+      createConfig(workspace)
+    );
+
+    expect(result.status).toBe("rolled_back");
+    expect(result.error).toContain("not valid JSON");
+    expect(result.error).toContain(workspace.globalSettingsPath);
+    expect(await readFile(workspace.globalSettingsPath, "utf8")).toBe(truncated);
+    await expect(readdir(join(workspace.backupDir, "global"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(readFile(workspace.registryPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("restores global settings when the project settings file is not valid JSON", async () => {
+    const workspace = await createWorkspace();
+    const originalGlobal = { model: "example-model", hooks: {} };
+    await writeJson(workspace.globalSettingsPath, originalGlobal);
+    await mkdir(dirname(workspace.projectSettingsPath), { recursive: true });
+    await writeFile(workspace.projectSettingsPath, "{ broken", "utf8");
+
+    const result = await reconcile(
+      createManifest({
+        hooks: [createHook()],
+        mcps: [createMcp({ id: "joyus:project-mcp", target: "project" })],
+      }),
+      createConfig(workspace)
+    );
+
+    expect(result.status).toBe("rolled_back");
+    expect(result.error).toContain(workspace.projectSettingsPath);
+    expect(await readJson(workspace.globalSettingsPath)).toEqual(originalGlobal);
+    expect(await readFile(workspace.projectSettingsPath, "utf8")).toBe("{ broken");
   });
 
   it("still returns rolled_back when rollback restoration itself fails", async () => {

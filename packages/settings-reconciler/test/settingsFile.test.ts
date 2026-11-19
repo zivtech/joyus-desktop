@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  SettingsFileUnreadableError,
   createSettingsBackup,
   readSettingsFile,
+  readSettingsFileStrict,
   rollbackSettings,
   writeSettingsFile,
 } from "../src/index";
@@ -67,6 +69,59 @@ describe("readSettingsFile", () => {
     await writeFile(path, JSON.stringify(settings));
     const result = await readSettingsFile(path);
     expect(result).toEqual(settings);
+  });
+});
+
+describe("readSettingsFileStrict", () => {
+  it("returns parsed object for valid JSON object file", async () => {
+    const path = join(tmpDir, "settings.json");
+    await writeFile(path, JSON.stringify({ foo: "bar" }));
+    expect(await readSettingsFileStrict(path)).toEqual({ foo: "bar" });
+  });
+
+  it("returns {} for missing file", async () => {
+    expect(await readSettingsFileStrict(join(tmpDir, "nonexistent.json"))).toEqual({});
+  });
+
+  it("returns {} for empty file", async () => {
+    const path = join(tmpDir, "empty.json");
+    await writeFile(path, "");
+    expect(await readSettingsFileStrict(path)).toEqual({});
+  });
+
+  it("returns {} for whitespace-only file", async () => {
+    const path = join(tmpDir, "whitespace.json");
+    await writeFile(path, "   \n  ");
+    expect(await readSettingsFileStrict(path)).toEqual({});
+  });
+
+  it("rejects for corrupted JSON without leaking content", async () => {
+    const path = join(tmpDir, "corrupt.json");
+    await writeFile(path, "{ invalid json {{");
+    const error = await readSettingsFileStrict(path).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(SettingsFileUnreadableError);
+    const unreadable = error as SettingsFileUnreadableError;
+    expect(unreadable.settingsPath).toBe(path);
+    expect(unreadable.message).toContain("not valid JSON");
+    expect(unreadable.message).not.toContain("invalid json {{");
+  });
+
+  it("rejects for a JSON array", async () => {
+    const path = join(tmpDir, "array.json");
+    await writeFile(path, JSON.stringify([1, 2, 3]));
+    const rejection = readSettingsFileStrict(path);
+    await expect(rejection).rejects.toBeInstanceOf(SettingsFileUnreadableError);
+    await expect(readSettingsFileStrict(path)).rejects.toThrow("not a JSON object");
+  });
+
+  it("rejects when the path is a directory", async () => {
+    const path = join(tmpDir, "a-directory");
+    await mkdir(path);
+    await expect(readSettingsFileStrict(path)).rejects.toBeInstanceOf(SettingsFileUnreadableError);
+    await expect(readSettingsFileStrict(path)).rejects.toThrow("read failed");
   });
 });
 
