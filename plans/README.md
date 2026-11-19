@@ -8,7 +8,9 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 
 - **Pull `main` first.** Local `main` was one commit behind `origin/main` when these plans were written.
 - **Never run `pnpm ci`.** In pnpm that is clean-install. The pipeline is `pnpm run ci`. Plan 007 fixes the docs that say otherwise.
-- **Until plan 008 lands, `pnpm test` and `pnpm coverage` delete `~/Documents/joyus-recon-engagements`.** Do not run the suite on a machine that holds real engagements. Plan 008's first step checks for this.
+- **Plans 007 to 013, 016 and 019 are on `main` since 2026-11-18** (`382b337`). See "Merged to `main` (2026-11-18)". Cut every new branch from `main`; the per-plan branches named in the status rows are deleted on the remote.
+- **One branch and one pull request per batch.** See D12. Do not open a pull request per plan, and do not stack pull requests.
+- **Plan 008 is on `main` since 2026-11-18 (`7544266`).** On a branch cut before that commit, `pnpm test` and `pnpm coverage` delete `~/Documents/joyus-recon-engagements`. Merge `main` in before running the suite there.
 - **The desktop app does not run end to end on `main`.** Nothing calls `startSidecar`. Open pull request zivtech/joyus-desktop#5 fixes that. It was read in full on 2026-11-17; see "Review notes on PR #5".
 - **Flaky UI tests are fixed on `main` since 2026-11-18** (plan 017, merge commit `76a88f2`). A branch cut before that commit still has them: `test/ui/SessionsPage.test.ts` ("clears mode note timers…"), `test/ui/components/LocalSiteCard.test.ts`, `test/ui/OnboardingPage.test.ts`, and a timing-dependent coverage gap at `ReconSetup.tsx` lines 336–342. On such a branch, merge `main` in, or rerun once before treating a failure there as real.
 - **Verified baseline on 2026-11-17:** `pnpm typecheck` passes. `cargo test --locked --offline` in `apps/desktop-companion/src-tauri` passes with zero tests when `apps/desktop-companion/binaries/` and `dist-ui/` exist (both are gitignored build outputs). `pnpm test` passes except for the recon tests when the home directory is not writable.
@@ -19,20 +21,21 @@ Execute in the order below unless dependencies say otherwise. Each executor: rea
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 007 | Agent and contributor docs give the correct CI command | P1 | S | — | DONE — executed and approved in review 2026-11-17; commit `5f8d31f` on branch `docs/007-correct-agent-docs` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#9, not merged yet |
-| 008 | Recon tests never touch the real home directory | P1 | S | 007 | DONE — executed and approved in review 2026-11-17; commits `f274b22` and `1edaa59` on branch `fix/008-hermetic-recon-tests` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#10, not merged yet |
-| 009 | Settings reconciler never rewrites an unreadable settings file | P1 | S | 007, 008 | DONE — executed and approved in review 2026-11-17 after one plan revision (see Review record); commit `363bb14` on branch `fix/009-unreadable-settings`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#11 (base: the 008 branch), not merged yet |
+| 007 | Agent and contributor docs give the correct CI command | P1 | S | — | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#9, merge commit `04c4d8e`; the remote branch is deleted. Before the merge: DONE — executed and approved in review 2026-11-17; commit `5f8d31f` on branch `docs/007-correct-agent-docs` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#9, not merged yet |
+| 008 | Recon tests never touch the real home directory | P1 | S | 007 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#10, merge commit `7544266`; the remote branch is deleted. Before the merge: DONE — executed and approved in review 2026-11-17; commits `f274b22` and `1edaa59` on branch `fix/008-hermetic-recon-tests` (cut from `ec00055`); open as pull request zivtech/joyus-desktop#10, not merged yet |
+| 009 | Settings reconciler never rewrites an unreadable settings file | P1 | S | 007, 008 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#11, merge commit `5ce9ecf`; the remote branch is deleted. Before the merge: DONE — executed and approved in review 2026-11-17 after one plan revision (see Review record); commit `363bb14` on branch `fix/009-unreadable-settings`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#11 (base: the 008 branch), not merged yet |
 
 ### Wave 2 — no dependency on PR #5
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 010 | A recon engagement can never be the engagements root; stored and deflated ZIP entries are tested | P1 | S | 008 | DONE — executed and approved in review 2026-11-17 after one plan revision and one executor revision (see Review record); four commits ending `2b1c83c` on branch `fix/010-recon-directory-safety`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#12 (base: the 008 branch), not merged yet |
-| 011 | CI compiles the Rust shell on pull requests; production advisories cleared; Dependabot | P1 | S | 008 | DONE — executed and approved in review 2026-11-18; commits `2a213ff`, `fb84902` and `4247b69` on branch `chore/011-rust-ci-and-dependencies`, rebased onto `main` at `ff58490`; open as pull request zivtech/joyus-desktop#16 (base: `main`), not merged yet. `pnpm add` resolved `react-router-dom` 7.18.6 and `tar` 7.5.23, inside the ranges the plan names. Not run locally: `pnpm test:integration` (the sandbox blocks its port) and the new `rust` job, which only a pull-request run can prove |
+| 010 | A recon engagement can never be the engagements root; stored and deflated ZIP entries are tested | P1 | S | 008 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#12, merge commit `efab917`; the remote branch is deleted. Before the merge: DONE — executed and approved in review 2026-11-17 after one plan revision and one executor revision (see Review record); four commits ending `2b1c83c` on branch `fix/010-recon-directory-safety`, stacked on the 008 branch; open as pull request zivtech/joyus-desktop#12 (base: the 008 branch), not merged yet |
+| 011 | CI compiles the Rust shell on pull requests; production advisories cleared; Dependabot | P1 | S | 008 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#16, merge commit `382b337`; the remote branch is deleted. Merged without `.github/dependabot.yml`: commit `f1620bd` removed it, see D13. Before the merge: DONE — executed and approved in review 2026-11-18; commits `2a213ff`, `fb84902` and `4247b69` on branch `chore/011-rust-ci-and-dependencies`, rebased onto `main` at `ff58490`; open as pull request zivtech/joyus-desktop#16 (base: `main`), not merged yet. `pnpm add` resolved `react-router-dom` 7.18.6 and `tar` 7.5.23, inside the ranges the plan names. Not run locally: `pnpm test:integration` (the sandbox blocks its port) and the new `rust` job, which only a pull-request run can prove |
 | 014 | A test fails when UI, Rust shell and sidecar disagree on a command name | P1 | S | 008 | TODO |
-| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | DONE — both revisions executed; open as pull request zivtech/joyus-desktop#13 (branch `fix/012-managed-hook-ownership`, base: the 009 branch, not merged). Commits `84ef723` and `e9279f7` hold the first revision; `ba1928d` applies the second revision of 2026-11-18, which closes review items 1–5. An executor agent applied it step by step; the five package files are byte-identical to the plan's reference, and the full coverage gate passes with 2,364 tests. See "Second revision" under "Independent replay of the revised plans" |
-| 013 | A revocation is applied even when skill sync fails; unfinished updates are retried | P2 | M | 012 in its second revision (pull request #13 at `ba1928d` or later), and `ec00055` in the branch | TODO — revised a second time on 2026-11-18 to close review items 6–9, from a reference implementation that was run; see "Second revision" under "Independent replay of the revised plans". Its first step makes two existing tests safe; do that step before running any wiring test |
-| 016 | Session manager: one worktree per session, real removal, merged detection | P3 now, P1 before sessions are switched on | M | 008 | TODO — revised a second time on 2026-11-18 to close review items 10–12, from a reference implementation that was run, including against real git; see "Second revision" under "Independent replay of the revised plans". Cut the branch from `fix/008-hermetic-recon-tests` |
+| 012 | Managed hooks can use real matchers; revoked ones are removed | P2 | M | 009 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#13, merge commit `9cf7b77`; the remote branch is deleted. Before the merge: DONE — both revisions executed; open as pull request zivtech/joyus-desktop#13 (branch `fix/012-managed-hook-ownership`, base: the 009 branch, not merged). Commits `84ef723` and `e9279f7` hold the first revision; `ba1928d` applies the second revision of 2026-11-18, which closes review items 1–5. An executor agent applied it step by step; the five package files are byte-identical to the plan's reference, and the full coverage gate passes with 2,364 tests. See "Second revision" under "Independent replay of the revised plans" |
+| 013 | A revocation is applied even when skill sync fails; unfinished updates are retried | P2 | M | 012 in its second revision (pull request #13 at `ba1928d` or later), and `ec00055` in the branch | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#18, merge commit `dcb141e`; the remote branch is deleted. Before the merge: DONE — second revision executed and approved in review 2026-11-18; commits `095630f`, `457077e` and `3842835` on branch `fix/013-revocations-always-applied`, cut from the 012 branch at `ba1928d`; open as pull request zivtech/joyus-desktop#18 (base: the 012 branch), together with plan 019, not merged yet. The review found one gap in the plan's design, F23; plan 019 fixes it on the same branch. See "Plan 013 executed" under "Independent replay of the revised plans" |
+| 019 | A failed managed-tooling cycle keeps the earlier manifest, so its retry can still sync | P2 | S | 013 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#18, merge commit `dcb141e`; the remote branch is deleted. Before the merge: DONE — executed and approved in review 2026-11-18; commit `355ab46` on branch `fix/013-revocations-always-applied`, on top of plan 013's `3842835`; part of pull request zivtech/joyus-desktop#18, not merged yet. Written from a reference fix that was run. Closes F23. It does not decide the open question on a missing configured bundle; see "Plan 019 executed" |
+| 016 | Session manager: one worktree per session, real removal, merged detection | P3 now, P1 before sessions are switched on | M | 008 | MERGED into `main` 2026-11-18 by pull request zivtech/joyus-desktop#17, merge commit `2d0b93d`; the remote branch is deleted. Before the merge: DONE — second revision executed and approved in review 2026-11-18; commits `2ae58a1`, `533f514`, `4b4f84a` and `19c96ce` on branch `fix/016-session-manager-correctness`, cut from the 008 branch (`1edaa59`); open as pull request zivtech/joyus-desktop#17 (base: the 008 branch), not merged yet. See "Plan 016 executed" under "Independent replay of the revised plans" |
 | 017 | UI tests wait on real time, not on a count of loop turns | P1 | S | 008 | DONE and merged 2026-11-18 — the prototype commits were cherry-picked onto `main` as `0caeb26` and `c9902c7`, opened as pull request zivtech/joyus-desktop#14, and merged with merge commit `76a88f2` after its CI check passed. Before the merge, `pnpm typecheck` was clean and the 176 UI tests passed on that branch; the full suite had run on the same two commits on top of the plan 008 branch (2,321 tests, 100%) |
 
 ### Wave 3 — after PR #5 merges
@@ -71,6 +74,11 @@ What was checked before these plans were written down: the merge and removal cod
 - **D6 — Duplicate sync engines.** `@joyus/skill-sync` survives.
 - **D7 — Unwired policy, handoff and runtime stack.** Mark "not yet integrated" (plan 007 does this in the agent docs); decide wiring later.
 
+### Made on 2026-11-18
+
+- **D12 — One pull request per batch.** The maintainer does not want a branch and a pull request per plan. Nine were open at once, five of them stacked, and each drew bot comments, CI runs and reruns. From now on: one integration branch per batch, cut from `main`, with each plan's commits kept together; one pull request when the batch is ready; no stacked pull requests; and one push for index updates, not one per update.
+- **D13 — No Dependabot yet.** Plan 011 added `.github/dependabot.yml`; the maintainer had it removed before the merge (commit `f1620bd`), because it would open grouped pull requests every week. The 59 development-only advisories (3 critical) therefore have no automated proposal. Revisit with a low-volume setup, or update those packages by hand in one batch.
+
 ### Open — found while writing the plans
 
 - **D8 — Who owns secrets?** The UI saves credentials through the sidecar into `~/Library/Application Support/com.joyus.desktop-companion/credentials.env` (mode 0600) and reads them back from there. Separately, the Rust shell runs a startup migration that copies that file into the keychain and deletes it. Today the keychain is a no-op mock, so the migration always fails verification and keeps the file. **If anyone enables the keychain backend, the next launch deletes the file the UI reads: saved credentials vanish from the UI, the user re-enters them, and from then on both stores exist with the plaintext file permanent.** Options: (a) the Rust shell and the OS keychain own all secrets, and the sidecar receives values per call; (b) admit the file: remove the keychain module, the migration and the `keychain_*` commands, and document the 0600 file. Recommendation: (a), planned after PR #5 so it can be checked on a running app. Until then, do not add a `keyring` feature flag.
@@ -87,7 +95,7 @@ What was checked before these plans were written down: the merge and removal cod
 - 014 before 015: the smoke test reuses 014's allowlist file.
 - 014 before F12: surfacing errors for commands that were never implemented would turn working fallbacks into error screens. F12 must also update 014's UI pattern, or its floor check fails.
 - F12 before F14: adding UI files to the coverage gate before their invoke helper is rewritten means writing the tests twice.
-- Plan 011 and PR #5 both edit `apps/desktop-companion/package.json` and `pnpm-lock.yaml`. Whichever lands second re-runs `pnpm install`.
+- Plan 011 and PR #5 both edit `apps/desktop-companion/package.json` and `pnpm-lock.yaml`. Plan 011 is merged, so PR #5 lands second: it takes `main`'s `package.json` changes and re-runs `pnpm install`.
 
 ## Review notes on PR #5 (`fix/linux-desktop-onboarding`, head `54fb205`, read in full 2026-11-17)
 
@@ -144,7 +152,7 @@ Open questions recorded, not planned:
 
 ## Outside review of the plans (2026-11-17)
 
-A second outside review read the plans in pull request #8 and raised six findings. All six were checked independently: by running the plans' prescribed code in scratch copies, by a real throwaway git repository, and, for plan 010, by executing the plan. All six hold. Plans 012, 013 and 016 were marked BLOCKED on 2026-11-17 and revised on 2026-11-18; all six findings are now closed in the plans. Plan 012 has since been executed (see "Plan 012 executed" below). Plans 013 and 016 have not been executed in the repository yet.
+A second outside review read the plans in pull request #8 and raised six findings. All six were checked independently: by running the plans' prescribed code in scratch copies, by a real throwaway git repository, and, for plan 010, by executing the plan. All six hold. Plans 012, 013 and 016 were marked BLOCKED on 2026-11-17 and revised on 2026-11-18; all six findings are now closed in the plans. Plan 012 has since been executed (see "Plan 012 executed" below). Plans 013 and 016 were executed on 2026-11-18 in their second revisions (see "Plan 016 executed" and "Plan 013 executed" further down).
 
 | # | Plan | Finding | Verified how | Status |
 |---|---|---|---|---|
@@ -251,6 +259,83 @@ What changed in the designs:
 Pull request #13: the maintainer decided on 2026-11-18 that the second revision of plan 012 goes onto its branch as a follow-up commit. An executor agent applied the plan step by step in its own worktree and committed `ba1928d`. Every Verify matched the plan, its `pnpm coverage` run passed with 2,364 tests and 100%, and the five package files are byte-identical to the reference. Items 1, 2, 3 and 5 are closed in that code.
 
 Not verified for the second revisions: the code inside the running application; for 013, the real skill sync (every sync result in its tests is a mock) and two processes reconciling at once; for 016, any git version other than 2.50.1 and any system other than macOS. The list "Not tested by the replays" above still applies.
+
+### Plan 016 executed (2026-11-18)
+
+An executor agent applied the second revision of plan 016 step by step in its own worktree, on local branch `fix/016-session-manager-correctness`, cut from the plan 008 commit `1edaa59`. It reported no STOP condition and no Verify mismatch: 134 tests before, then 134, 139, the three named failures, 151, the two named failures, 157 and 167. The plan's four commits are `2ae58a1`, `533f514`, `4b4f84a` and `19c96ce`. Nothing is pushed.
+
+Checked afterward by the reviewing session, independently of the executor's report:
+
+- Every code block in the plan is present in its file exactly once, and the diff against `1edaa59` touches the seven files the plan puts in scope and nothing else. The seven files are also byte-identical to the reference implementation the plan was written from.
+- Re-run in the executor's worktree, inside the sandbox: `pnpm typecheck` exits 0; `pnpm vitest run packages/session-manager` gives 167 tests; the app tests that use the session manager give 156; `pnpm coverage` exits 0 on its first run with 147 test files, 2,353 tests and 100%, and the coverage report shows the three source files fully covered. The four `grep` counts in the done criteria match.
+- Twelve throwaway tests against the real git binary, kept outside the repository, run against the executor's source: all pass. Run against the unchanged source at `1edaa59`, nine of the same twelve fail, each in the way the plan describes (a unique-index error for three events at once; six worktrees for five events; a refused or impossible removal reported as success; no branch ever marked merged). They cover review items 10 and 11 and these cases the plan's own tests do not: a burst of events with the real store, worktree manager and git; a dirty worktree whose uncommitted-changes check cannot run (git refuses, the session stays); a repository folder that is gone (the session stays); a relative repository path taken through `createWorktree`; a conflicted merge concluded with `git commit` (subject `commit (merge):`, marked once `main` has it); a `merge --no-ff main` with no commit of its own (not marked); a main checkout on a detached `HEAD`.
+- `~/Documents/joyus-recon-engagements` was unchanged after every run.
+
+Not verified: `pnpm test:integration` (the sandbox blocks its port); the CI result (pull request #17 was opened after this review and its check had not reported when this was written; a pull request stacked on the 008 branch is not tested merged with `main`); git versions other than 2.50.1; Linux and Windows; the code inside the running application. One thing to know when reading the new test file: `realGit.test.ts` calls `process.chdir`, which Vitest supports only in its default `forks` pool.
+
+### Plan 013 executed (2026-11-18)
+
+Before dispatch, all three parts of the plan's drift check were run against `fix/012-managed-hook-ownership` at `ba1928d`: `ec00055` is an ancestor, the five wiring files are unchanged since `ec00055`, `locateWrittenEntry` appears 3 times, and the reconciler package has 157 tests.
+
+An executor agent then applied the second revision of plan 013 step by step in its own worktree, on local branch `fix/013-revocations-always-applied`. It reported no STOP condition and no Verify mismatch: 55 wiring tests after Step 1, 157 and 174 package tests after Steps 2 and 3, the eleven named failures after Step 4, and 57 + 5 + 21 after Step 5. The plan's three commits are `095630f`, `457077e` and `3842835`. Nothing is pushed. The executor needed one interpretation, in Step 2e: whether the blank line above `const nextSettings` belongs to the replaced part. It kept the line, which matches the reference.
+
+Checked afterward by the reviewing session, independently of the executor's report:
+
+- Every code block in the plan is present in its file (the Swap A assertion three times, as the edit table says), and the diff against `ba1928d` touches the six files the plan puts in scope and nothing else. The six files are byte-identical to the reference implementation. No existing reconciler test was changed, and `rollbackReconciledSettings` is still in the file (review item 7).
+- Re-run in the executor's worktree, inside the sandbox: `pnpm typecheck` exits 0; the reconciler package gives 174 tests; the three wiring test files give 57 + 5 + 21; `pnpm coverage` exits 0 on its first run with 146 test files, 2,388 tests and 100%, and the coverage report shows `reconciler.ts`, `configCheckWiring.ts` and `configCheckPoller.ts` fully covered. The five `grep` counts in the done criteria match, and `configCheckPoller.ts`, `main.ts` and `packages/skill-sync` are unchanged.
+- Seven throwaway tests kept outside the repository, run against the executor's source with every path in a temp folder. Review item 6, through the handler and the real reconciler: a project file of the wrong shape, a global file that cannot be read (mode 000), and a global file that can be read but not written each leave the other file's revocation applied, leave the bad file's bytes and registry records alone, and make the handler reject; after the file is repaired, the next cycle finishes the revocation. With the registry file lost and the project file unreadable, the global revocation is still applied. A randomized test over 250 pairs of manifests checks that removals-only adds and rewrites nothing, leaves the user's entries alone, keeps everything installed under an id that is still listed, removes what is revoked unless its place is still in use, and that removals-only followed by a full reconcile ends in the same settings and registry as a full reconcile alone.
+- Review item 8, the home-directory check. `~/.claude/.joyus-managed.json` and `~/.claude/.joyus-reconciler-backups` did not exist before or after any run. **That check is weak inside the agent sandbox**, which does not allow writes there at all: a test that reached the default paths would show up as a failed reconcile, not as a file. The evidence that no test does is a static check instead: all 24 handlers built in `configCheckWiring.test.ts` either mock `reconcileFn` or pass all four reconcile paths, and in `mainConfigCheckWiring.test.ts` the only test that calls the handler passes all four.
+- `~/Documents/joyus-recon-engagements` was unchanged after every run.
+
+**F23 — found by the review, in the plan's design. Fixed by plan 019 (see below).** The handler stores the new manifest as "the earlier manifest" at the end of every cycle, including a cycle that rejects. The earlier manifest is the only source of a sync target when `SKILL_SYNC_BUNDLE` names a bundle that the new manifest dropped. So if skill sync fails once in the cycle that drops the configured bundle, every retry finds no target version, never calls sync again, and never installs what the remaining bundles add. Run on the executor's code: sync offline once, then working; three cycles; sync was called once; the new server was never installed. With a working sync in the first cycle, the same manifest installs it. Revocations are applied in both cases. The plan's maintenance notes describe this stuck state only for a restart; it also follows from one transient failure. Before plan 013 this case ran a full reconcile without synced skill files, so the entries were installed. Smallest fix: keep the earlier manifest until a cycle completes. It belongs with the open question above on whether a missing configured bundle should count as "nothing to sync".
+
+Not verified: `pnpm test:integration` (the sandbox blocks its port); the CI result (pull request #18 was opened after this review and its check had not reported when this was written; a pull request stacked on the 012 branch is not tested merged with `main`); the real skill sync (every sync result is a mock); the poller and the handler together across a real interval; two processes reconciling at once; the code inside the running application. The randomized test's generator gives each hook one event and never shares a `joyus:` group between two ids.
+
+### Plan 019 executed (2026-11-18)
+
+The maintainer asked for F23 to be fixed before a pull request. Plan 019 was written from a reference fix that was run outside the repository: on a copy of the handler and its test file at `3842835`, the 57 existing tests pass unchanged; the two new tests fail against the unchanged handler and pass with the fix (59); a seeded defect (replace the earlier manifest whenever sync succeeded) fails the second new test. The plan's two code blocks are byte-identical to that reference.
+
+The executor of plan 013 applied it in the same worktree, as one commit, `355ab46`, on `fix/013-revocations-always-applied`. No STOP, no interpretation. After Step 1 exactly the two new tests failed, as the plan says.
+
+Checked afterward by the reviewing session: the diff against `3842835` touches the handler (the assignment moves below the check that rejects, plus a comment) and the test file (108 lines added, none removed), and both files are byte-identical to the reference. Re-run in the worktree, inside the sandbox: `pnpm typecheck` exits 0; the wiring test file gives 59 tests; the reconciler package and the two other wiring files still pass (259 tests in all); `pnpm coverage` exits 0 with 146 test files, 2,390 tests and 100%. The F23 scenario, through the handler and the real reconciler on temp paths, now ends as it should: the first cycle rejects, the retry calls sync again with the earlier version, resolves, and the new server is installed.
+
+**What plan 019 does not fix, and the maintainer should decide.** The stuck state behind the open question above is reachable in normal operation, not only after a restart as plan 013's notes say. Measured on `3842835` and again on `355ab46`, with a sync that always works: earlier manifest with bundle `core`, which `SKILL_SYNC_BUNDLE` names; a first new manifest with only bundle `other` completes and installs its server; a second new manifest with only `other`, listing a different server, finds no sync version, runs removals only, removes the first server and never installs the second. Every later cycle rejects, every five minutes. The settings file ends with no managed server. So once an organization drops the configured bundle, the managed entries of this machine shrink with every manifest change and nothing new arrives. Options: (a) a configured bundle that is missing from a non-empty manifest counts as "nothing to sync", so a full reconcile runs, as it already does for an empty manifest; the fallback to the earlier manifest and plan 019's change can then be removed; (b) keep the behavior and state it; (c) remember the last version that was synced beyond the next manifest. Recommendation: (a). Not planned until decided.
+
+## Merged to `main` (2026-11-18)
+
+The maintainer chose to merge the eight open code pull requests in dependency order, as merge commits.
+
+| Order | Pull request | Plan | Merge commit |
+|-------|--------------|------|--------------|
+| 1 | #10 | 008 | `7544266` |
+| 2 | #11 | 009 | `5ce9ecf` |
+| 3 | #13 | 012 | `9cf7b77` |
+| 4 | #18 | 013 and 019 | `dcb141e` |
+| 5 | #12 | 010 | `efab917` |
+| 6 | #17 | 016 | `2d0b93d` |
+| 7 | #9 | 007 | `04c4d8e` |
+| 8 | #16 | 011, without Dependabot | `382b337` |
+
+Plans 017 and 018 were merged earlier the same day (#14 as `76a88f2`, #15 as `ff58490`).
+
+**Checked before the merges:**
+
+- **The combined tree.** All eight branch tips were merged onto `main` in a throwaway commit. `pnpm typecheck` exits 0, and `pnpm coverage` exits 0 with 2,436 tests and 100% on all four measures.
+- **`main` matches it.** After the first seven merges, `main` plus plan 011's branch had the same tree as the tested commit.
+- **The three red checks** on #12, #13 and #17 were the known flake in `test/ui/SessionsPage.test.ts` ("clears mode note timers…"), which `main` had already fixed.
+- **Plan 011's `rust` job** passed in CI at `4247b69`.
+- **The real home directory** was untouched: the recon folder's modification time was unchanged, and neither reconciler file existed.
+
+**Not checked:**
+
+- **CI on `main` after the merges**, including the first run of the `rust` job on the merged tree.
+- **`main` at each intermediate merge.** Only the final tree was gate-run locally, and that run still held `.github/dependabot.yml`, which no test reads.
+- **`pnpm test:integration` locally**, and the code inside the running application.
+
+**Still open after the merges:**
+
+- **The stuck state recorded under "Plan 019 executed":** when the organization drops the bundle that `SKILL_SYNC_BUNDLE` names, later manifest changes run removals only. It needs a maintainer decision.
+- **Plans 014 and 015** are not executed. 015 waits for PR #5.
 
 ## Review record
 
