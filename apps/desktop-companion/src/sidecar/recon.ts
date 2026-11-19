@@ -18,6 +18,7 @@
  * where we placed the source copy for T005.
  */
 
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
 import * as os from "node:os";
@@ -88,14 +89,31 @@ function resolveScanScript(): string {
 }
 
 /**
+ * Directory names directly under the engagements root that the recon code
+ * itself uses. A client slug must never equal one of them.
+ * "exports" is where recon.export writes archives.
+ */
+const RESERVED_SLUGS: ReadonlySet<string> = new Set(["exports"]);
+
+/**
  * Slugify a client name: lowercase, collapse non-alphanumeric runs to a
  * single hyphen, strip leading/trailing hyphens.
+ *
+ * A name with no ASCII letters or digits would give an empty slug, and the
+ * engagement directory would then be the engagements root itself. Such a
+ * name, and any reserved name, falls back to "client-" plus the first eight
+ * hex digits of the SHA-256 of the name, so it is stable across runs.
  */
 function slugify(name: string): string {
-  return name
+  const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  if (slug !== "" && !RESERVED_SLUGS.has(slug)) {
+    return slug;
+  }
+  const digest = createHash("sha256").update(name, "utf8").digest("hex").slice(0, 8);
+  return `client-${digest}`;
 }
 
 /**
@@ -109,13 +127,16 @@ function defaultEngagementRoot(): string {
   return path.join(os.homedir(), "Documents", "joyus-recon-engagements");
 }
 
+/**
+ * True when `candidate` is strictly inside `root`. The root itself is not
+ * "within" the root: an engagement directory must be a child directory.
+ */
 function isWithinPath(root: string, candidate: string): boolean {
   const relativePath = path.relative(root, candidate);
   return (
-    relativePath === "" ||
-    (relativePath !== "" &&
-      !relativePath.startsWith("..") &&
-      !path.isAbsolute(relativePath))
+    relativePath !== "" &&
+    !relativePath.startsWith("..") &&
+    !path.isAbsolute(relativePath)
   );
 }
 
@@ -530,8 +551,8 @@ export function registerReconMethods(
 
       // Use deflate if it's smaller, otherwise store raw
       const useDeflate = compressedData.length < fileData.length;
-      const storedData = useDeflate ? compressedData : /* v8 ignore next */ fileData;
-      const method = useDeflate ? 8 : /* v8 ignore next */ 0; // 8 = deflate, 0 = stored
+      const storedData = useDeflate ? compressedData : fileData;
+      const method = useDeflate ? 8 : 0; // 8 = deflate, 0 = stored
 
       const nameBytes = Buffer.from(archivePath, "utf8");
       const crc = crc32(fileData);

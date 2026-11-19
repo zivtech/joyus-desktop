@@ -37,6 +37,7 @@ import { promises as mockedFsPromises } from "node:fs";
 import { execSync } from "node:child_process";
 import * as path from "node:path";
 import * as os from "node:os";
+import { crc32, inflateRawSync } from "node:zlib";
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
@@ -300,6 +301,56 @@ describe("slugify (via recon.create)", () => {
       accessMode: "rfp",
     })) as { clientSlug: string; engagementDir: string };
     expect(result.clientSlug).toBe("a-b-c");
+  });
+
+  it("falls back to a hashed slug when the name has no ASCII letters or digits", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "!!!",
+      url: "https://symbols.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string; engagementDir: string; engagementId: string };
+
+    expect(result.clientSlug).toBe("client-e84c538e");
+    // The engagement directory is a child of the root, never the root itself.
+    expect(result.engagementDir).toBe(path.join(tmpRoot, "client-e84c538e"));
+    expect(result.engagementId.startsWith("client-e84c538e-")).toBe(true);
+  });
+
+  it("falls back to a hashed slug for a non-Latin name", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "日本電気",
+      url: "https://nec.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+
+    expect(result.clientSlug).toBe("client-944e0446");
+  });
+
+  it("gives different symbol-only names different slugs", async () => {
+    const first = (await ipc._invoke("recon.create", {
+      clientName: "!!!",
+      url: "https://a.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+    const second = (await ipc._invoke("recon.create", {
+      clientName: "???",
+      url: "https://b.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string };
+
+    expect(second.clientSlug).toBe("client-a03b221c");
+    expect(second.clientSlug).not.toBe(first.clientSlug);
+  });
+
+  it("does not use the reserved exports directory as a client slug", async () => {
+    const result = (await ipc._invoke("recon.create", {
+      clientName: "Exports",
+      url: "https://exports.example.com",
+      accessMode: "rfp",
+    })) as { clientSlug: string; engagementDir: string };
+
+    expect(result.clientSlug).toBe("client-2f4dcf59");
+    expect(path.basename(result.engagementDir)).not.toBe("exports");
   });
 });
 
@@ -605,6 +656,12 @@ describe("recon.scan", () => {
     }
   });
 
+  it("rejects the engagement root itself as an engagementDir", async () => {
+    await expect(
+      ipc._invoke("recon.scan", { engagementDir: tmpRoot }),
+    ).rejects.toThrow("engagementDir must be under");
+  });
+
   it("uses the default recon engagement root when no runtime root is injected", async () => {
     const defaultRoot = path.join(os.homedir(), "Documents", "joyus-recon-engagements");
     expect(defaultRoot).toBe(FAKE_DEFAULT_ROOT);
@@ -665,6 +722,14 @@ describe("recon.export", () => {
     await expect(ipc._invoke("recon.export", {})).rejects.toThrow(
       "missing required field: engagementDir",
     );
+  });
+
+  it("rejects the engagement root itself as an engagementDir", async () => {
+    await expect(
+      ipc._invoke("recon.export", { engagementDir: tmpRoot }),
+    ).rejects.toThrow("engagementDir must be under");
+    // The scan must not have been started for a rejected directory.
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 
   it("returns blocked: true when scan fails and overrideScan is falsy", async () => {
@@ -892,6 +957,77 @@ describe("recon.export", () => {
     expect(unzipOutput).not.toContain("external-secret.txt");
 
     removeTempDir(outsideRoot);
+  });
+
+  it("stores a file that does not compress, byte for byte", async () => {
+    // One byte deflates to three bytes, so the writer must store it raw.
+    await writeFile(path.join(engagementDir, "one.txt"), "x");
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt32LE(0)).toBe(0x04034b50); // local file header
+    expect(zip.readUInt16LE(8)).toBe(0);          // method: stored
+    expect(zip.readUInt32LE(18)).toBe(1);         // stored size
+    expect(zip.readUInt32LE(22)).toBe(1);         // original size
+    const nameLength = zip.readUInt16LE(26);
+    expect(zip.subarray(30, 30 + nameLength).toString("utf8")).toBe(
+      path.join("engagement", "one.txt"),
+    );
+    expect(zip.subarray(30 + nameLength, 30 + nameLength + 1).toString("utf8")).toBe("x");
+  });
+
+  it("deflates a file that compresses, and the entry inflates back to the original", async () => {
+    const content = "a".repeat(500);
+    await writeFile(path.join(engagementDir, "big.txt"), content);
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt16LE(8)).toBe(8); // method: deflate
+    const compressedSize = zip.readUInt32LE(18);
+    expect(compressedSize).toBeLessThan(500);
+    expect(zip.readUInt32LE(22)).toBe(500); // original size
+    // The stored checksum is the CRC-32 of the original bytes.
+    expect(zip.readUInt32LE(14)).toBe(crc32(Buffer.from(content, "utf8")));
+    // The compressed bytes must inflate back to exactly what was written.
+    const nameLength = zip.readUInt16LE(26);
+    const dataStart = 30 + nameLength;
+    const compressed = zip.subarray(dataStart, dataStart + compressedSize);
+    expect(inflateRawSync(compressed).toString("utf8")).toBe(content);
+  });
+
+  it("stores an empty file as a zero-length entry", async () => {
+    await writeFile(path.join(engagementDir, "empty.txt"), "");
+
+    const fakeChild = makeFakeChild();
+    spawnMock.mockReturnValueOnce(fakeChild as unknown as ReturnType<SpawnFn>);
+
+    const exportPromise = ipc._invoke("recon.export", { engagementDir });
+    await waitForSpawn(spawnMock);
+    resolveCleanChild(fakeChild);
+    const result = (await exportPromise) as { zipPath: string };
+
+    const zip = await readFile(result.zipPath);
+    expect(zip.readUInt16LE(8)).toBe(0);  // method: stored
+    expect(zip.readUInt32LE(18)).toBe(0); // stored size
+    expect(zip.readUInt32LE(22)).toBe(0); // original size
+    // End-of-archive record is the last 22 bytes; total entries at offset 10.
+    const eocd = zip.subarray(zip.length - 22);
+    expect(eocd.readUInt32LE(0)).toBe(0x06054b50);
+    expect(eocd.readUInt16LE(10)).toBe(1);
   });
 });
 
