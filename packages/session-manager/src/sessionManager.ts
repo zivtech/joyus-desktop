@@ -42,6 +42,8 @@ function todayString(): string {
 export class SessionManager {
   private readonly repoModes = new Map<string, OperatingMode>();
   private globalMode: OperatingMode = "managed";
+  /** Session ids whose first event is still creating a worktree and record. */
+  private readonly creating = new Map<string, Promise<void>>();
 
   constructor(
     private readonly store: TaskBranchStore,
@@ -49,15 +51,33 @@ export class SessionManager {
     private readonly detector: FileModificationDetector,
     private readonly execGit: ExecGit,
     private readonly staleDays: number = 14,
+    private readonly onError: (error: unknown) => void = (error) => {
+      console.error("[session-manager] failed to handle a file modification:", error);
+    },
   ) {
     detector.onModification((event) => {
-      void this.onFileModification(event);
+      // The sidecar treats an unhandled promise rejection as fatal. A failed
+      // event must be reported here, never left to reject on its own.
+      this.onFileModification(event).catch((error: unknown) => {
+        this.onError(error);
+      });
     });
   }
 
   async onFileModification(event: FileModificationEvent): Promise<void> {
     if (this.getMode(event.repoPath) === "advisory") {
       return;
+    }
+
+    // Events for a new session arrive in bursts. Wait for any creation that
+    // is already running for this session, so that exactly one worktree and
+    // one record are created.
+    let inFlight = this.creating.get(event.sessionId);
+    while (inFlight !== undefined) {
+      // The event that owns the creation reports its own failure. A waiting
+      // event only needs to know that it has finished.
+      await inFlight.catch(() => undefined);
+      inFlight = this.creating.get(event.sessionId);
     }
 
     const existing = this.store.findBySessionId(event.sessionId);
@@ -69,6 +89,16 @@ export class SessionManager {
       return;
     }
 
+    const creation = this.createSession(event);
+    this.creating.set(event.sessionId, creation);
+    try {
+      await creation;
+    } finally {
+      this.creating.delete(event.sessionId);
+    }
+  }
+
+  private async createSession(event: FileModificationEvent): Promise<void> {
     const missionLabel = inferMissionLabel([event.filePath]);
     const missionSlug = missionLabel.replace(/^\d{4}-\d{2}-\d{2}-/, "");
 
@@ -147,14 +177,28 @@ export class SessionManager {
       throw new SessionNotFoundError(taskBranchId);
     }
 
-    if (!opts.force) {
-      const hasChanges = await this.hasUncommittedChanges(taskBranchId);
+    // A session whose worktree was never created has nothing to check.
+    if (!opts.force && branch.worktreePath !== "") {
+      let hasChanges = false;
+      try {
+        hasChanges = await this.hasUncommittedChanges(taskBranchId);
+      } catch {
+        // The check could not run, for example because the worktree folder
+        // was deleted by hand. Git decides below: without --force it refuses
+        // a worktree with modified or untracked files.
+      }
       if (hasChanges) {
         throw new UncommittedChangesError(taskBranchId);
       }
     }
 
-    await this.worktreeManager.removeWorktree(branch.worktreePath);
+    // The caller's choice is passed on: without force, git itself refuses to
+    // remove a worktree with modified or untracked files, which also covers a
+    // change made after the check above. If removal fails, this throws and the
+    // session is not marked deleted.
+    await this.worktreeManager.removeWorktree(branch.worktreePath, branch.repoPath, {
+      force: opts.force,
+    });
     this.store.softDelete(taskBranchId);
     this.detector.stopPolling(branch.sessionId);
   }
@@ -200,6 +244,7 @@ export interface SessionManagerDeps {
   readonly detector: FileModificationDetector;
   readonly execGit: ExecGit;
   readonly staleDays?: number;
+  readonly onError?: (error: unknown) => void;
 }
 
 export function createSessionManager(deps: SessionManagerDeps): SessionManager {
@@ -209,5 +254,6 @@ export function createSessionManager(deps: SessionManagerDeps): SessionManager {
     deps.detector,
     deps.execGit,
     deps.staleDays,
+    deps.onError,
   );
 }

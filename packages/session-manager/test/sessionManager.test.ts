@@ -12,6 +12,7 @@ import type {
   TaskBranchStore,
 } from "../src/taskBranchStore.js";
 import type { WorktreeManager } from "../src/worktreeManager.js";
+import { createWorktreeManager } from "../src/worktreeManager.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -202,6 +203,78 @@ describe("SessionManager", () => {
       expect(store.create).toHaveBeenCalled();
       expect(store.updateStatus).toHaveBeenCalledWith(brokenBranch.id, "broken");
     });
+
+    it("creates one worktree and one record when two events arrive together", async () => {
+      let created: TaskBranch | undefined;
+      const store = makeStore({
+        findBySessionId: vi.fn(() => created),
+        create: vi.fn(() => {
+          created = makeBranch();
+          return created;
+        }),
+      });
+      let finishWorktree: (value: { worktreePath: string; branchName: string }) => void = () =>
+        undefined;
+      const worktreeManager = makeWorktreeManager({
+        createWorktree: vi.fn(
+          () =>
+            new Promise<{ worktreePath: string; branchName: string }>((resolve) => {
+              finishWorktree = resolve;
+            }),
+        ),
+      });
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+      const event = {
+        sessionId: "sess-burst",
+        repoPath: "/repo",
+        filePath: "/repo/src/foo.ts",
+        detectedAt: Date.now(),
+        source: "hook" as const,
+      };
+
+      const first = manager.onFileModification(event);
+      const second = manager.onFileModification({ ...event, filePath: "/repo/src/bar.ts" });
+      finishWorktree({ worktreePath: "/repo/.joyus-worktrees/x", branchName: "joyus/x" });
+      await Promise.all([first, second]);
+
+      expect(worktreeManager.createWorktree).toHaveBeenCalledOnce();
+      expect(store.create).toHaveBeenCalledOnce();
+      expect(store.updateActivity).toHaveBeenCalledOnce();
+    });
+
+    it("lets a waiting event retry when the first creation failed without a record", async () => {
+      let created: TaskBranch | undefined;
+      const create = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("disk full");
+        })
+        .mockImplementationOnce(() => {
+          created = makeBranch();
+          return created;
+        });
+      const store = makeStore({ findBySessionId: vi.fn(() => created), create });
+      const worktreeManager = makeWorktreeManager();
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+      const event = {
+        sessionId: "sess-retry",
+        repoPath: "/repo",
+        filePath: "/repo/src/foo.ts",
+        detectedAt: Date.now(),
+        source: "hook" as const,
+      };
+
+      const first = manager.onFileModification(event);
+      const second = manager.onFileModification(event);
+
+      await expect(first).rejects.toThrow("disk full");
+      await expect(second).resolves.toBeUndefined();
+      expect(create).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ─── resume ────────────────────────────────────────────────────────────
@@ -304,7 +377,11 @@ describe("SessionManager", () => {
         manager.delete(branch.id, { force: true }),
       ).resolves.not.toThrow();
 
-      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(branch.worktreePath);
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: true },
+      );
       expect(store.softDelete).toHaveBeenCalledWith(branch.id);
     });
 
@@ -319,6 +396,106 @@ describe("SessionManager", () => {
       await manager.delete(branch.id, { force: true });
 
       expect(stopPollingSpy).toHaveBeenCalledWith(branch.sessionId);
+    });
+
+    it("passes force:false through, so git can refuse a worktree that became dirty", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      const execGit = makeExecGit();
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: false },
+      );
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
+
+    it("keeps the session when the worktree cannot be removed", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      const worktreeManager = makeWorktreeManager({
+        removeWorktree: vi.fn().mockRejectedValue(new Error("worktree is locked")),
+      });
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const stopPollingSpy = vi.spyOn(detector, "stopPolling");
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await expect(manager.delete(branch.id, { force: true })).rejects.toThrow(
+        "worktree is locked",
+      );
+      expect(store.softDelete).not.toHaveBeenCalled();
+      expect(stopPollingSpy).not.toHaveBeenCalled();
+    });
+
+    it("keeps the session when both the removal and the check that follows it fail", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // The real worktree manager, with a git that fails every time: first
+      // "worktree remove", then "worktree list".
+      const execGit = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("remove failed"))
+        .mockRejectedValueOnce(new Error("list failed"));
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(
+        store,
+        createWorktreeManager(execGit),
+        detector,
+        execGit,
+      );
+
+      await expect(manager.delete(branch.id, { force: true })).rejects.toThrow("remove failed");
+      expect(execGit).toHaveBeenNthCalledWith(
+        1,
+        ["worktree", "remove", "--force", branch.worktreePath],
+        branch.repoPath,
+      );
+      expect(execGit).toHaveBeenNthCalledWith(2, ["worktree", "list", "--porcelain"], branch.repoPath);
+      expect(store.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("lets git decide when the uncommitted-changes check cannot run", async () => {
+      const branch = makeBranch();
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // The worktree folder was deleted by hand, so git cannot start in it.
+      const execGit = vi.fn().mockRejectedValue(new Error("spawn git ENOENT"));
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith(
+        branch.worktreePath,
+        branch.repoPath,
+        { force: false },
+      );
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
+    });
+
+    it("skips the uncommitted-changes check for a session that never had a worktree", async () => {
+      const branch = makeBranch({ worktreePath: "", branchName: "", status: "broken" });
+      const store = makeStore({ findById: vi.fn().mockReturnValue(branch) });
+      // This git would report changes if it were asked.
+      const execGit = makeExecGit("M file.ts");
+      const worktreeManager = makeWorktreeManager();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      const manager = new SessionManager(store, worktreeManager, detector, execGit);
+
+      await manager.delete(branch.id, { force: false });
+
+      expect(execGit).not.toHaveBeenCalled();
+      expect(worktreeManager.removeWorktree).toHaveBeenCalledWith("", branch.repoPath, {
+        force: false,
+      });
+      expect(store.softDelete).toHaveBeenCalledWith(branch.id);
     });
   });
 
@@ -452,6 +629,55 @@ describe("SessionManager", () => {
         expect.objectContaining({ sessionId: "sess-x", source: "hook" }),
       );
     });
+
+    it("reports a failed event through onError instead of an unhandled rejection", async () => {
+      const failure = new Error("store unavailable");
+      const store = makeStore({
+        findBySessionId: vi.fn(() => {
+          throw failure;
+        }),
+      });
+      const onError = vi.fn();
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      new SessionManager(store, makeWorktreeManager(), detector, execGit, 14, onError);
+
+      detector.handleIpcEvent({
+        sessionId: "sess-x",
+        repoPath: "/repo",
+        filePath: "/repo/x.ts",
+      });
+
+      await vi.waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(failure);
+      });
+    });
+
+    it("logs to stderr by default when no onError is given", async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const store = makeStore({
+        findBySessionId: vi.fn(() => {
+          throw new Error("store unavailable");
+        }),
+      });
+      const execGit = makeExecGit();
+      const detector = new FileModificationDetector(execGit, 10_000);
+      new SessionManager(store, makeWorktreeManager(), detector, execGit);
+
+      detector.handleIpcEvent({
+        sessionId: "sess-x",
+        repoPath: "/repo",
+        filePath: "/repo/x.ts",
+      });
+
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[session-manager] failed to handle a file modification:",
+          expect.any(Error),
+        );
+      });
+      consoleError.mockRestore();
+    });
   });
 });
 
@@ -488,5 +714,31 @@ describe("createSessionManager", () => {
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
     expect(callArg).toBeLessThanOrEqual(before - threeDaysMs + 100);
     expect(callArg).toBeGreaterThanOrEqual(after - threeDaysMs - 100);
+  });
+
+  it("passes onError through to the manager", async () => {
+    const failure = new Error("store unavailable");
+    const store = makeStore({
+      findBySessionId: vi.fn(() => {
+        throw failure;
+      }),
+    });
+    const onError = vi.fn();
+    const execGit = makeExecGit();
+    const detector = new FileModificationDetector(execGit, 10_000);
+    const manager = createSessionManager({
+      store,
+      worktreeManager: makeWorktreeManager(),
+      detector,
+      execGit,
+      onError,
+    });
+
+    detector.handleIpcEvent({ sessionId: "sess-x", repoPath: "/repo", filePath: "/repo/x.ts" });
+
+    expect(manager).toBeInstanceOf(SessionManager);
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(failure);
+    });
   });
 });

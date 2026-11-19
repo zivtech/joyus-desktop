@@ -521,6 +521,19 @@ describe("detectMerged", () => {
   let store: TaskBranchStore;
   let dbPath: string;
 
+  /** A git that answers `branch --merged` with one text and `reflog show` with another. */
+  function gitWith(branchList: string, reflogSubjects: string): ExecGit {
+    return vi.fn(async (args: string[]) => ({
+      stdout: args[0] === "reflog" ? reflogSubjects : branchList,
+      stderr: "",
+    }));
+  }
+
+  // Every reflog subject in this block is copied from what git 2.50.1 printed
+  // in a throwaway repository.
+  const CREATED = "branch: Created from HEAD\n";
+  const COMMITTED = `commit: add feature\n${CREATED}`;
+
   beforeEach(() => {
     dbPath = makeTmpDbPath();
     store = openTaskBranchStore(dbPath);
@@ -544,10 +557,7 @@ describe("detectMerged", () => {
       }),
     );
 
-    const execGit: ExecGit = vi.fn().mockResolvedValue({
-      stdout: "  main\n  joyus/2026-03-19-feature\n",
-      stderr: "",
-    });
+    const execGit = gitWith("  main\n  joyus/2026-03-19-feature\n", COMMITTED);
 
     await store.detectMerged(execGit);
 
@@ -604,15 +614,116 @@ describe("detectMerged", () => {
     );
     store.updateStatus(created.id, "stale");
 
-    const execGit: ExecGit = vi.fn().mockResolvedValue({
-      stdout: "  main\n  joyus/2026-03-19-stale-feat\n",
-      stderr: "",
-    });
+    const execGit = gitWith("  main\n  joyus/2026-03-19-stale-feat\n", COMMITTED);
 
     await store.detectMerged(execGit);
 
     const found = store.findBySessionId("sess-stale-merged");
     expect(found?.status).toBe("merged");
+  });
+
+  it("marks a branch that is checked out in another worktree", async () => {
+    store.create(
+      makeInput({
+        sessionId: "sess-worktree-merged",
+        branchName: "joyus/2026-03-19-feature",
+        repoPath: "/repo",
+      }),
+    );
+    const execGit = gitWith("* main\n+ joyus/2026-03-19-feature\n", COMMITTED);
+
+    await store.detectMerged(execGit);
+
+    expect(store.findBySessionId("sess-worktree-merged")?.status).toBe("merged");
+    expect(execGit).toHaveBeenCalledWith(
+      ["reflog", "show", "--format=%gs", "refs/heads/joyus/2026-03-19-feature"],
+      "/repo",
+    );
+  });
+
+  it("marks a branch whose only commit was amended", async () => {
+    store.create(
+      makeInput({
+        sessionId: "sess-amended",
+        branchName: "joyus/2026-03-19-amended",
+        repoPath: "/repo",
+      }),
+    );
+
+    await store.detectMerged(
+      gitWith("+ joyus/2026-03-19-amended\n", `commit (amend): reword\n${CREATED}`),
+    );
+
+    expect(store.findBySessionId("sess-amended")?.status).toBe("merged");
+  });
+
+  it("does not mark a new branch that has no commits of its own", async () => {
+    store.create(
+      makeInput({
+        sessionId: "sess-fresh",
+        branchName: "joyus/2026-03-19-fresh",
+        repoPath: "/repo",
+      }),
+    );
+
+    await store.detectMerged(gitWith("* main\n+ joyus/2026-03-19-fresh\n", CREATED));
+
+    expect(store.findBySessionId("sess-fresh")?.status).toBe("active");
+  });
+
+  it("does not mark a branch that only moved: fast-forward, rebase, reset, switch -C", async () => {
+    const movedOnly = [
+      "merge main: Fast-forward",
+      "pull -q --ff-only . main: Fast-forward",
+      "rebase (finish): refs/heads/joyus/2026-03-19-moved onto 795644e1f87eae4eb574c5beaee7104f31116c68",
+      "reset: moving to main",
+      "branch: Reset to main",
+      "cherry-pick: fast-forward",
+    ];
+
+    for (const [index, subject] of movedOnly.entries()) {
+      const sessionId = `sess-moved-${index}`;
+      const branchName = `joyus/2026-03-19-moved-${index}`;
+      store.create(makeInput({ sessionId, branchName, repoPath: "/repo" }));
+
+      await store.detectMerged(gitWith(`+ ${branchName}\n`, `${subject}\n${CREATED}`));
+
+      expect(store.findBySessionId(sessionId)?.status).toBe("active");
+    }
+  });
+
+  it("does not mark a branch whose reflog is empty", async () => {
+    store.create(
+      makeInput({
+        sessionId: "sess-no-reflog",
+        branchName: "joyus/2026-03-19-old",
+        repoPath: "/repo",
+      }),
+    );
+
+    await store.detectMerged(gitWith("+ joyus/2026-03-19-old\n", ""));
+
+    expect(store.findBySessionId("sess-no-reflog")?.status).toBe("active");
+  });
+
+  it("does not mark a branch when its reflog cannot be read", async () => {
+    store.create(
+      makeInput({
+        sessionId: "sess-reflog-error",
+        branchName: "joyus/2026-03-19-error",
+        repoPath: "/repo",
+      }),
+    );
+    const execGit: ExecGit = vi.fn(async (args: string[]) => {
+      if (args[0] === "reflog") {
+        throw new Error("fatal: ambiguous argument");
+      }
+      return { stdout: "+ joyus/2026-03-19-error\n", stderr: "" };
+    });
+
+    await expect(store.detectMerged(execGit)).resolves.toBeUndefined();
+
+    expect(store.findBySessionId("sess-reflog-error")?.status).toBe("active");
   });
 });
 
